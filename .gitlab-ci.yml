@@ -1,0 +1,70 @@
+image: rust:latest
+
+variables:
+  CARGO_TERM_COLOR: always
+
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - "**/*.rs"
+        - "**/*.graphql"
+        - "**/*.json"
+        - "**/Cargo.toml"
+        - Cargo.lock
+    - when: never
+  before_script:
+    - rm -rf ../meshql-rs ../merkql
+    - git clone http://oauth2:${LOCAL_GITLAB_TOKEN}@192.168.7.42:8929/tailoredshapes/meshql-rs.git ../meshql-rs
+    - git clone http://oauth2:${LOCAL_GITLAB_TOKEN}@192.168.7.42:8929/tailoredshapes/merkql.git ../merkql
+    - rustup component add clippy
+  script:
+    - cargo build --workspace
+    - cargo test --workspace -- --test-threads=1
+    - cargo clippy --workspace -- -D warnings
+  cache:
+    - key: "cargo-registry-v1"
+      paths:
+        - ~/.cargo/registry/
+        - ~/.cargo/git/
+      when: always
+    - key:
+        files: [Cargo.lock]
+        prefix: "manifold-ws"
+      paths: [target/]
+      when: always
+
+deploy:
+  stage: deploy
+  tags:
+    - shell
+  only:
+    - main
+  needs:
+    - build
+  script:
+    - cd /tank/repos/tailoredshapes/manifold
+    - git config --global --add safe.directory /tank/repos/tailoredshapes/manifold
+    - git fetch origin
+    - git checkout main
+    - git reset --hard origin/main
+    - docker compose down
+    - docker compose build
+    - docker compose up -d
+    - |
+      echo "Waiting for Groundwork to be ready..."
+      for i in $(seq 1 30); do
+        if curl -sf http://localhost:3050/health >/dev/null 2>&1; then
+          echo "Groundwork ready after ${i}s"
+          break
+        fi
+        sleep 1
+      done
+    - curl -sf http://localhost:3050/health | grep '"status":"ok"'
+    - echo "Deployed successfully"
