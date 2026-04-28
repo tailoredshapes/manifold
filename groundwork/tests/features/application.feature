@@ -5,7 +5,7 @@ Feature: Application CRUD
 
   Scenario: Register an application with just a name
     When I POST to "/application/api" with body {"name": "checkout-service"}
-    Then the response status should be 200
+    Then the response status should be 201
     And the response body should contain "checkout-service"
     And the response body should have an "id" field
 

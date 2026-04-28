@@ -17,11 +17,17 @@ tokio            = { workspace = true }
 serde_json       = { workspace = true }
 serde            = { workspace = true }
 anyhow           = { workspace = true }
+axum             = "0.7"
 
 [dev-dependencies]
-cucumber = "0.21"
-reqwest  = { version = "0.12", features = ["json"] }
-tokio    = { workspace = true }
+cucumber     = "0.21"
+reqwest      = { version = "0.12", features = ["json"] }
+tokio        = { workspace = true }
+chrono       = { version = "0.4", features = ["serde"] }
+meshql-sqlite = { path = "../../meshql-rs/meshql-sqlite" }
+meshql-server = { path = "../../meshql-rs/meshql-server" }
+meshql-core   = { path = "../../meshql-rs/meshql-core" }
+axum          = "0.7"
 
 [[test]]
 name = "groundwork_cert"
