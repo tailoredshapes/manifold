@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "repo_url": { "type": "string" },
+    "tech_stack": { "type": "string" },
+    "team": { "type": "string" }
+  },
+  "additionalProperties": true
+}

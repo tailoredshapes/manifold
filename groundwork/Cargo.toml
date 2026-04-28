@@ -12,6 +12,7 @@ meshql-server    = { path = "../../meshql-rs/meshql-server" }
 meshql-mongo     = { path = "../../meshql-rs/meshql-mongo", optional = true }
 meshql-merkql    = { path = "../../meshql-rs/meshql-merkql", optional = true }
 meshql-sqlite    = { path = "../../meshql-rs/meshql-sqlite", optional = true }
+sqlx             = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }
 tokio            = { workspace = true }
 serde_json       = { workspace = true }
 serde            = { workspace = true }

@@ -1,0 +1,13 @@
+type Application {
+    id: ID
+    name: String!
+    description: String
+    repo_url: String
+    tech_stack: String
+    team: String
+}
+type Query {
+    getById(id: ID, at: Float): Application
+    getAll(at: Float): [Application]
+    getByName(name: String, at: Float): [Application]
+}
