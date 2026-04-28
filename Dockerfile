@@ -38,7 +38,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 COPY --from=builder /build/manifold/target/release/groundwork /usr/local/bin/groundwork
 
-RUN useradd -m groundwork
+RUN useradd -m groundwork && mkdir /data && chown groundwork:groundwork /data
 USER groundwork
 
 VOLUME ["/data"]
