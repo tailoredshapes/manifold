@@ -1,0 +1,24 @@
+[package]
+name = "groundwork"
+version = "0.1.0"
+edition = "2021"
+description = "Service catalog for the Manifold suite — register applications, services, and dependencies"
+
+[dependencies]
+meshql-core      = { path = "../../meshql-rs/meshql-core" }
+meshql-graphlette = { path = "../../meshql-rs/meshql-graphlette" }
+meshql-restlette = { path = "../../meshql-rs/meshql-restlette" }
+meshql-server    = { path = "../../meshql-rs/meshql-server" }
+meshql-mongo     = { path = "../../meshql-rs/meshql-mongo", optional = true }
+meshql-merkql    = { path = "../../meshql-rs/meshql-merkql", optional = true }
+meshql-sqlite    = { path = "../../meshql-rs/meshql-sqlite", optional = true }
+tokio            = { workspace = true }
+serde_json       = { workspace = true }
+serde            = { workspace = true }
+anyhow           = { workspace = true }
+
+[features]
+default  = ["sqlite"]
+mongo    = ["dep:meshql-mongo"]
+merkql   = ["dep:meshql-merkql"]
+sqlite   = ["dep:meshql-sqlite"]
