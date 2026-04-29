@@ -1,0 +1,12 @@
+type TeamMember {
+    id: ID
+    person_id: String!
+    team_id: String!
+    role: String
+}
+type Query {
+    getById(id: ID, at: Float): TeamMember
+    getAll(at: Float): [TeamMember]
+    getByPersonId(person_id: String, at: Float): [TeamMember]
+    getByTeamId(team_id: String, at: Float): [TeamMember]
+}

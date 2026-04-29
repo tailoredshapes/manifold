@@ -1,0 +1,17 @@
+type WorkOrder {
+    id: ID
+    team_id: String!
+    summary: String!
+    deployable_id: String
+    change_request_id: String
+    status: String
+    priority: String
+}
+type Query {
+    getById(id: ID, at: Float): WorkOrder
+    getAll(at: Float): [WorkOrder]
+    getByTeamId(team_id: String, at: Float): [WorkOrder]
+    getByDeployableId(deployable_id: String, at: Float): [WorkOrder]
+    getByChangeRequestId(change_request_id: String, at: Float): [WorkOrder]
+    getByStatus(status: String, at: Float): [WorkOrder]
+}

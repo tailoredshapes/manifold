@@ -1,0 +1,43 @@
+[package]
+name = "cityhall"
+version = "0.1.0"
+edition = "2021"
+description = "Org hierarchy, governance bylaws, deployment plans, and Mermaid Gantt output for the Manifold suite"
+
+[dependencies]
+meshql-core      = { path = "../../meshql-rs/meshql-core" }
+meshql-graphlette = { path = "../../meshql-rs/meshql-graphlette" }
+meshql-restlette = { path = "../../meshql-rs/meshql-restlette" }
+meshql-server    = { path = "../../meshql-rs/meshql-server" }
+meshql-mongo     = { path = "../../meshql-rs/meshql-mongo", optional = true }
+meshql-merkql    = { path = "../../meshql-rs/meshql-merkql", optional = true }
+meshql-sqlite    = { path = "../../meshql-rs/meshql-sqlite", optional = true }
+sqlx             = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }
+tokio            = { workspace = true }
+serde_json       = { workspace = true }
+serde            = { workspace = true }
+anyhow           = { workspace = true }
+axum             = "0.7"
+chrono           = { version = "0.4", features = ["serde"] }
+reqwest          = { version = "0.12", features = ["json"] }
+
+[dev-dependencies]
+cucumber     = "0.21"
+reqwest      = { version = "0.12", features = ["json"] }
+tokio        = { workspace = true }
+chrono       = { version = "0.4", features = ["serde"] }
+meshql-sqlite = { path = "../../meshql-rs/meshql-sqlite" }
+meshql-server = { path = "../../meshql-rs/meshql-server" }
+meshql-core   = { path = "../../meshql-rs/meshql-core" }
+axum          = "0.7"
+
+[[test]]
+name = "cityhall_cert"
+path = "tests/cityhall_cert.rs"
+harness = false
+
+[features]
+default  = ["sqlite"]
+mongo    = ["dep:meshql-mongo"]
+merkql   = ["dep:meshql-merkql"]
+sqlite   = ["dep:meshql-sqlite"]

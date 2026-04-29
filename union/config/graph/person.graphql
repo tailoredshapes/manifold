@@ -1,0 +1,11 @@
+type Person {
+    id: ID
+    name: String!
+    contact: String
+    role: String
+}
+type Query {
+    getById(id: ID, at: Float): Person
+    getAll(at: Float): [Person]
+    getByName(name: String, at: Float): [Person]
+}

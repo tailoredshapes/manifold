@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "groundwork",
+    "union",
+    "cityhall",
 ]
 resolver = "2"
 

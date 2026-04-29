@@ -430,6 +430,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "cityhall"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "cucumber",
+ "meshql-core",
+ "meshql-graphlette",
+ "meshql-merkql",
+ "meshql-mongo",
+ "meshql-restlette",
+ "meshql-server",
+ "meshql-sqlite",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "clap"
 version = "4.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3828,6 +3850,28 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "union"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "cucumber",
+ "meshql-core",
+ "meshql-graphlette",
+ "meshql-merkql",
+ "meshql-mongo",
+ "meshql-restlette",
+ "meshql-server",
+ "meshql-sqlite",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tokio",
+]
 
 [[package]]
 name = "untrusted"

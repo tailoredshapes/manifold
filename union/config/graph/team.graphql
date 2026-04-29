@@ -1,0 +1,12 @@
+type Team {
+    id: ID
+    name: String!
+    kind: String!
+    description: String
+}
+type Query {
+    getById(id: ID, at: Float): Team
+    getAll(at: Float): [Team]
+    getByName(name: String, at: Float): [Team]
+    getByKind(kind: String, at: Float): [Team]
+}

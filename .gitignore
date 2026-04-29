@@ -6,3 +6,5 @@
 
 # dev-local SQLite databases
 groundwork/data/*.db
+union/data/*.db
+cityhall/data/*.db

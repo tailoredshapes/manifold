@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["team_id", "summary"],
+  "properties": {
+    "team_id":           { "type": "string" },
+    "summary":           { "type": "string" },
+    "deployable_id":     { "type": "string" },
+    "change_request_id": { "type": "string" },
+    "status":            { "type": "string", "enum": ["proposed", "in_progress", "blocked", "done", "cancelled"] },
+    "priority":          { "type": "string", "enum": ["low", "medium", "high", "urgent"] }
+  },
+  "additionalProperties": true
+}
