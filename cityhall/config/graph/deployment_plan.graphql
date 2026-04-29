@@ -1,0 +1,13 @@
+type DeploymentPlan {
+    id: ID
+    change_request_id: String!
+    tier: String
+    steps: String
+    blockers: String
+    computed_at: String
+}
+type Query {
+    getById(id: ID, at: Float): DeploymentPlan
+    getAll(at: Float): [DeploymentPlan]
+    getByChangeRequestId(change_request_id: String, at: Float): [DeploymentPlan]
+}

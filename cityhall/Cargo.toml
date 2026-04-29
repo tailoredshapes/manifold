@@ -4,6 +4,14 @@ version = "0.1.0"
 edition = "2021"
 description = "Org hierarchy, governance bylaws, deployment plans, and Mermaid Gantt output for the Manifold suite"
 
+[lib]
+name = "cityhall"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cityhall"
+path = "src/main.rs"
+
 [dependencies]
 meshql-core      = { path = "../../meshql-rs/meshql-core" }
 meshql-graphlette = { path = "../../meshql-rs/meshql-graphlette" }
@@ -20,6 +28,7 @@ anyhow           = { workspace = true }
 axum             = "0.7"
 chrono           = { version = "0.4", features = ["serde"] }
 reqwest          = { version = "0.12", features = ["json"] }
+async-trait      = "0.1"
 
 [dev-dependencies]
 cucumber     = "0.21"

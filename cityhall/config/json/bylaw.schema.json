@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["org_node_id", "gate_type"],
+  "properties": {
+    "org_node_id": { "type": "string" },
+    "gate_type":   { "type": "string", "enum": ["AutoGate", "ApprovalGate", "WindowGate", "QuiesceGate", "FreezePeriod"] },
+    "priority":    { "type": "string" },
+    "description": { "type": "string" },
+    "conditions":  { "type": "string" },
+    "window":      { "type": "string" },
+    "quiesce_for": { "type": "string" },
+    "approvers":   { "type": "string" }
+  },
+  "additionalProperties": true
+}

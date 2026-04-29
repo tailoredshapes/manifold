@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["change_request_id"],
+  "properties": {
+    "change_request_id": { "type": "string" },
+    "tier":              { "type": "string", "enum": ["dev", "integration", "uat", "prod"] },
+    "steps":             { "type": "string" },
+    "blockers":          { "type": "string" },
+    "computed_at":       { "type": "string" }
+  },
+  "additionalProperties": true
+}

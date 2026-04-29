@@ -1,0 +1,16 @@
+type ChangeRequest {
+    id: ID
+    summary: String!
+    description: String
+    target_deployables: String
+    target_versions: String
+    requested_by: String
+    tier: String
+    status: String
+}
+type Query {
+    getById(id: ID, at: Float): ChangeRequest
+    getAll(at: Float): [ChangeRequest]
+    getByStatus(status: String, at: Float): [ChangeRequest]
+    getByTier(tier: String, at: Float): [ChangeRequest]
+}

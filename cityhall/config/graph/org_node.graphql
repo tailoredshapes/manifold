@@ -1,0 +1,14 @@
+type OrgNode {
+    id: ID
+    name: String!
+    kind: String!
+    parent_id: String
+    team_id: String
+}
+type Query {
+    getById(id: ID, at: Float): OrgNode
+    getAll(at: Float): [OrgNode]
+    getByKind(kind: String, at: Float): [OrgNode]
+    getByParentId(parent_id: String, at: Float): [OrgNode]
+    getByTeamId(team_id: String, at: Float): [OrgNode]
+}

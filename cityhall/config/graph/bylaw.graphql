@@ -1,0 +1,17 @@
+type Bylaw {
+    id: ID
+    org_node_id: String!
+    gate_type: String!
+    priority: String
+    description: String
+    conditions: String
+    window: String
+    quiesce_for: String
+    approvers: String
+}
+type Query {
+    getById(id: ID, at: Float): Bylaw
+    getAll(at: Float): [Bylaw]
+    getByOrgNodeId(org_node_id: String, at: Float): [Bylaw]
+    getByGateType(gate_type: String, at: Float): [Bylaw]
+}

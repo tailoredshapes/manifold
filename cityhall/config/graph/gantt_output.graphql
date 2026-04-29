@@ -1,0 +1,11 @@
+type GanttOutput {
+    id: ID
+    deployment_plan_id: String!
+    tier: String
+    mermaid: String
+}
+type Query {
+    getById(id: ID, at: Float): GanttOutput
+    getAll(at: Float): [GanttOutput]
+    getByDeploymentPlanId(deployment_plan_id: String, at: Float): [GanttOutput]
+}
