@@ -1,3 +1,5 @@
+mod common;
+
 use axum::{
     extract::{Path, State},
     http::header,
@@ -5,6 +7,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use common::stub_union::{self, StubTeam, TeamRegistry};
 use cucumber::{given, then, when, World};
 use meshql_core::{GraphletteConfig, NoAuth, Repository, RootConfig, ServerConfig, Stash};
 use meshql_server::{ValidatorContext, ValidatorFn};
@@ -77,6 +80,7 @@ pub struct CityhallWorld {
     pub last_response_content_type: Option<String>,
     pub client: Client,
     pub last_two_bodies: Vec<String>,
+    pub union_teams: Option<TeamRegistry>,
 }
 
 impl Default for CityhallWorld {
@@ -89,6 +93,7 @@ impl Default for CityhallWorld {
             last_response_content_type: None,
             client: Client::new(),
             last_two_bodies: Vec::new(),
+            union_teams: None,
         }
     }
 }
@@ -245,12 +250,14 @@ struct AppState {
     groundwork: Arc<StubGroundwork>,
 }
 
-async fn build_test_server(stub: Arc<StubGroundwork>) -> String {
+async fn build_test_server(stub: Arc<StubGroundwork>) -> (String, TeamRegistry) {
     let org_node = make_entity().await;
     let bylaw_e = make_entity().await;
     let change_request = make_entity().await;
     let deployment_plan = make_entity().await;
     let gantt_output = make_entity().await;
+
+    let (union_url, team_registry) = stub_union::spawn().await;
 
     let org_node_root = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
@@ -258,6 +265,12 @@ async fn build_test_server(stub: Arc<StubGroundwork>) -> String {
         .vector("getByKind", r#"{"payload.kind": "{{kind}}"}"#)
         .vector("getByParentId", r#"{"payload.parent_id": "{{parent_id}}"}"#)
         .vector("getByTeamId", r#"{"payload.team_id": "{{team_id}}"}"#)
+        .singleton_resolver(
+            "team",
+            Some("team_id"),
+            "getById",
+            format!("{}/team/graph", union_url),
+        )
         .build();
     let bylaw_root = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
@@ -408,7 +421,7 @@ async fn build_test_server(stub: Arc<StubGroundwork>) -> String {
     tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    format!("http://127.0.0.1:{}", addr.port())
+    (format!("http://127.0.0.1:{}", addr.port()), team_registry)
 }
 
 // ── Custom-route handlers ───────────────────────────────────────────────────
@@ -659,10 +672,27 @@ async fn start_server(world: &mut CityhallWorld) {
     stub.put("dep-checkout", "checkout", Some("team-checkout"), vec!["dep-auth".into()]);
     stub.put("dep-auth", "auth", Some("team-auth"), vec![]);
     stub.put("dep-orphan", "orphan", None, vec![]);
-    let addr = build_test_server(stub).await;
+    let (addr, team_registry) = build_test_server(stub).await;
     world.server_addr = Some(addr);
+    world.union_teams = Some(team_registry);
     world.ids.clear();
     world.last_two_bodies.clear();
+}
+
+#[given(regex = r#"^the Union stub knows team "(.+)" as "(.+)" of kind "(.+)"$"#)]
+async fn union_stub_knows_team(
+    world: &mut CityhallWorld,
+    team_id: String,
+    name: String,
+    kind: String,
+) {
+    let reg = world.union_teams.as_ref().expect("Union stub not started");
+    reg.insert(StubTeam {
+        id: team_id,
+        name,
+        kind,
+        description: None,
+    });
 }
 
 #[given("I have built the standard hierarchy")]

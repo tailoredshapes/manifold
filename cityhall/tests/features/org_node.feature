@@ -30,3 +30,17 @@ Feature: OrgNode hierarchy
     Then there should be no GraphQL errors
     And the response data should contain "Checkout Team"
     And the response data should contain "Auth Team"
+
+  Scenario: Federated team field resolves to a Union team
+    Given I have built the standard hierarchy
+    And the Union stub knows team "team-checkout" as "checkout-team" of kind "product"
+    When I query the "org_node" graph with: { getById(id: "<ids.checkout>") { name team_id team { name kind } } }
+    Then there should be no GraphQL errors
+    And the response data should contain "checkout-team"
+    And the response data should contain "product"
+
+  Scenario: Federated team field is null on non-leaf nodes
+    Given I have built the standard hierarchy
+    When I query the "org_node" graph with: { getById(id: "<ids.acme>") { name team { id name } } }
+    Then there should be no GraphQL errors
+    And the response data should contain "Acme"

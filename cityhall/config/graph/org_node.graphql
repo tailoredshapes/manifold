@@ -4,6 +4,13 @@ type OrgNode {
     kind: String!
     parent_id: String
     team_id: String
+    team: Team
+}
+type Team {
+    id: ID
+    name: String
+    kind: String
+    description: String
 }
 type Query {
     getById(id: ID, at: Float): OrgNode
