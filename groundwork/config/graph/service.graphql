@@ -1,0 +1,12 @@
+type Service {
+    id: ID
+    name: String!
+    type: String
+    description: String
+    endpoint: String
+}
+type Query {
+    getById(id: ID, at: Float): Service
+    getAll(at: Float): [Service]
+    getByName(name: String, at: Float): [Service]
+}

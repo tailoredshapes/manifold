@@ -3,3 +3,6 @@
 .env
 .env.*
 !.env.example
+
+# dev-local SQLite databases
+groundwork/data/*.db

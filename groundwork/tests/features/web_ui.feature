@@ -14,8 +14,8 @@ Feature: Web UI static assets
     When I GET "/static/app.js"
     Then the response status should be 200
     And the response content-type should contain "javascript"
-    And the response body should contain "fetchApps"
-    And the response body should contain "registerApp"
+    And the response body should contain "loadEntity"
+    And the response body should contain "createRecord"
 
   Scenario: Health check endpoint
     When I GET "/health"

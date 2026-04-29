@@ -16,6 +16,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 const APPLICATION_GRAPHQL: &str = include_str!("../config/graph/application.graphql");
+const SERVICE_GRAPHQL: &str = include_str!("../config/graph/service.graphql");
+const DEPENDENCY_GRAPHQL: &str = include_str!("../config/graph/dependency.graphql");
+const CONTRACT_GRAPHQL: &str = include_str!("../config/graph/contract.graphql");
+const SLA_GRAPHQL: &str = include_str!("../config/graph/sla.graphql");
 const INDEX_HTML: &str = include_str!("../static/index.html");
 const APP_JS: &str = include_str!("../static/app.js");
 
@@ -43,7 +47,6 @@ async fn health_check() -> Response {
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
-/// Build a ValidatorFn from a JSON Schema that enforces required fields.
 fn make_required_validator(schema: &serde_json::Value) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
@@ -107,48 +110,152 @@ async fn main() -> anyhow::Result<()> {
     std::fs::create_dir_all(&data_dir)?;
 
     let application = make_entity(&data_dir, "application").await;
+    let service = make_entity(&data_dir, "service").await;
+    let dependency = make_entity(&data_dir, "dependency").await;
+    let contract = make_entity(&data_dir, "contract").await;
+    let sla = make_entity(&data_dir, "sla").await;
 
     let application_schema_json: serde_json::Value =
         serde_json::from_str(include_str!("../config/json/application.schema.json"))
             .expect("invalid application schema JSON");
+    let service_schema_json: serde_json::Value =
+        serde_json::from_str(include_str!("../config/json/service.schema.json"))
+            .expect("invalid service schema JSON");
+    let dependency_schema_json: serde_json::Value =
+        serde_json::from_str(include_str!("../config/json/dependency.schema.json"))
+            .expect("invalid dependency schema JSON");
+    let contract_schema_json: serde_json::Value =
+        serde_json::from_str(include_str!("../config/json/contract.schema.json"))
+            .expect("invalid contract schema JSON");
+    let sla_schema_json: serde_json::Value =
+        serde_json::from_str(include_str!("../config/json/sla.schema.json"))
+            .expect("invalid sla schema JSON");
 
-    // Graphlette via ServerConfig (federation resolver registry handled internally)
     let application_gql_config = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
         .build();
 
+    let service_gql_config = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .build();
+
+    let dependency_gql_config = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByApplicationId", r#"{"payload.application_id": "{{application_id}}"}"#)
+        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .build();
+
+    let contract_gql_config = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .build();
+
+    let sla_gql_config = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByContractId", r#"{"payload.contract_id": "{{contract_id}}"}"#)
+        .build();
+
     let config = ServerConfig {
         port,
-        graphlettes: vec![GraphletteConfig {
-            path: "/application/graph".into(),
-            schema_text: APPLICATION_GRAPHQL.into(),
-            root_config: application_gql_config,
-            searcher: application.searcher,
-        }],
-        restlettes: vec![], // built manually below to wire in JSON Schema validation
+        graphlettes: vec![
+            GraphletteConfig {
+                path: "/application/graph".into(),
+                schema_text: APPLICATION_GRAPHQL.into(),
+                root_config: application_gql_config,
+                searcher: application.searcher,
+            },
+            GraphletteConfig {
+                path: "/service/graph".into(),
+                schema_text: SERVICE_GRAPHQL.into(),
+                root_config: service_gql_config,
+                searcher: service.searcher,
+            },
+            GraphletteConfig {
+                path: "/dependency/graph".into(),
+                schema_text: DEPENDENCY_GRAPHQL.into(),
+                root_config: dependency_gql_config,
+                searcher: dependency.searcher,
+            },
+            GraphletteConfig {
+                path: "/contract/graph".into(),
+                schema_text: CONTRACT_GRAPHQL.into(),
+                root_config: contract_gql_config,
+                searcher: contract.searcher,
+            },
+            GraphletteConfig {
+                path: "/sla/graph".into(),
+                schema_text: SLA_GRAPHQL.into(),
+                root_config: sla_gql_config,
+                searcher: sla.searcher,
+            },
+        ],
+        restlettes: vec![],
     };
 
-    // Restlette with JSON Schema validation
-    let validator = make_required_validator(&application_schema_json);
     let auth = Arc::new(NoAuth);
-    let restlette = meshql_server::build_restlette_router_ext(
+
+    let application_restlette = meshql_server::build_restlette_router_ext(
         "/application/api",
         application.repo,
-        auth,
-        None,           // no field defaults
-        Some(validator),
-        None,           // no post-create side effect
+        auth.clone(),
+        None,
+        Some(make_required_validator(&application_schema_json)),
+        None,
+        None,
+    );
+    let service_restlette = meshql_server::build_restlette_router_ext(
+        "/service/api",
+        service.repo,
+        auth.clone(),
+        None,
+        Some(make_required_validator(&service_schema_json)),
+        None,
+        None,
+    );
+    let dependency_restlette = meshql_server::build_restlette_router_ext(
+        "/dependency/api",
+        dependency.repo,
+        auth.clone(),
+        None,
+        Some(make_required_validator(&dependency_schema_json)),
+        None,
+        None,
+    );
+    let contract_restlette = meshql_server::build_restlette_router_ext(
+        "/contract/api",
+        contract.repo,
+        auth.clone(),
+        None,
+        Some(make_required_validator(&contract_schema_json)),
+        None,
+        None,
+    );
+    let sla_restlette = meshql_server::build_restlette_router_ext(
+        "/sla/api",
+        sla.repo,
+        auth.clone(),
+        None,
+        Some(make_required_validator(&sla_schema_json)),
+        None,
         None,
     );
 
-    // Static UI + health check + validated restlette merged into extra
     let extra = Router::new()
         .route("/", get(serve_index))
         .route("/static/app.js", get(serve_app_js))
         .route("/health", get(health_check))
-        .merge(restlette);
+        .merge(application_restlette)
+        .merge(service_restlette)
+        .merge(dependency_restlette)
+        .merge(contract_restlette)
+        .merge(sla_restlette);
 
     meshql_server::run_ext(config, extra).await
 }

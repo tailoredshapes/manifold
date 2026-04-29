@@ -1,0 +1,12 @@
+type Contract {
+    id: ID
+    service_id: String!
+    spec_url: String
+    version: String
+    format: String
+}
+type Query {
+    getById(id: ID, at: Float): Contract
+    getAll(at: Float): [Contract]
+    getByServiceId(service_id: String, at: Float): [Contract]
+}

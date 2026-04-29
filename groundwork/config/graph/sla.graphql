@@ -1,0 +1,12 @@
+type Sla {
+    id: ID
+    contract_id: String!
+    metric: String
+    target: String
+    window: String
+}
+type Query {
+    getById(id: ID, at: Float): Sla
+    getAll(at: Float): [Sla]
+    getByContractId(contract_id: String, at: Float): [Sla]
+}

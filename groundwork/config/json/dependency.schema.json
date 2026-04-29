@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["application_id", "service_id"],
+  "properties": {
+    "application_id": { "type": "string" },
+    "service_id": { "type": "string" },
+    "protocol": { "type": "string" },
+    "auth_method": { "type": "string" },
+    "criticality": { "type": "string" }
+  },
+  "additionalProperties": true
+}
