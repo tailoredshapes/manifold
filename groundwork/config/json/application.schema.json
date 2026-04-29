@@ -6,7 +6,6 @@
     "name": { "type": "string" },
     "description": { "type": "string" },
     "repo_url": { "type": "string" },
-    "tech_stack": { "type": "string" },
     "team": { "type": "string" }
   },
   "additionalProperties": true

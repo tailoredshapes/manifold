@@ -3,7 +3,6 @@ type Application {
     name: String!
     description: String
     repo_url: String
-    tech_stack: String
     team: String
 }
 type Query {
