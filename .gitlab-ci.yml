@@ -26,7 +26,7 @@ build:
     - rustup component add clippy
   script:
     - cargo build --workspace
-    - cargo test --workspace -- --test-threads=1
+    - cargo test --workspace
     - cargo clippy --workspace -- -D warnings
   cache:
     - key: "cargo-registry-v1"
