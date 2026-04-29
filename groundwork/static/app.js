@@ -11,13 +11,11 @@ const ENTITIES = {
       { name: 'name', label: 'name', type: 'text', required: true },
       { name: 'description', label: 'description', type: 'text', required: false },
       { name: 'repo_url', label: 'repo_url', type: 'text', required: false },
-      { name: 'team', label: 'team', type: 'text', required: false },
       { name: 'team_id', label: 'team_id (Union)', type: 'text', required: false },
     ],
     detailFields: [
       { name: 'description', label: 'description', type: 'textarea' },
       { name: 'repo_url', label: 'repo_url', type: 'text' },
-      { name: 'team', label: 'team', type: 'text' },
       { name: 'team_id', label: 'team_id', type: 'text' },
     ],
     primaryField: 'name',

@@ -1,4 +1,7 @@
+mod common;
+
 use axum::{http::header, response::IntoResponse, routing::get, Router};
+use common::stub_union::{self, StubTeam, TeamRegistry};
 use cucumber::{World, given, then, when};
 use meshql_core::{GraphletteConfig, NoAuth, RootConfig, ServerConfig, Stash};
 use meshql_server::{ValidatorContext, ValidatorFn};
@@ -26,6 +29,7 @@ pub struct GroundworkWorld {
     pub last_response_body: Option<String>,
     pub last_response_content_type: Option<String>,
     pub client: Client,
+    pub union_teams: Option<TeamRegistry>,
 }
 
 impl Default for GroundworkWorld {
@@ -38,6 +42,7 @@ impl Default for GroundworkWorld {
             last_response_body: None,
             last_response_content_type: None,
             client: Client::new(),
+            union_teams: None,
         }
     }
 }
@@ -115,7 +120,7 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
     })
 }
 
-async fn build_test_server() -> String {
+async fn build_test_server() -> (String, TeamRegistry) {
     let deployable = make_entity().await;
     let service = make_entity().await;
     let dependency = make_entity().await;
@@ -123,10 +128,18 @@ async fn build_test_server() -> String {
     let contract = make_entity().await;
     let sla = make_entity().await;
 
+    let (union_url, team_registry) = stub_union::spawn().await;
+
     let deployable_root = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .singleton_resolver(
+            "team",
+            Some("team_id"),
+            "getById",
+            format!("{}/team/graph", union_url),
+        )
         .build();
 
     let service_root = RootConfig::builder()
@@ -314,7 +327,7 @@ async fn build_test_server() -> String {
     tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    format!("http://127.0.0.1:{}", addr.port())
+    (format!("http://127.0.0.1:{}", addr.port()), team_registry)
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -374,10 +387,36 @@ async fn register_named_entity(
 
 #[given("a Groundwork server is running")]
 async fn start_server(world: &mut GroundworkWorld) {
-    let addr = build_test_server().await;
+    let (addr, team_registry) = build_test_server().await;
     world.server_addr = Some(addr);
+    world.union_teams = Some(team_registry);
     world.ids.clear();
     world.timestamps.clear();
+}
+
+#[given(regex = r#"^the Union stub knows team "(.+)" as "(.+)" of kind "(.+)"$"#)]
+async fn union_stub_knows_team(
+    world: &mut GroundworkWorld,
+    team_id: String,
+    name: String,
+    kind: String,
+) {
+    let reg = world
+        .union_teams
+        .as_ref()
+        .expect("Union stub not started — call 'a Groundwork server is running' first");
+    reg.insert(StubTeam {
+        id: team_id,
+        name,
+        kind,
+        description: None,
+    });
+}
+
+#[given(regex = r#"^the Union stub does not know team "(.+)"$"#)]
+async fn union_stub_forgets_team(world: &mut GroundworkWorld, team_id: String) {
+    let reg = world.union_teams.as_ref().expect("Union stub not started");
+    reg.forget(&team_id);
 }
 
 #[given(regex = r#"^I have registered deployable "(.+)"$"#)]

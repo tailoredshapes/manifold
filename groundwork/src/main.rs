@@ -107,6 +107,8 @@ async fn main() -> anyhow::Result<()> {
         .parse()
         .expect("PORT must be a valid u16");
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "./data".into());
+    let union_url =
+        std::env::var("UNION_URL").unwrap_or_else(|_| "http://localhost:3001".into());
 
     std::fs::create_dir_all(&data_dir)?;
 
@@ -140,6 +142,12 @@ async fn main() -> anyhow::Result<()> {
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .singleton_resolver(
+            "team",
+            Some("team_id"),
+            "getById",
+            format!("{}/team/graph", union_url),
+        )
         .build();
 
     let service_gql_config = RootConfig::builder()

@@ -3,8 +3,14 @@ type Deployable {
     name: String!
     description: String
     repo_url: String
-    team: String
     team_id: String
+    team: Team
+}
+type Team {
+    id: ID
+    name: String
+    kind: String
+    description: String
 }
 type Query {
     getById(id: ID, at: Float): Deployable

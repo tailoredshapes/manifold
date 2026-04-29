@@ -44,6 +44,30 @@ Feature: Deployable CRUD
     Then there should be no GraphQL errors
     And the response data should contain "team-abc-uuid"
 
+  Scenario: Federated team field resolves to a Union team
+    Given the Union stub knows team "team-payments-uuid" as "payments-team" of kind "product"
+    And I have registered deployable "checkout"
+    When I PUT "/deployable/api/<ids.checkout>" with body {"name": "checkout", "team_id": "team-payments-uuid"}
+    Then the response status should be 200
+    When I query the "deployable" graph with: { getById(id: "<ids.checkout>") { name team_id team { id name kind } } }
+    Then there should be no GraphQL errors
+    And the response data should contain "payments-team"
+    And the response data should contain "product"
+
+  Scenario: Federated team field is null when team_id is unset
+    Given I have registered deployable "no-team-yet"
+    When I query the "deployable" graph with: { getById(id: "<ids.no-team-yet>") { name team { id name } } }
+    Then there should be no GraphQL errors
+    And the response data should contain "no-team-yet"
+
+  Scenario: Federated team field is null when team_id points to an unknown team
+    Given the Union stub does not know team "ghost-team-uuid"
+    And I have registered deployable "phantom"
+    When I PUT "/deployable/api/<ids.phantom>" with body {"name": "phantom", "team_id": "ghost-team-uuid"}
+    And I query the "deployable" graph with: { getById(id: "<ids.phantom>") { name team { id name } } }
+    Then there should be no GraphQL errors
+    And the response data should contain "phantom"
+
   Scenario: Delete a deployable
     Given I have registered deployable "temp-service"
     When I DELETE "/deployable/api/<ids.temp-service>"
