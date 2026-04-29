@@ -13,6 +13,7 @@ use std::sync::Arc;
 const DEPLOYABLE_GRAPHQL: &str = include_str!("../config/graph/deployable.graphql");
 const SERVICE_GRAPHQL: &str = include_str!("../config/graph/service.graphql");
 const DEPENDENCY_GRAPHQL: &str = include_str!("../config/graph/dependency.graphql");
+const EXPOSES_GRAPHQL: &str = include_str!("../config/graph/exposes.graphql");
 const CONTRACT_GRAPHQL: &str = include_str!("../config/graph/contract.graphql");
 const SLA_GRAPHQL: &str = include_str!("../config/graph/sla.graphql");
 
@@ -118,6 +119,7 @@ async fn build_test_server() -> String {
     let deployable = make_entity().await;
     let service = make_entity().await;
     let dependency = make_entity().await;
+    let exposes = make_entity().await;
     let contract = make_entity().await;
     let sla = make_entity().await;
 
@@ -134,6 +136,19 @@ async fn build_test_server() -> String {
         .build();
 
     let dependency_root = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
+        .build();
+
+    let exposes_root = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector(
@@ -186,6 +201,12 @@ async fn build_test_server() -> String {
                 searcher: dependency.searcher.clone(),
             },
             GraphletteConfig {
+                path: "/exposes/graph".into(),
+                schema_text: EXPOSES_GRAPHQL.into(),
+                root_config: exposes_root,
+                searcher: exposes.searcher.clone(),
+            },
+            GraphletteConfig {
                 path: "/contract/graph".into(),
                 schema_text: CONTRACT_GRAPHQL.into(),
                 root_config: contract_root,
@@ -236,6 +257,17 @@ async fn build_test_server() -> String {
         None,
         None,
     );
+    let exposes_restlette = meshql_server::build_restlette_router_ext(
+        "/exposes/api",
+        exposes.repo,
+        auth.clone(),
+        None,
+        Some(validator_for(include_str!(
+            "../config/json/exposes.schema.json"
+        ))),
+        None,
+        None,
+    );
     let contract_restlette = meshql_server::build_restlette_router_ext(
         "/contract/api",
         contract.repo,
@@ -270,6 +302,7 @@ async fn build_test_server() -> String {
         .merge(deployable_restlette)
         .merge(service_restlette)
         .merge(dependency_restlette)
+        .merge(exposes_restlette)
         .merge(contract_restlette)
         .merge(sla_restlette);
 
@@ -497,6 +530,29 @@ async fn response_data_contains(world: &mut GroundworkWorld, expected: String) {
     assert!(
         body.contains(&resolved),
         "Expected response data to contain {resolved:?}\nGot: {body}"
+    );
+}
+
+#[then(regex = r"^the response data array should have (\d+) items$")]
+async fn response_data_array_has_items(world: &mut GroundworkWorld, expected: usize) {
+    let body = world.last_response_body.as_deref().unwrap_or("");
+    let parsed: Value = serde_json::from_str(body).expect("response not JSON");
+    let data = parsed
+        .get("data")
+        .and_then(|d| d.as_object())
+        .expect("response had no 'data' object");
+    // GraphQL responses have one query field under data, e.g. {"data": {"getByServiceId": [...]}}.
+    // Walk it once and assert the lone array's length.
+    let arr = data
+        .values()
+        .next()
+        .and_then(|v| v.as_array())
+        .unwrap_or_else(|| panic!("expected single array under data, got: {body}"));
+    assert_eq!(
+        arr.len(),
+        expected,
+        "Expected {expected} items in response data array, got {}",
+        arr.len()
     );
 }
 

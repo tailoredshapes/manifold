@@ -18,6 +18,7 @@ use std::sync::Arc;
 const DEPLOYABLE_GRAPHQL: &str = include_str!("../config/graph/deployable.graphql");
 const SERVICE_GRAPHQL: &str = include_str!("../config/graph/service.graphql");
 const DEPENDENCY_GRAPHQL: &str = include_str!("../config/graph/dependency.graphql");
+const EXPOSES_GRAPHQL: &str = include_str!("../config/graph/exposes.graphql");
 const CONTRACT_GRAPHQL: &str = include_str!("../config/graph/contract.graphql");
 const SLA_GRAPHQL: &str = include_str!("../config/graph/sla.graphql");
 const INDEX_HTML: &str = include_str!("../static/index.html");
@@ -112,6 +113,7 @@ async fn main() -> anyhow::Result<()> {
     let deployable = make_entity(&data_dir, "deployable").await;
     let service = make_entity(&data_dir, "service").await;
     let dependency = make_entity(&data_dir, "dependency").await;
+    let exposes = make_entity(&data_dir, "exposes").await;
     let contract = make_entity(&data_dir, "contract").await;
     let sla = make_entity(&data_dir, "sla").await;
 
@@ -124,6 +126,9 @@ async fn main() -> anyhow::Result<()> {
     let dependency_schema_json: serde_json::Value =
         serde_json::from_str(include_str!("../config/json/dependency.schema.json"))
             .expect("invalid dependency schema JSON");
+    let exposes_schema_json: serde_json::Value =
+        serde_json::from_str(include_str!("../config/json/exposes.schema.json"))
+            .expect("invalid exposes schema JSON");
     let contract_schema_json: serde_json::Value =
         serde_json::from_str(include_str!("../config/json/contract.schema.json"))
             .expect("invalid contract schema JSON");
@@ -144,6 +149,13 @@ async fn main() -> anyhow::Result<()> {
         .build();
 
     let dependency_gql_config = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
+        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .build();
+
+    let exposes_gql_config = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
@@ -182,6 +194,12 @@ async fn main() -> anyhow::Result<()> {
                 schema_text: DEPENDENCY_GRAPHQL.into(),
                 root_config: dependency_gql_config,
                 searcher: dependency.searcher,
+            },
+            GraphletteConfig {
+                path: "/exposes/graph".into(),
+                schema_text: EXPOSES_GRAPHQL.into(),
+                root_config: exposes_gql_config,
+                searcher: exposes.searcher,
             },
             GraphletteConfig {
                 path: "/contract/graph".into(),
@@ -228,6 +246,15 @@ async fn main() -> anyhow::Result<()> {
         None,
         None,
     );
+    let exposes_restlette = meshql_server::build_restlette_router_ext(
+        "/exposes/api",
+        exposes.repo,
+        auth.clone(),
+        None,
+        Some(make_required_validator(&exposes_schema_json)),
+        None,
+        None,
+    );
     let contract_restlette = meshql_server::build_restlette_router_ext(
         "/contract/api",
         contract.repo,
@@ -254,6 +281,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(deployable_restlette)
         .merge(service_restlette)
         .merge(dependency_restlette)
+        .merge(exposes_restlette)
         .merge(contract_restlette)
         .merge(sla_restlette);
 

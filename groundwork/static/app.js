@@ -44,6 +44,40 @@ const ENTITIES = {
     getRowBadge: null,
   },
 
+  exposes: {
+    api: '/exposes/api',
+    label: 'exposes',
+    newFields: [
+      { name: 'deployable_id', label: 'deployable', type: 'dynamic-select', required: true,
+        optionsFrom: (data) => data.deployables.map(d => ({ value: d.id, label: d.payload?.name || d.id })) },
+      { name: 'service_id', label: 'service', type: 'dynamic-select', required: true,
+        optionsFrom: (data) => data.services.map(s => ({ value: s.id, label: s.payload?.name || s.id })) },
+      { name: 'port', label: 'port', type: 'text', required: false },
+      { name: 'protocol', label: 'protocol', type: 'select', required: false,
+        options: ['', 'http', 'https', 'grpc', 'tcp', 'udp', 'other'] },
+    ],
+    detailFields: [
+      { name: 'port', label: 'port', type: 'text' },
+      { name: 'protocol', label: 'protocol', type: 'select',
+        options: ['', 'http', 'https', 'grpc', 'tcp', 'udp', 'other'] },
+    ],
+    primaryField: 'deployable_id',
+    getRowLabel: (payload, data) => {
+      const dep = data.deployables.find(d => d.id === payload.deployable_id)?.payload?.name
+        || payload.deployable_id || '?';
+      const svc = data.services.find(s => s.id === payload.service_id)?.payload?.name
+        || payload.service_id || '?';
+      return `${dep} ⇒ ${svc}`;
+    },
+    getRowBadge: (payload) => payload.protocol || null,
+    readonlyInDetail: [
+      { name: 'deployable_id', label: 'deployable',
+        resolve: (payload, data) => data.deployables.find(d => d.id === payload.deployable_id)?.payload?.name || payload.deployable_id || '—' },
+      { name: 'service_id', label: 'service',
+        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.payload?.name || payload.service_id || '—' },
+    ],
+  },
+
   dependencies: {
     api: '/dependency/api',
     label: 'dependency',
@@ -156,7 +190,7 @@ const ENTITIES = {
 
 const state = {
   activeEntity: 'deployables',
-  data: { deployables: [], services: [], dependencies: [], contracts: [], slas: [] },
+  data: { deployables: [], exposes: [], services: [], dependencies: [], contracts: [], slas: [] },
   expandedId: null,
   filter: '',
   newFormOpen: false,

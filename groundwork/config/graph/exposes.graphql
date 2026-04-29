@@ -1,0 +1,13 @@
+type Exposes {
+    id: ID
+    deployable_id: String!
+    service_id: String!
+    port: String
+    protocol: String
+}
+type Query {
+    getById(id: ID, at: Float): Exposes
+    getAll(at: Float): [Exposes]
+    getByDeployableId(deployable_id: String, at: Float): [Exposes]
+    getByServiceId(service_id: String, at: Float): [Exposes]
+}
