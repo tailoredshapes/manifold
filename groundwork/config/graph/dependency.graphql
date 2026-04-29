@@ -1,6 +1,6 @@
 type Dependency {
     id: ID
-    application_id: String!
+    deployable_id: String!
     service_id: String!
     protocol: String
     auth_method: String
@@ -9,6 +9,6 @@ type Dependency {
 type Query {
     getById(id: ID, at: Float): Dependency
     getAll(at: Float): [Dependency]
-    getByApplicationId(application_id: String, at: Float): [Dependency]
+    getByDeployableId(deployable_id: String, at: Float): [Dependency]
     getByServiceId(service_id: String, at: Float): [Dependency]
 }

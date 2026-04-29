@@ -11,6 +11,10 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 const DEPLOYABLE_GRAPHQL: &str = include_str!("../config/graph/deployable.graphql");
+const SERVICE_GRAPHQL: &str = include_str!("../config/graph/service.graphql");
+const DEPENDENCY_GRAPHQL: &str = include_str!("../config/graph/dependency.graphql");
+const CONTRACT_GRAPHQL: &str = include_str!("../config/graph/contract.graphql");
+const SLA_GRAPHQL: &str = include_str!("../config/graph/sla.graphql");
 
 #[derive(Debug, World)]
 pub struct GroundworkWorld {
@@ -74,40 +78,29 @@ async fn make_pool() -> sqlx::SqlitePool {
         .unwrap()
 }
 
-async fn build_test_server() -> String {
+/// One entity's storage handles, kept around so the GraphletteConfig and
+/// the Restlette can each take ownership of one half.
+struct TestEntity {
+    repo: Arc<dyn meshql_core::Repository>,
+    searcher: Arc<dyn meshql_core::Searcher>,
+}
+
+async fn make_entity() -> TestEntity {
     let pool = make_pool().await;
     let repo = Arc::new(SqliteRepository::new_with_pool(pool.clone()).await.unwrap());
     let searcher: Arc<dyn meshql_core::Searcher> =
         Arc::new(SqliteSearcher::new_with_pool(pool).await.unwrap());
+    TestEntity { repo, searcher }
+}
 
-    let root_config = RootConfig::builder()
-        .singleton("getById", r#"{"id": "{{id}}"}"#)
-        .vector("getAll", "{}")
-        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
-        .build();
-
-    let schema_json: Value =
-        serde_json::from_str(include_str!("../config/json/deployable.schema.json")).unwrap();
-
-    let server_config = ServerConfig {
-        port: 0,
-        graphlettes: vec![GraphletteConfig {
-            path: "/deployable/graph".into(),
-            schema_text: DEPLOYABLE_GRAPHQL.into(),
-            root_config,
-            searcher,
-        }],
-        restlettes: vec![], // restlette with validation is in extra
-    };
-
-    // JSON Schema validator (same as main.rs)
-    let schema_for_validator = schema_json.clone();
-    let required: Vec<String> = schema_for_validator
+fn validator_for(schema_str: &str) -> ValidatorFn {
+    let schema: Value = serde_json::from_str(schema_str).expect("invalid schema");
+    let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
         .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
         .unwrap_or_default();
-    let validator: ValidatorFn = Arc::new(move |payload: &Stash, _ctx: &ValidatorContext| {
+    Arc::new(move |payload: &Stash, _ctx: &ValidatorContext| {
         for field in &required {
             match payload.get(field.as_str()) {
                 None => return Err(format!("Required field '{}' is missing", field)),
@@ -118,14 +111,150 @@ async fn build_test_server() -> String {
             }
         }
         Ok(())
-    });
+    })
+}
 
-    let restlette = meshql_server::build_restlette_router_ext(
+async fn build_test_server() -> String {
+    let deployable = make_entity().await;
+    let service = make_entity().await;
+    let dependency = make_entity().await;
+    let contract = make_entity().await;
+    let sla = make_entity().await;
+
+    let deployable_root = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .build();
+
+    let service_root = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .build();
+
+    let dependency_root = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
+        .build();
+
+    let contract_root = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
+        .build();
+
+    let sla_root = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector(
+            "getByContractId",
+            r#"{"payload.contract_id": "{{contract_id}}"}"#,
+        )
+        .build();
+
+    let server_config = ServerConfig {
+        port: 0,
+        graphlettes: vec![
+            GraphletteConfig {
+                path: "/deployable/graph".into(),
+                schema_text: DEPLOYABLE_GRAPHQL.into(),
+                root_config: deployable_root,
+                searcher: deployable.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/service/graph".into(),
+                schema_text: SERVICE_GRAPHQL.into(),
+                root_config: service_root,
+                searcher: service.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/dependency/graph".into(),
+                schema_text: DEPENDENCY_GRAPHQL.into(),
+                root_config: dependency_root,
+                searcher: dependency.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/contract/graph".into(),
+                schema_text: CONTRACT_GRAPHQL.into(),
+                root_config: contract_root,
+                searcher: contract.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/sla/graph".into(),
+                schema_text: SLA_GRAPHQL.into(),
+                root_config: sla_root,
+                searcher: sla.searcher.clone(),
+            },
+        ],
+        restlettes: vec![],
+    };
+
+    let auth = Arc::new(NoAuth);
+
+    let deployable_restlette = meshql_server::build_restlette_router_ext(
         "/deployable/api",
-        repo,
-        Arc::new(NoAuth),
+        deployable.repo,
+        auth.clone(),
         None,
-        Some(validator),
+        Some(validator_for(include_str!(
+            "../config/json/deployable.schema.json"
+        ))),
+        None,
+        None,
+    );
+    let service_restlette = meshql_server::build_restlette_router_ext(
+        "/service/api",
+        service.repo,
+        auth.clone(),
+        None,
+        Some(validator_for(include_str!(
+            "../config/json/service.schema.json"
+        ))),
+        None,
+        None,
+    );
+    let dependency_restlette = meshql_server::build_restlette_router_ext(
+        "/dependency/api",
+        dependency.repo,
+        auth.clone(),
+        None,
+        Some(validator_for(include_str!(
+            "../config/json/dependency.schema.json"
+        ))),
+        None,
+        None,
+    );
+    let contract_restlette = meshql_server::build_restlette_router_ext(
+        "/contract/api",
+        contract.repo,
+        auth.clone(),
+        None,
+        Some(validator_for(include_str!(
+            "../config/json/contract.schema.json"
+        ))),
+        None,
+        None,
+    );
+    let sla_restlette = meshql_server::build_restlette_router_ext(
+        "/sla/api",
+        sla.repo,
+        auth.clone(),
+        None,
+        Some(validator_for(include_str!(
+            "../config/json/sla.schema.json"
+        ))),
         None,
         None,
     );
@@ -138,7 +267,11 @@ async fn build_test_server() -> String {
         .route("/health", get(|| async {
             ([(header::CONTENT_TYPE, "application/json")], r#"{"status":"ok"}"#).into_response()
         }))
-        .merge(restlette);
+        .merge(deployable_restlette)
+        .merge(service_restlette)
+        .merge(dependency_restlette)
+        .merge(contract_restlette)
+        .merge(sla_restlette);
 
     let app = meshql_server::build_app_ext(server_config, extra)
         .await
@@ -174,7 +307,15 @@ async fn do_request(world: &mut GroundworkWorld, method: &str, path: &str, body:
 }
 
 async fn register_deployable_raw(world: &mut GroundworkWorld, name: &str) -> String {
-    let url = format!("{}/deployable/api", world.base_url());
+    register_named_entity(world, "deployable", name).await
+}
+
+async fn register_named_entity(
+    world: &mut GroundworkWorld,
+    entity_path: &str,
+    name: &str,
+) -> String {
+    let url = format!("{}/{entity_path}/api", world.base_url());
     let resp = world
         .client
         .post(&url)
@@ -186,7 +327,7 @@ async fn register_deployable_raw(world: &mut GroundworkWorld, name: &str) -> Str
     let text = resp.text().await.unwrap();
     assert!(
         status == 200 || status == 201,
-        "Register '{name}' failed ({status}): {text}"
+        "Register {entity_path} '{name}' failed ({status}): {text}"
     );
     let parsed: Value = serde_json::from_str(&text).expect("response not JSON");
     parsed
@@ -226,6 +367,12 @@ async fn register_many_deployables(world: &mut GroundworkWorld, step: &cucumber:
     }
 }
 
+#[given(regex = r#"^I have registered service "(.+)"$"#)]
+async fn register_one_service(world: &mut GroundworkWorld, name: String) {
+    let id = register_named_entity(world, "service", &name).await;
+    world.ids.insert(name, id);
+}
+
 #[given(regex = r#"^I capture the current timestamp as "(.+)"$"#)]
 async fn capture_timestamp(world: &mut GroundworkWorld, key: String) {
     // Sleep to ensure any prior operations have a strictly earlier timestamp
@@ -253,14 +400,16 @@ async fn http_get_delete(world: &mut GroundworkWorld, method: String, path: Stri
 #[when(regex = r#"^I POST to "(.+)" with body (.+)$"#)]
 async fn http_post(world: &mut GroundworkWorld, path: String, body_str: String) {
     let resolved_path = world.resolve(&path);
-    let body: Value = serde_json::from_str(&body_str).expect("invalid JSON body");
+    let resolved_body = world.resolve(&body_str);
+    let body: Value = serde_json::from_str(&resolved_body).expect("invalid JSON body");
     do_request(world, "POST", &resolved_path, Some(body)).await;
 }
 
 #[when(regex = r#"^I PUT "(.+)" with body (.+)$"#)]
 async fn http_put(world: &mut GroundworkWorld, path: String, body_str: String) {
     let resolved_path = world.resolve(&path);
-    let body: Value = serde_json::from_str(&body_str).expect("invalid JSON body");
+    let resolved_body = world.resolve(&body_str);
+    let body: Value = serde_json::from_str(&resolved_body).expect("invalid JSON body");
     do_request(world, "PUT", &resolved_path, Some(body)).await;
 }
 
@@ -284,10 +433,11 @@ async fn check_status(world: &mut GroundworkWorld, expected: u16) {
 
 #[then(regex = r#"^the response body should contain "(.+)"$"#)]
 async fn body_contains(world: &mut GroundworkWorld, expected: String) {
+    let resolved = world.resolve(&expected);
     let body = world.last_response_body.as_deref().unwrap_or("");
     assert!(
-        body.contains(&expected),
-        "Expected body to contain {expected:?}\nGot: {body}"
+        body.contains(&resolved),
+        "Expected body to contain {resolved:?}\nGot: {body}"
     );
 }
 
@@ -342,10 +492,11 @@ async fn no_graphql_errors(world: &mut GroundworkWorld) {
 
 #[then(regex = r#"^the response data should contain "(.+)"$"#)]
 async fn response_data_contains(world: &mut GroundworkWorld, expected: String) {
+    let resolved = world.resolve(&expected);
     let body = world.last_response_body.as_deref().unwrap_or("");
     assert!(
-        body.contains(&expected),
-        "Expected response data to contain {expected:?}\nGot: {body}"
+        body.contains(&resolved),
+        "Expected response data to contain {resolved:?}\nGot: {body}"
     );
 }
 

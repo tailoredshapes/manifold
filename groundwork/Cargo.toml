@@ -2,7 +2,7 @@
 name = "groundwork"
 version = "0.1.0"
 edition = "2021"
-description = "Service catalog for the Manifold suite — register applications, services, and dependencies"
+description = "Service catalog for the Manifold suite — register deployables, services, and what depends on what"
 
 [dependencies]
 meshql-core      = { path = "../../meshql-rs/meshql-core" }

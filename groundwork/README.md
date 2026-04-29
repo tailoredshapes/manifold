@@ -1,11 +1,11 @@
 # Groundwork
 
-The first application in the [Manifold](../) suite. Allows teams to register applications and their service dependencies. Start with just a name — enrich over time.
+The first service in the [Manifold](../) suite. Lets teams register the things they run, the interfaces those things expose, and what depends on what. Start with just a name — enrich over time.
 
 ## Philosophy
 
-- **Zero required fields beyond name** — just knowing an app exists is valuable
-- **Progressive enrichment** — depth grows with demand, never blocked by incompleteness  
+- **Zero required fields beyond name** — just knowing a deployable exists is valuable
+- **Progressive enrichment** — depth grows with demand, never blocked by incompleteness
 - **Audit not ownership** — who registered what, not who owns what
 - **Temporal history** — every change is versioned; query any entity as it was at any point in time
 
@@ -13,9 +13,10 @@ The first application in the [Manifold](../) suite. Allows teams to register app
 
 | Entity | Required | Optional |
 |--------|----------|---------|
-| Application | `name` | description, repo_url, tech_stack, team |
+| Deployable | `name` | description, repo_url, team |
 | Service | `name` | type, description, endpoint |
-| Dependency | `application_id`, `service_id` | protocol, auth_method, criticality |
+| Exposes | `deployable_id`, `service_id` | port, protocol |
+| Dependency | `deployable_id`, `service_id` | protocol, auth_method, criticality |
 | Contract | `service_id` | spec_url, version, format |
 | Sla | `contract_id` | metric, target, window |
 

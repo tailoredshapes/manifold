@@ -146,7 +146,7 @@ async fn main() -> anyhow::Result<()> {
     let dependency_gql_config = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByApplicationId", r#"{"payload.application_id": "{{application_id}}"}"#)
+        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
         .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
         .build();
 

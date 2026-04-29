@@ -372,7 +372,7 @@ async function saveRow(entityKey, id, li) {
     fields[el.name] = el.value.trim();
   });
 
-  // Preserve primary field from original record (e.g. name, application_id)
+  // Preserve primary field from original record (e.g. name, deployable_id)
   const original = state.data[entityKey].find(a => a.id === id);
   if (original) {
     const pf = cfg.primaryField;
