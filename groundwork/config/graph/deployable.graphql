@@ -4,6 +4,7 @@ type Deployable {
     description: String
     repo_url: String
     team: String
+    team_id: String
 }
 type Query {
     getById(id: ID, at: Float): Deployable

@@ -36,6 +36,14 @@ Feature: Deployable CRUD
     Then the response status should be 200
     And the response body should contain "Handles reports"
 
+  Scenario: Register a deployable with a team_id (federation key for Union)
+    When I POST to "/deployable/api" with body {"name": "billing", "team_id": "team-abc-uuid"}
+    Then the response status should be 201
+    And the response body should contain "team-abc-uuid"
+    When I query the "deployable" graph with: { getByName(name: "billing") { id name team_id } }
+    Then there should be no GraphQL errors
+    And the response data should contain "team-abc-uuid"
+
   Scenario: Delete a deployable
     Given I have registered deployable "temp-service"
     When I DELETE "/deployable/api/<ids.temp-service>"

@@ -6,7 +6,8 @@
     "name": { "type": "string" },
     "description": { "type": "string" },
     "repo_url": { "type": "string" },
-    "team": { "type": "string" }
+    "team": { "type": "string" },
+    "team_id": { "type": "string" }
   },
   "additionalProperties": true
 }
