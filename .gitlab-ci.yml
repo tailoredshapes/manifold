@@ -58,13 +58,17 @@ deploy:
     - docker compose build
     - docker compose up -d
     - |
-      echo "Waiting for Groundwork to be ready..."
-      for i in $(seq 1 30); do
-        if curl -sf http://localhost:3050/health >/dev/null 2>&1; then
-          echo "Groundwork ready after ${i}s"
-          break
-        fi
-        sleep 1
+      echo "Waiting for services to be ready..."
+      for svc in "Groundwork:3050" "Union:3051" "Cityhall:3052"; do
+        name=${svc%%:*}
+        port=${svc##*:}
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:${port}/health >/dev/null 2>&1; then
+            echo "${name} ready after ${i}s"
+            break
+          fi
+          sleep 1
+        done
+        curl -sf http://localhost:${port}/health | grep '"status":"ok"'
       done
-    - curl -sf http://localhost:3050/health | grep '"status":"ok"'
     - echo "Deployed successfully"
