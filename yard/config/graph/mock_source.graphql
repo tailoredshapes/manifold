@@ -1,0 +1,14 @@
+type MockSource {
+    id: ID
+    name: String!
+    repo_url: String
+    path: String
+    language: String
+    notes: String
+}
+type Query {
+    getById(id: ID, at: Float): MockSource
+    getAll(at: Float): [MockSource]
+    getByName(name: String, at: Float): [MockSource]
+    getByLanguage(language: String, at: Float): [MockSource]
+}

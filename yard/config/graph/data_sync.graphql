@@ -1,0 +1,34 @@
+type DataSync {
+    id: ID
+    kind: String!
+    target_env_id: String!
+    source_env_id: String
+    source_data_id: String
+    refresh_policy: String
+    estimated_minutes: String
+    notes: String
+    target_env: TestEnvironment
+    source_env: TestEnvironment
+    source_data: DataSource
+}
+type TestEnvironment {
+    id: ID
+    name: String
+    kind: String
+    deployable_id: String
+    cost_per_hour: String
+    spinup_minutes: String
+}
+type DataSource {
+    id: ID
+    name: String
+    kind: String
+    location: String
+}
+type Query {
+    getById(id: ID, at: Float): DataSync
+    getAll(at: Float): [DataSync]
+    getByKind(kind: String, at: Float): [DataSync]
+    getByTargetEnvId(target_env_id: String, at: Float): [DataSync]
+    getBySourceEnvId(source_env_id: String, at: Float): [DataSync]
+}

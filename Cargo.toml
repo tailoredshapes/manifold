@@ -3,6 +3,7 @@ members = [
     "groundwork",
     "union",
     "cityhall",
+    "yard",
 ]
 resolver = "2"
 

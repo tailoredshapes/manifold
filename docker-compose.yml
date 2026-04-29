@@ -57,8 +57,35 @@ services:
       - GROUNDWORK_URL=http://groundwork:3000
       - UNION_URL=http://union:3000
       - CITYHALL_URL=http://cityhall:3000
+      - YARD_URL=http://yard:3000
+
+  yard:
+    build:
+      context: /tank/repos/tailoredshapes
+      dockerfile: manifold/Dockerfile
+      target: runtime
+      args:
+        APP: yard
+    container_name: yard
+    restart: unless-stopped
+    depends_on:
+      - groundwork
+      - union
+      - cityhall
+    ports:
+      - "3053:3000"
+    volumes:
+      - yard-data:/data
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+      - GROUNDWORK_URL=http://groundwork:3000
+      - UNION_URL=http://union:3000
+      - CITYHALL_URL=http://cityhall:3000
+      - YARD_SELF_URL=http://yard:3000
 
 volumes:
   groundwork-data:
   union-data:
   cityhall-data:
+  yard-data:

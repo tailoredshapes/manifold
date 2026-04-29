@@ -1,0 +1,58 @@
+type TestEnvironment {
+    id: ID
+    name: String!
+    kind: String!
+    deployable_id: String
+    service_id: String
+    infrastructure_id: String
+    mock_source_id: String
+    cost_per_hour: String
+    spinup_minutes: String
+    teardown_policy: String
+    max_duration_minutes: String
+    concurrency_limit: String
+    rate_limit: String
+    contractual_limit: String
+    notes: String
+    deployable: Deployable
+    service: Service
+    infrastructure: TestInfrastructure
+    mock_source: MockSource
+}
+type Deployable {
+    id: ID
+    name: String
+    team_id: String
+    repo_url: String
+    description: String
+}
+type Service {
+    id: ID
+    name: String
+    type: String
+    description: String
+    endpoint: String
+}
+type TestInfrastructure {
+    id: ID
+    name: String
+    provider: String
+    region: String
+    instance_type: String
+    cost_per_hour: String
+}
+type MockSource {
+    id: ID
+    name: String
+    repo_url: String
+    path: String
+    language: String
+}
+type Query {
+    getById(id: ID, at: Float): TestEnvironment
+    getAll(at: Float): [TestEnvironment]
+    getByKind(kind: String, at: Float): [TestEnvironment]
+    getByDeployableId(deployable_id: String, at: Float): [TestEnvironment]
+    getByServiceId(service_id: String, at: Float): [TestEnvironment]
+    getByInfrastructureId(infrastructure_id: String, at: Float): [TestEnvironment]
+}

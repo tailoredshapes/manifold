@@ -1,0 +1,23 @@
+type TestSuite {
+    id: ID
+    name: String!
+    deployable_id: String
+    runner: String
+    command: String
+    description: String
+    deployable: Deployable
+}
+type Deployable {
+    id: ID
+    name: String
+    team_id: String
+    repo_url: String
+    description: String
+}
+type Query {
+    getById(id: ID, at: Float): TestSuite
+    getAll(at: Float): [TestSuite]
+    getByName(name: String, at: Float): [TestSuite]
+    getByDeployableId(deployable_id: String, at: Float): [TestSuite]
+    getByRunner(runner: String, at: Float): [TestSuite]
+}

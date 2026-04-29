@@ -3,440 +3,1001 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>cityhall</title>
+  <title>Cityhall — Planner</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+    /* ── Shared Manifold design tokens (Union, Cityhall, Yard) ──────────────── */
     :root {
-      --bg: #0d0d0d;
-      --bg2: #141414;
-      --bg3: #1c1c1c;
-      --border: #2a2a2a;
-      --accent: #4ade80;
-      --accent-dim: #16a34a;
-      --text: #e2e8f0;
-      --text-dim: #64748b;
-      --error: #f87171;
-      --font: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Courier New', monospace;
+      /* Colors */
+      --bg:          #f9fafb;
+      --surface:     #ffffff;
+      --text:        #111827;
+      --text-muted:  #6b7280;
+      --text-soft:   #9ca3af;
+      --muted:       #6b7280;
+      --border:      #e5e7eb;
+      --border-soft: #f3f4f6;
+      --border-strong: #d1d5db;
+      --ink:         #111827;
+      --ink-hover:   #1f2937;
+      --ink-soft:    #f3f4f6;
+      --ink-faint:   #e5e7eb;
+      --success:     #16a34a;
+      --success-soft: rgba(22, 163, 74, 0.10);
+      --warn:        #f59e0b;
+      --warn-soft:   rgba(245, 158, 11, 0.12);
+      --danger:      #dc2626;
+      --danger-soft: rgba(220, 38, 38, 0.10);
+      --row-stripe:  #f9fafb;
+      --row-hover:   #f3f4f6;
+
+      /* Typography */
+      --font: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", sans-serif;
+      --font-sans: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", sans-serif;
+      --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      --font-serif: "Iowan Old Style", "Palatino", Georgia, serif;
+
+      /* Shape */
+      --gutter: 24px;
+      --max-w: 1200px;
+      --radius: 8px;
+      --radius-sm: 6px;
+      --shadow-card: 0 1px 3px rgba(17,24,39,0.04);
+      --shadow-hover: 0 1px 2px rgba(0,0,0,0.05);
+
+      /* Motion */
+      --t: 120ms ease;
     }
 
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     html, body {
-      height: 100%;
       background: var(--bg);
       color: var(--text);
       font-family: var(--font);
-      font-size: 14px;
+      font-size: 15px;
       line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
     }
 
     body {
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
     }
 
-    header {
-      padding: 10px 20px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex-shrink: 0;
-      background: var(--bg2);
-    }
-
-    header h1 {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--accent);
-      letter-spacing: 0.05em;
-      white-space: nowrap;
-    }
-
-    #search {
-      flex: 1;
-      background: var(--bg3);
-      border: 1px solid var(--border);
+    a {
       color: var(--text);
-      font-family: var(--font);
-      font-size: 13px;
-      padding: 5px 10px;
-      outline: none;
-      border-radius: 3px;
+      text-decoration: underline;
+      text-decoration-color: var(--text-muted);
     }
+    a:hover { text-decoration-color: var(--text); }
 
-    #search:focus { border-color: var(--accent-dim); }
-    #search::placeholder { color: var(--text-dim); }
+    input::placeholder { color: var(--muted); }
 
-    #layout {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    /* ── Sidebar ── */
-    #sidebar {
-      width: 160px;
-      flex-shrink: 0;
-      border-right: 1px solid var(--border);
-      background: var(--bg2);
-      display: flex;
-      flex-direction: column;
-      padding: 8px 0;
-      overflow-y: auto;
-    }
-
-    .nav-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 14px;
-      cursor: pointer;
-      color: var(--text-dim);
-      font-size: 12px;
-      border-left: 2px solid transparent;
-      transition: color 0.1s, background 0.1s;
-      user-select: none;
-    }
-
-    .nav-item:hover {
-      color: var(--text);
-      background: var(--bg3);
-    }
-
-    .nav-item.active {
-      color: var(--accent);
-      border-left-color: var(--accent);
-      background: var(--bg3);
-    }
-
-    .nav-badge {
-      font-size: 10px;
-      color: var(--text-dim);
-      background: var(--bg);
-      padding: 1px 5px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      min-width: 20px;
-      text-align: center;
-    }
-
-    .nav-item.active .nav-badge {
-      border-color: var(--accent-dim);
-      color: var(--accent-dim);
-    }
-
-    /* ── Main content ── */
-    #content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-    }
-
-    #entity-list-area {
-      flex: 1;
-      overflow-y: auto;
-    }
-
-    /* ── New record form ── */
-    #new-form {
-      display: none;
-      padding: 12px 20px;
-      border-bottom: 1px solid var(--border);
-      background: var(--bg3);
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    #new-form.visible { display: flex; }
-
-    #new-form .form-title {
-      font-size: 11px;
-      color: var(--accent);
-      margin-bottom: 2px;
-    }
-
-    #new-form .form-fields {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    #new-form .field-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    #new-form .field-row label {
-      width: 120px;
-      flex-shrink: 0;
-      font-size: 11px;
-    }
-
-    #new-form .field-row label.required {
-      color: var(--accent);
-    }
-
-    #new-form .field-row label.optional {
-      color: var(--text-dim);
-    }
-
-    #new-form input, #new-form select, #new-form textarea {
-      flex: 1;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 12px;
-      padding: 4px 8px;
-      outline: none;
-      border-radius: 3px;
-    }
-
-    #new-form input.required-field, #new-form select.required-field {
-      border-color: var(--accent-dim);
-    }
-
-    #new-form input:focus, #new-form select:focus, #new-form textarea:focus {
-      border-color: var(--accent);
-    }
-
-    #new-form .form-hint {
-      font-size: 11px;
-      color: var(--text-dim);
-    }
-
-    /* ── Entity rows ── */
-    #entity-list {
-      list-style: none;
-    }
-
-    .entity-row {
+    /* ── Top bar ──────────────────────────────────────────────────────────── */
+    header.topbar {
+      background: var(--surface);
       border-bottom: 1px solid var(--border);
     }
 
-    .entity-row-header {
+    .topbar-inner {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 18px 24px;
       display: flex;
       align-items: center;
-      padding: 9px 20px;
-      cursor: pointer;
-      gap: 10px;
-      transition: background 0.1s;
+      gap: 24px;
     }
 
-    .entity-row-header:hover { background: var(--bg2); }
-
-    .entity-row.expanded .entity-row-header {
-      background: var(--bg2);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .expand-icon {
-      color: var(--text-dim);
-      font-size: 10px;
-      width: 10px;
-      flex-shrink: 0;
-    }
-
-    .entity-row.expanded .expand-icon::before { content: '▼'; }
-    .entity-row:not(.expanded) .expand-icon::before { content: '▶'; }
-
-    .entity-label {
-      flex: 1;
-      font-weight: 500;
-      font-size: 13px;
-    }
-
-    .entity-id {
-      color: var(--text-dim);
-      font-size: 10px;
-    }
-
-    .badge {
-      font-size: 10px;
-      padding: 1px 6px;
-      border-radius: 3px;
-      border: 1px solid var(--border);
-      color: var(--text-dim);
-    }
-
-    .badge.high { border-color: var(--error); color: var(--error); }
-    .badge.medium { border-color: #f59e0b; color: #f59e0b; }
-    .badge.low { border-color: var(--accent-dim); color: var(--accent-dim); }
-
-    /* ── Detail panel ── */
-    .entity-detail {
-      display: none;
-      padding: 14px 20px 14px 40px;
-      background: var(--bg2);
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .entity-row.expanded .entity-detail { display: flex; }
-
-    .field-row {
+    .brand {
       display: flex;
-      align-items: flex-start;
+      align-items: baseline;
       gap: 12px;
     }
 
-    .field-row label {
-      width: 120px;
-      flex-shrink: 0;
-      color: var(--text-dim);
+    .brand h1 {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .brand .subtitle {
       font-size: 11px;
-      padding-top: 5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
     }
 
-    .field-row input, .field-row select, .field-row textarea {
-      flex: 1;
-      background: var(--bg3);
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 12px;
-      padding: 4px 8px;
-      outline: none;
-      border-radius: 3px;
-      resize: vertical;
-    }
-
-    .field-row input:focus, .field-row select:focus, .field-row textarea:focus {
-      border-color: var(--accent-dim);
-    }
-
-    .field-row .readonly-val {
-      flex: 1;
-      font-size: 12px;
-      padding-top: 4px;
-      color: var(--text-dim);
-    }
-
-    .detail-actions {
+    nav.tabs {
       display: flex;
-      gap: 10px;
-      padding-top: 2px;
+      gap: 0;
+      margin-left: auto;
+      border-bottom: 1px solid var(--border);
     }
 
-    button {
+    nav.tabs button,
+    nav.tabs .tab {
       background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text);
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      padding: 10px 4px;
+      margin-right: 22px;
+      color: var(--text-muted);
       font-family: var(--font);
-      font-size: 12px;
-      padding: 4px 12px;
+      font-size: 14px;
+      font-weight: 500;
       cursor: pointer;
-      border-radius: 3px;
+      transition: color var(--t), border-color var(--t);
     }
 
-    button:hover {
-      border-color: var(--accent-dim);
-      color: var(--accent);
+    nav.tabs button:last-child,
+    nav.tabs .tab:last-child { margin-right: 0; }
+
+    nav.tabs button:hover,
+    nav.tabs .tab:hover {
+      color: var(--text);
+      background: transparent;
     }
 
-    button.primary {
-      border-color: var(--accent-dim);
-      color: var(--accent);
+    nav.tabs button.active,
+    nav.tabs .tab.active {
+      color: var(--text);
+      border-bottom-color: var(--ink);
+      background: transparent;
     }
 
-    button.primary:hover {
-      background: var(--accent-dim);
-      color: var(--bg);
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    main {
+      flex: 1;
+      max-width: var(--max-w);
+      margin: 0 auto;
+      width: 100%;
+      padding: var(--gutter);
     }
 
-    button.danger:hover {
-      border-color: var(--error);
-      color: var(--error);
+    .screen { display: none; flex-direction: column; gap: var(--gutter); }
+    .screen.active { display: flex; }
+
+    .screen-head {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
     }
 
-    /* ── Status bar ── */
-    #status-bar {
-      flex-shrink: 0;
-      padding: 4px 20px;
-      border-top: 1px solid var(--border);
-      background: var(--bg2);
+    .screen-head h1 {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+
+    .screen-head .lede {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .screen-head .actions { display: flex; gap: 8px; align-items: center; }
+
+    h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.005em; }
+
+    h3.section {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    /* ── Cards ─────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+    }
+    .card-body { padding: 20px; }
+    .card-head {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 11px;
-      color: var(--text-dim);
+      gap: 12px;
+    }
+    .card-head h2 { font-size: 16px; }
+    .card-foot {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      background: var(--row-stripe);
+      border-radius: 0 0 var(--radius) var(--radius);
     }
 
-    #status-bar .shortcuts {
-      display: flex;
+    /* ── Buttons ───────────────────────────────────────────────────────────── */
+    .btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background var(--t), box-shadow var(--t), border-color var(--t), color var(--t);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover {
+      background: var(--row-hover);
+      box-shadow: var(--shadow-hover);
+    }
+    .btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.15);
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; background: transparent; }
+    .btn.primary {
+      background: var(--ink);
+      border-color: var(--ink);
+      color: #fff;
+    }
+    .btn.primary:hover {
+      background: var(--ink-hover);
+      border-color: var(--ink-hover);
+      color: #fff;
+    }
+    .btn.danger { color: var(--danger); border-color: var(--border); }
+    .btn.danger:hover { background: #fef2f2; border-color: var(--danger); }
+    .btn.subtle {
+      border-color: transparent;
+      color: var(--muted);
+      padding: 4px 8px;
+    }
+    .btn.subtle:hover { background: var(--row-hover); color: var(--text); box-shadow: none; }
+    .btn.sm { font-size: 12px; padding: 4px 10px; }
+
+    /* ── Inputs ────────────────────────────────────────────────────────────── */
+    label.field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+      margin-bottom: 4px;
+    }
+    input[type="text"], input[type="search"], select, textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      outline: none;
+      transition: border-color var(--t), box-shadow var(--t);
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--ink);
+      box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.15);
+    }
+    textarea { resize: vertical; min-height: 72px; font-family: var(--font); }
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path fill='%236b7280' d='M3 4.5L6 7.5L9 4.5z'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 28px;
+    }
+
+    .field { margin-bottom: 14px; }
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
     }
+    .field-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-    #status-bar .shortcuts kbd { color: var(--accent); }
-    #status-error { color: var(--error); }
+    /* ── Badges / pills ────────────────────────────────────────────────────── */
+    .pill {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      background: var(--surface);
+      letter-spacing: 0.02em;
+      text-transform: lowercase;
+      white-space: nowrap;
+    }
+    .pill.primary { color: var(--ink); border-color: var(--ink); }
+    .pill.success { color: var(--success); border-color: var(--success); }
+    .pill.warn    { color: var(--warn); border-color: var(--warn); }
+    .pill.danger  { color: var(--danger); border-color: var(--danger); }
 
-    .empty-state {
-      padding: 40px 20px;
+    /* ── Tables ────────────────────────────────────────────────────────────── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    th, td {
+      text-align: left;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    th {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      background: var(--row-stripe);
+    }
+    tbody tr:nth-child(even) td { background: var(--row-stripe); }
+    tbody tr:hover td { background: var(--row-hover); }
+    tbody tr:last-child td { border-bottom: none; }
+
+    /* ── Org tree ──────────────────────────────────────────────────────────── */
+    .tree { padding: 4px 0; }
+    .tree-node { border-bottom: 1px solid var(--border); }
+    .tree-node:last-child { border-bottom: none; }
+    .tree-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background var(--t);
+    }
+    .tree-row:hover { background: var(--row-stripe); }
+    .tree-children { padding-left: 24px; border-left: 1px dashed var(--border); margin-left: 18px; }
+    .tree-toggle {
+      width: 16px;
+      color: var(--muted);
+      font-size: 10px;
+      flex-shrink: 0;
       text-align: center;
-      color: var(--text-dim);
+    }
+    .tree-name { flex: 1; font-weight: 500; }
+    .tree-team { font-size: 12px; color: var(--muted); }
+    .tree-effective {
+      padding: 8px 16px 14px 50px;
+      background: var(--row-stripe);
+      border-top: 1px solid var(--border);
+    }
+    .effective-list { display: flex; flex-direction: column; gap: 6px; }
+    .effective-item {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .effective-empty { color: var(--muted); font-size: 13px; font-style: italic; }
+
+    /* ── Stepper (no nested borders) ───────────────────────────────────────── */
+    .stepper {
+      display: flex;
+      gap: 8px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--row-stripe);
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .step {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: transparent;
+      transition: color var(--t);
+    }
+    .step .step-num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--ink-faint);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .step .step-label { font-size: 13px; color: var(--muted); }
+    .step.active .step-num { background: var(--ink); color: #fff; }
+    .step.active .step-label { color: var(--text); font-weight: 600; }
+    .step.done .step-num { background: var(--success); color: #fff; }
+    .step.done .step-label { color: var(--success); }
+
+    /* ── Chips (deployable inputs) ─────────────────────────────────────────── */
+    .chip-input {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 6px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      min-height: 40px;
+      align-items: center;
+    }
+    .chip-input:focus-within {
+      border-color: var(--ink);
+      box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.15);
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      background: var(--ink-soft);
+      color: var(--ink);
+      border-radius: 999px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+    .chip button {
+      background: transparent;
+      border: none;
+      color: var(--ink);
+      cursor: pointer;
+      padding: 0;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .chip-input input {
+      flex: 1;
+      min-width: 140px;
+      border: none;
+      padding: 4px 6px;
+      font-size: 13px;
+      background: transparent;
+    }
+    .chip-input input:focus { outline: none; box-shadow: none; }
+
+    /* ── Plan steps list ───────────────────────────────────────────────────── */
+    .plan-group { margin-bottom: 14px; }
+    .plan-group h4 {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+      font-family: var(--font-mono);
+    }
+    .plan-steps { display: flex; flex-direction: column; gap: 4px; }
+    .plan-step-item {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      padding: 6px 10px;
+      border-left: 2px solid var(--border);
+      font-size: 13px;
+    }
+    .plan-step-item .gate-name {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .plan-blockers {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: var(--danger-soft);
+      border-left: 3px solid var(--danger);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+    .plan-blockers h4 { color: var(--danger); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .plan-blockers ul { padding-left: 20px; font-size: 13px; color: var(--danger); }
+
+    /* ── Tier tabs (plans) — same underline treatment as top tabs ──────────── */
+    .tier-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .tier-tab {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      border-radius: 0;
+      padding: 10px 4px;
+      margin-right: 22px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color var(--t), border-color var(--t);
+    }
+    .tier-tab:hover { color: var(--text); }
+    .tier-tab.active {
+      color: var(--text);
+      border-bottom-color: var(--ink);
+    }
+    .tier-tab .tier-count {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--ink-soft);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .tier-tab.active .tier-count { background: var(--ink); color: #fff; }
+
+    /* ── Plan cards ────────────────────────────────────────────────────────── */
+    .plan-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-card);
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: box-shadow var(--t);
+    }
+    .plan-card:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+    .plan-card-head {
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      gap: 12px;
+    }
+    .plan-card-title { font-weight: 500; }
+    .plan-card-id { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+    .plan-card-body {
+      display: none;
+      padding: 18px;
+      border-top: 1px solid var(--border);
+      background: var(--row-stripe);
+    }
+    .plan-card.expanded .plan-card-body { display: block; }
+    .gantt-host {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 16px 0 0;
+      overflow-x: auto;
+    }
+    .gantt-host pre.mermaid {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      white-space: pre;
+      color: var(--muted);
     }
 
-    select option { background: var(--bg3); }
+    /* ── Status strip ──────────────────────────────────────────────────────── */
+    #status-strip {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      max-width: 360px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      font-size: 13px;
+      z-index: 100;
+      display: none;
+    }
+    #status-strip.visible { display: block; }
+    #status-strip.error {
+      background: var(--surface);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+    }
+    #status-strip.success {
+      background: var(--surface);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+    #status-strip.info {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    /* ── Editorial empty state ─────────────────────────────────────────────── */
+    .empty-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 48px 24px;
+      text-align: center;
+      max-width: 480px;
+      margin: 32px auto;
+    }
+    .empty-card .empty-mark {
+      display: block;
+      font-family: var(--font-serif);
+      font-size: 32px;
+      color: #9ca3af;
+      margin-bottom: 8px;
+    }
+    .empty-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .empty-card .lede {
+      font-family: var(--font-serif);
+      font-style: italic;
+      font-size: 16px;
+      line-height: 1.55;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    .empty-card .hint { font-size: 12px; color: var(--text-muted); }
+    .empty-card .hint kbd {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--text);
+    }
+
+    /* ── Misc ──────────────────────────────────────────────────────────────── */
+    .row { display: flex; gap: 12px; align-items: center; }
+    .row-end { justify-content: flex-end; }
+    .grow { flex: 1; }
+    .muted { color: var(--muted); }
+    .mono { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+    .hidden { display: none !important; }
+    .stack { display: flex; flex-direction: column; gap: 12px; }
+    .stack-sm { display: flex; flex-direction: column; gap: 6px; }
+
+    /* Bylaw row in table */
+    .priority-cell { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+
+    /* ── Footer keyboard hints ─────────────────────────────────────────────── */
+    footer.shortcuts {
+      max-width: var(--max-w);
+      margin: 0 auto;
+      width: 100%;
+      padding: 16px 24px 24px;
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+    footer.shortcuts kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+      font-size: 11px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--text);
+    }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>cityhall</h1>
-  <input id="search" type="text" placeholder="/ to search..." autocomplete="off" spellcheck="false" />
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <h1>Cityhall</h1>
+      <span class="subtitle">planner</span>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-screen="org" role="tab">Org</button>
+      <button class="tab" data-screen="changes" role="tab">Changes</button>
+      <button class="tab" data-screen="plans" role="tab">Plans</button>
+      <button class="tab" data-screen="bylaws" role="tab">Bylaws</button>
+    </nav>
+  </div>
 </header>
 
-<div id="layout">
-  <nav id="sidebar">
-    <div class="nav-item active" data-entity="orgNodes">
-      <span>org nodes</span>
-      <span class="nav-badge" id="badge-orgNodes">0</span>
-    </div>
-    <div class="nav-item" data-entity="bylaws">
-      <span>bylaws</span>
-      <span class="nav-badge" id="badge-bylaws">0</span>
-    </div>
-    <div class="nav-item" data-entity="changeRequests">
-      <span>change requests</span>
-      <span class="nav-badge" id="badge-changeRequests">0</span>
-    </div>
-    <div class="nav-item" data-entity="plans">
-      <span>plans</span>
-      <span class="nav-badge" id="badge-plans">0</span>
-    </div>
-    <div class="nav-item" data-entity="gantts">
-      <span>gantts</span>
-      <span class="nav-badge" id="badge-gantts">0</span>
-    </div>
-  </nav>
+<main>
 
-  <div id="content">
-    <div id="new-form">
-      <div class="form-title" id="new-form-title">new record</div>
-      <div class="form-fields" id="new-form-fields"></div>
-      <div class="form-hint">enter to save · esc to cancel</div>
+  <!-- ── ORG ─────────────────────────────────────────────────────────────── -->
+  <section class="screen active" id="screen-org">
+    <div class="screen-head">
+      <div>
+        <h1>Org hierarchy</h1>
+        <div class="lede">Enterprise → division → domain → product → team. Expand a node to view its effective bylaws.</div>
+      </div>
+      <div class="actions">
+        <input type="search" id="org-search" placeholder="Search nodes…" style="width: 260px;" />
+        <button class="btn primary" id="org-new">+ New node</button>
+      </div>
     </div>
-    <div id="entity-list-area">
-      <ul id="entity-list"></ul>
-    </div>
-  </div>
-</div>
 
-<div id="status-bar">
-  <span id="status-count">loading...</span>
-  <span id="status-error"></span>
-  <span class="shortcuts">
-    <span><kbd>/</kbd> search</span>
-    <span><kbd>n</kbd> new</span>
-    <span><kbd>esc</kbd> cancel</span>
-    <span><kbd>enter</kbd> save</span>
-  </span>
-</div>
+    <div class="card">
+      <div class="card-head">
+        <h3 class="section">Tree</h3>
+        <span class="muted" id="org-count" style="font-size: 12px;"></span>
+      </div>
+      <div id="org-tree" class="tree"></div>
+    </div>
+
+    <!-- Hidden new-node form (toggled into card) -->
+    <div class="card hidden" id="org-form-card">
+      <div class="card-head">
+        <h2>New org node</h2>
+        <button class="btn subtle" id="org-form-cancel">Cancel</button>
+      </div>
+      <div class="card-body">
+        <div class="field-grid">
+          <div>
+            <label class="field-label" for="org-f-name">Name</label>
+            <input type="text" id="org-f-name" />
+          </div>
+          <div>
+            <label class="field-label" for="org-f-kind">Kind</label>
+            <select id="org-f-kind">
+              <option value="enterprise">enterprise</option>
+              <option value="division">division</option>
+              <option value="domain">domain</option>
+              <option value="product">product</option>
+              <option value="team">team</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="org-f-parent">Parent</label>
+            <select id="org-f-parent"><option value="">— none —</option></select>
+          </div>
+          <div>
+            <label class="field-label" for="org-f-team">Team id (Union)</label>
+            <input type="text" id="org-f-team" placeholder="optional team id" />
+          </div>
+        </div>
+      </div>
+      <div class="card-foot">
+        <button class="btn" id="org-form-cancel-2">Cancel</button>
+        <button class="btn primary" id="org-form-save">Create node</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CHANGES (stepper) ──────────────────────────────────────────────── -->
+  <section class="screen" id="screen-changes">
+    <div class="screen-head">
+      <div>
+        <h1>Change requests</h1>
+        <div class="lede">Existing change requests below. Click <em>New</em> to start the four-step wizard.</div>
+      </div>
+      <div class="actions">
+        <input type="search" id="cr-search" placeholder="Search summary…" style="width: 260px;" />
+        <button class="btn primary" id="cr-new">+ New change request</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="cr-wizard">
+      <div class="stepper" id="cr-stepper">
+        <div class="step active" data-step="1"><span class="step-num">1</span><span class="step-label">Describe</span></div>
+        <div class="step" data-step="2"><span class="step-num">2</span><span class="step-label">Targets</span></div>
+        <div class="step" data-step="3"><span class="step-num">3</span><span class="step-label">Review gates</span></div>
+        <div class="step" data-step="4"><span class="step-num">4</span><span class="step-label">Submit</span></div>
+      </div>
+
+      <div class="card-body">
+        <!-- Step 1 -->
+        <div class="wizard-pane" data-pane="1">
+          <div class="field">
+            <label class="field-label" for="cr-summary">Summary</label>
+            <input type="text" id="cr-summary" placeholder="Short headline of the change" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="cr-description">Description</label>
+            <textarea id="cr-description" rows="4" placeholder="What is changing, why, and any operational notes."></textarea>
+          </div>
+          <div class="field-grid">
+            <div>
+              <label class="field-label" for="cr-tier">Target tier</label>
+              <select id="cr-tier">
+                <option value="dev">dev</option>
+                <option value="integration">integration</option>
+                <option value="uat">uat</option>
+                <option value="prod">prod</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label" for="cr-requested-by">Requested by (Person id)</label>
+              <input type="text" id="cr-requested-by" placeholder="optional" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div class="wizard-pane hidden" data-pane="2">
+          <div class="field">
+            <label class="field-label">Target deployables</label>
+            <div class="muted" style="font-size: 12px; margin-bottom: 6px;">Type a deployable id and press <kbd>Enter</kbd> to add. Click the <strong>×</strong> on a chip to remove.</div>
+            <div class="chip-input" id="cr-chip-input">
+              <input type="text" id="cr-chip-entry" placeholder="deployable-id…" autocomplete="off" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div class="wizard-pane hidden" data-pane="3">
+          <div class="row" style="margin-bottom: 12px;">
+            <h3 class="section grow">Computed gates</h3>
+            <button class="btn sm" id="cr-recompute">Recompute</button>
+          </div>
+          <div id="cr-plan-output" class="stack">
+            <div class="muted" style="font-size: 13px;">Computing plan…</div>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div class="wizard-pane hidden" data-pane="4">
+          <div class="stack">
+            <div>
+              <h3 class="section">Review</h3>
+              <div id="cr-summary-review" class="muted" style="font-size: 13px; margin-top: 8px;"></div>
+            </div>
+            <div class="muted" style="font-size: 13px;">
+              Submitting will set the change request status to <strong class="mono" style="color: var(--text);">submitted</strong> and surface it for approval routing.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-foot">
+        <button class="btn" id="cr-cancel">Cancel</button>
+        <span class="grow"></span>
+        <button class="btn" id="cr-back">Back</button>
+        <button class="btn primary" id="cr-next">Next</button>
+      </div>
+    </div>
+
+    <div class="card" id="cr-list-card">
+      <div class="card-head">
+        <h3 class="section">Existing</h3>
+        <span class="muted" id="cr-count" style="font-size: 12px;"></span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Summary</th>
+            <th style="width: 110px;">Tier</th>
+            <th style="width: 130px;">Status</th>
+            <th style="width: 160px;">Targets</th>
+            <th style="width: 80px;"></th>
+          </tr>
+        </thead>
+        <tbody id="cr-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ── PLANS ──────────────────────────────────────────────────────────── -->
+  <section class="screen" id="screen-plans">
+    <div class="screen-head">
+      <div>
+        <h1>Deployment plans</h1>
+        <div class="lede">Per-tier plan cards. Expand to render the Mermaid Gantt inline.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div class="tier-tabs" id="plan-tier-tabs">
+          <button class="tier-tab active" data-tier="dev">dev <span class="tier-count" data-count="dev">0</span></button>
+          <button class="tier-tab" data-tier="integration">integration <span class="tier-count" data-count="integration">0</span></button>
+          <button class="tier-tab" data-tier="uat">uat <span class="tier-count" data-count="uat">0</span></button>
+          <button class="tier-tab" data-tier="prod">prod <span class="tier-count" data-count="prod">0</span></button>
+        </div>
+        <div id="plan-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── BYLAWS ─────────────────────────────────────────────────────────── -->
+  <section class="screen" id="screen-bylaws">
+    <div class="screen-head">
+      <div>
+        <h1>Bylaw editor</h1>
+        <div class="lede">Pin gating policy to org nodes. Effective bylaws cascade down the tree by priority.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>New / edit bylaw</h2>
+      </div>
+      <div class="card-body">
+        <div class="field-grid">
+          <div>
+            <label class="field-label" for="bl-org">Org node</label>
+            <select id="bl-org"><option value="">— select —</option></select>
+          </div>
+          <div>
+            <label class="field-label" for="bl-gate">Gate type</label>
+            <select id="bl-gate">
+              <option value="AutoGate">AutoGate</option>
+              <option value="ApprovalGate">ApprovalGate</option>
+              <option value="WindowGate">WindowGate</option>
+              <option value="QuiesceGate">QuiesceGate</option>
+              <option value="FreezePeriod">FreezePeriod</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="bl-priority">Priority</label>
+            <input type="text" id="bl-priority" placeholder="e.g. 100" />
+          </div>
+          <div>
+            <label class="field-label" for="bl-desc">Description</label>
+            <input type="text" id="bl-desc" placeholder="Human-readable rationale" />
+          </div>
+
+          <div class="field-cond" data-cond="WindowGate FreezePeriod">
+            <label class="field-label" for="bl-window">Window <span class="muted">(required)</span></label>
+            <input type="text" id="bl-window" placeholder="e.g. Mon-Fri 09:00-17:00 UTC" />
+          </div>
+          <div class="field-cond" data-cond="QuiesceGate">
+            <label class="field-label" for="bl-quiesce">Quiesce for <span class="muted">(required)</span></label>
+            <input type="text" id="bl-quiesce" placeholder="e.g. 30m" />
+          </div>
+          <div class="field-cond" data-cond="ApprovalGate">
+            <label class="field-label" for="bl-approvers">Approvers <span class="muted">(required)</span></label>
+            <input type="text" id="bl-approvers" placeholder="comma-separated person ids" />
+          </div>
+          <div>
+            <label class="field-label" for="bl-conditions">Conditions (JSON)</label>
+            <input type="text" id="bl-conditions" placeholder='optional, e.g. {"region":"us-east"}' />
+          </div>
+        </div>
+      </div>
+      <div class="card-foot">
+        <button class="btn" id="bl-reset">Reset</button>
+        <button class="btn primary" id="bl-save">Save bylaw</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3 class="section">Bylaws on selected node</h3>
+        <span class="muted" id="bl-count" style="font-size: 12px;"></span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 90px; cursor: pointer;" data-sort="priority">Priority</th>
+            <th>Gate</th>
+            <th>Description</th>
+            <th>Detail</th>
+            <th style="width: 80px;"></th>
+          </tr>
+        </thead>
+        <tbody id="bl-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer class="shortcuts">
+  <span><kbd>/</kbd> search</span>
+  <span><kbd>n</kbd> new</span>
+  <span><kbd>esc</kbd> cancel</span>
+  <span id="footer-meta" style="margin-left:auto"></span>
+</footer>
+
+<div id="status-strip" role="status" aria-live="polite"></div>
 
 <script type="module" src="/static/app.js"></script>
 </body>

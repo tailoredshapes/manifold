@@ -20,15 +20,18 @@ COPY manifold/Cargo.toml  manifold/Cargo.lock* /build/manifold/
 COPY manifold/groundwork/Cargo.toml            /build/manifold/groundwork/Cargo.toml
 COPY manifold/union/Cargo.toml                 /build/manifold/union/Cargo.toml
 COPY manifold/cityhall/Cargo.toml              /build/manifold/cityhall/Cargo.toml
+COPY manifold/yard/Cargo.toml                  /build/manifold/yard/Cargo.toml
 
 WORKDIR /build/manifold
 
 # Dummy sources to cache dep builds
-RUN mkdir -p groundwork/src union/src cityhall/src \
+RUN mkdir -p groundwork/src union/src cityhall/src yard/src \
  && echo "fn main() {}" > groundwork/src/main.rs \
  && echo "fn main() {}" > union/src/main.rs \
  && echo "fn main() {}" > cityhall/src/main.rs \
- && echo "" > cityhall/src/lib.rs
+ && echo "" > cityhall/src/lib.rs \
+ && echo "fn main() {}" > yard/src/main.rs \
+ && echo "" > yard/src/lib.rs
 
 RUN cargo build --release --workspace 2>/dev/null; true
 
@@ -42,9 +45,12 @@ COPY manifold/union/static        /build/manifold/union/static
 COPY manifold/cityhall/src        /build/manifold/cityhall/src
 COPY manifold/cityhall/config     /build/manifold/cityhall/config
 COPY manifold/cityhall/static     /build/manifold/cityhall/static
+COPY manifold/yard/src            /build/manifold/yard/src
+COPY manifold/yard/config         /build/manifold/yard/config
+COPY manifold/yard/static         /build/manifold/yard/static
 
 # Force re-build of the real sources.
-RUN find groundwork/src union/src cityhall/src -name '*.rs' -exec touch {} +
+RUN find groundwork/src union/src cityhall/src yard/src -name '*.rs' -exec touch {} +
 
 ARG APP=groundwork
 RUN cargo build --release -p ${APP}

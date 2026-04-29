@@ -1,607 +1,1046 @@
-// cityhall — org hierarchy, bylaws, plans.
-// Vanilla JS ES module, no build step, no framework.
+// cityhall — planner frontend
+// Vanilla JS ES module. No build step.
 
-// ── Entity config ─────────────────────────────────────────────────────────────
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
-const ORG_KINDS = ['', 'enterprise', 'division', 'domain', 'product', 'team'];
-const GATE_TYPES = ['', 'AutoGate', 'ApprovalGate', 'WindowGate', 'QuiesceGate', 'FreezePeriod'];
-const TIERS = ['', 'dev', 'integration', 'uat', 'prod'];
-const CR_STATUSES = ['', 'draft', 'submitted', 'approved', 'rejected', 'deployed', 'rolled_back'];
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'neutral',
+  fontFamily: 'ui-sans-serif, system-ui, -apple-system, "SF Pro Text", Inter, sans-serif',
+  securityLevel: 'loose',
+});
 
-const ENTITIES = {
-  orgNodes: {
-    api: '/org_node/api',
-    label: 'org node',
-    newFields: [
-      { name: 'name', label: 'name', type: 'text', required: true },
-      { name: 'kind', label: 'kind', type: 'select', required: true, options: ORG_KINDS },
-      { name: 'parent_id', label: 'parent', type: 'dynamic-select', required: false,
-        optionsFrom: (data) => [{value: '', label: '— none —'}].concat(data.orgNodes.map(n => ({ value: n.id, label: `${n.payload?.name || n.id} (${n.payload?.kind || ''})` }))) },
-      { name: 'team_id', label: 'team_id', type: 'text', required: false },
-    ],
-    detailFields: [
-      { name: 'kind', label: 'kind', type: 'select', options: ORG_KINDS },
-      { name: 'parent_id', label: 'parent_id', type: 'text' },
-      { name: 'team_id', label: 'team_id', type: 'text' },
-    ],
-    primaryField: 'name',
-    getRowLabel: (payload) => `${payload.name || '?'} [${payload.kind || '?'}]`,
-    getRowBadge: (payload) => payload.kind || null,
-  },
+// ── Constants ─────────────────────────────────────────────────────────────────
 
-  bylaws: {
-    api: '/bylaw/api',
-    label: 'bylaw',
-    newFields: [
-      { name: 'org_node_id', label: 'org node', type: 'dynamic-select', required: true,
-        optionsFrom: (data) => data.orgNodes.map(n => ({ value: n.id, label: `${n.payload?.name || n.id} (${n.payload?.kind || ''})` })) },
-      { name: 'gate_type', label: 'gate', type: 'select', required: true, options: GATE_TYPES },
-      { name: 'priority', label: 'priority', type: 'text', required: false },
-      { name: 'description', label: 'description', type: 'text', required: false },
-      { name: 'window', label: 'window', type: 'text', required: false },
-      { name: 'quiesce_for', label: 'quiesce_for', type: 'text', required: false },
-      { name: 'approvers', label: 'approvers', type: 'text', required: false },
-      { name: 'conditions', label: 'conditions (JSON)', type: 'text', required: false },
-    ],
-    detailFields: [
-      { name: 'gate_type', label: 'gate_type', type: 'select', options: GATE_TYPES },
-      { name: 'priority', label: 'priority', type: 'text' },
-      { name: 'description', label: 'description', type: 'textarea' },
-      { name: 'window', label: 'window', type: 'text' },
-      { name: 'quiesce_for', label: 'quiesce_for', type: 'text' },
-      { name: 'approvers', label: 'approvers', type: 'text' },
-      { name: 'conditions', label: 'conditions', type: 'textarea' },
-    ],
-    primaryField: 'org_node_id',
-    getRowLabel: (payload, data) => {
-      const node = data.orgNodes.find(n => n.id === payload.org_node_id)?.payload?.name
-        || payload.org_node_id || '?';
-      return `${payload.gate_type || '?'} @ ${node}`;
-    },
-    getRowBadge: (payload) => payload.gate_type || null,
-    readonlyInDetail: [
-      { name: 'org_node_id', label: 'org node',
-        resolve: (payload, data) => data.orgNodes.find(n => n.id === payload.org_node_id)?.payload?.name || payload.org_node_id || '—' },
-    ],
-  },
+const ORG_KINDS  = ['enterprise', 'division', 'domain', 'product', 'team'];
+const GATE_TYPES = ['AutoGate', 'ApprovalGate', 'WindowGate', 'QuiesceGate', 'FreezePeriod'];
+const TIERS      = ['dev', 'integration', 'uat', 'prod'];
 
-  changeRequests: {
-    api: '/change_request/api',
-    label: 'change request',
-    newFields: [
-      { name: 'summary', label: 'summary', type: 'text', required: true },
-      { name: 'description', label: 'description', type: 'text', required: false },
-      { name: 'tier', label: 'tier', type: 'select', required: false, options: TIERS },
-      { name: 'status', label: 'status', type: 'select', required: false, options: CR_STATUSES },
-      { name: 'target_deployables', label: 'target_deployables (JSON array)', type: 'text', required: false },
-      { name: 'target_versions', label: 'target_versions (JSON object)', type: 'text', required: false },
-      { name: 'requested_by', label: 'requested_by (Person id)', type: 'text', required: false },
-    ],
-    detailFields: [
-      { name: 'summary', label: 'summary', type: 'textarea' },
-      { name: 'description', label: 'description', type: 'textarea' },
-      { name: 'tier', label: 'tier', type: 'select', options: TIERS },
-      { name: 'status', label: 'status', type: 'select', options: CR_STATUSES },
-      { name: 'target_deployables', label: 'target_deployables', type: 'textarea' },
-      { name: 'target_versions', label: 'target_versions', type: 'textarea' },
-      { name: 'requested_by', label: 'requested_by', type: 'text' },
-    ],
-    primaryField: 'summary',
-    getRowLabel: (payload) => `${payload.summary || '?'} [${payload.tier || '?'}]`,
-    getRowBadge: (payload) => payload.status || null,
-  },
-
-  plans: {
-    api: '/deployment_plan/api',
-    label: 'plan',
-    newFields: [
-      { name: 'change_request_id', label: 'change_request_id', type: 'text', required: true },
-      { name: 'tier', label: 'tier', type: 'select', required: false, options: TIERS },
-    ],
-    detailFields: [
-      { name: 'tier', label: 'tier', type: 'select', options: TIERS },
-      { name: 'steps', label: 'steps (JSON)', type: 'textarea' },
-      { name: 'blockers', label: 'blockers (JSON)', type: 'textarea' },
-      { name: 'computed_at', label: 'computed_at', type: 'text' },
-    ],
-    primaryField: 'change_request_id',
-    getRowLabel: (payload) => `${payload.summary || payload.change_request_id || 'plan'} [${payload.tier || '?'}]`,
-    getRowBadge: (payload) => {
-      const blockers = (() => { try { return JSON.parse(payload.blockers || '[]'); } catch { return []; } })();
-      return blockers.length ? 'blocked' : (payload.tier || null);
-    },
-  },
-
-  gantts: {
-    api: '/gantt_output/api',
-    label: 'gantt',
-    newFields: [
-      { name: 'deployment_plan_id', label: 'deployment_plan_id', type: 'text', required: true },
-      { name: 'tier', label: 'tier', type: 'text', required: false },
-    ],
-    detailFields: [
-      { name: 'tier', label: 'tier', type: 'text' },
-      { name: 'mermaid', label: 'mermaid', type: 'textarea' },
-    ],
-    primaryField: 'deployment_plan_id',
-    getRowLabel: (payload) => `gantt [${payload.tier || '?'}]`,
-    getRowBadge: null,
-  },
+const ENDPOINTS = {
+  orgNodes: '/org_node/api',
+  bylaws: '/bylaw/api',
+  changeRequests: '/change_request/api',
+  plans: '/deployment_plan/api',
+  gantts: '/gantt_output/api',
 };
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const state = {
-  activeEntity: 'orgNodes',
+  screen: 'org',
   data: { orgNodes: [], bylaws: [], changeRequests: [], plans: [], gantts: [] },
-  expandedId: null,
-  filter: '',
-  newFormOpen: false,
+  org: {
+    expanded: new Set(),     // node ids expanded in tree
+    effective: new Map(),    // node id -> array of effective bylaws
+    search: '',
+  },
+  cr: {
+    open: false,
+    step: 1,
+    draftId: null,
+    fields: { summary: '', description: '', tier: 'dev', requested_by: '' },
+    targets: [],             // chip array
+    plan: null,              // last computed plan envelope
+    search: '',
+  },
+  plans: {
+    tier: 'dev',
+    expanded: new Set(),
+    rendered: new Set(),
+    ganttCache: new Map(),   // plan id -> mermaid string
+  },
+  bylaws: {
+    selectedOrg: '',
+    sortDir: 'asc',
+  },
 };
 
-// ── API helpers ───────────────────────────────────────────────────────────────
+// ── Tiny DOM helpers ──────────────────────────────────────────────────────────
 
-async function apiFetch(url, opts) {
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+function el(tag, props = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') node.className = v;
+    else if (k === 'dataset') Object.assign(node.dataset, v);
+    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
+    else if (k === 'html') node.innerHTML = v;
+    else if (v !== null && v !== undefined) node.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) {
+    if (c == null || c === false) continue;
+    node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  }
+  return node;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+
+async function api(url, opts) {
   const res = await fetch(url, opts);
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`${opts?.method || 'GET'} ${url} → ${res.status}${body ? ': ' + body : ''}`);
   }
   if (res.status === 204) return null;
-  return res.json();
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : res.text();
 }
 
-async function loadEntity(entityKey) {
-  const cfg = ENTITIES[entityKey];
-  const items = await apiFetch(cfg.api);
-  state.data[entityKey] = Array.isArray(items) ? items : [];
-  updateBadge(entityKey);
-}
+const apiList   = (key)            => api(ENDPOINTS[key]);
+const apiCreate = (key, body)      => api(ENDPOINTS[key], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const apiUpdate = (key, id, body)  => api(`${ENDPOINTS[key]}/${id}`, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+const apiDelete = (key, id)        => api(`${ENDPOINTS[key]}/${id}`, { method: 'DELETE' });
+const apiEffectiveBylaws = (id)    => api(`/org_node/${encodeURIComponent(id)}/effective_bylaws`);
+const apiComputePlan = (crId, tier) =>
+  api(`/change_request/${encodeURIComponent(crId)}/plan`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tier }) });
+const apiRenderGantt = (planId) =>
+  api(`/deployment_plan/${encodeURIComponent(planId)}/gantt`, { method: 'POST' });
 
 async function loadAll() {
-  await Promise.all(Object.keys(ENTITIES).map(loadEntity));
+  const [orgNodes, bylaws, changeRequests, plans, gantts] = await Promise.all([
+    apiList('orgNodes').catch(() => []),
+    apiList('bylaws').catch(() => []),
+    apiList('changeRequests').catch(() => []),
+    apiList('plans').catch(() => []),
+    apiList('gantts').catch(() => []),
+  ]);
+  state.data.orgNodes       = Array.isArray(orgNodes) ? orgNodes : [];
+  state.data.bylaws         = Array.isArray(bylaws) ? bylaws : [];
+  state.data.changeRequests = Array.isArray(changeRequests) ? changeRequests : [];
+  state.data.plans          = Array.isArray(plans) ? plans : [];
+  state.data.gantts         = Array.isArray(gantts) ? gantts : [];
 }
 
-async function createRecord(entityKey, fields) {
-  const cfg = ENTITIES[entityKey];
-  return apiFetch(cfg.api, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(fields),
-  });
+// ── Status strip ──────────────────────────────────────────────────────────────
+
+let statusTimer = null;
+function flash(message, kind = 'info', persistMs = 3000) {
+  const strip = $('#status-strip');
+  strip.className = '';
+  strip.classList.add(kind, 'visible');
+  strip.textContent = message;
+  if (statusTimer) clearTimeout(statusTimer);
+  if (persistMs > 0) {
+    statusTimer = setTimeout(() => strip.classList.remove('visible'), persistMs);
+  }
+}
+function clearFlash() {
+  const strip = $('#status-strip');
+  strip.classList.remove('visible');
+  if (statusTimer) { clearTimeout(statusTimer); statusTimer = null; }
 }
 
-async function updateRecord(entityKey, id, fields) {
-  const cfg = ENTITIES[entityKey];
-  return apiFetch(`${cfg.api}/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(fields),
-  });
+// ── Screen routing ────────────────────────────────────────────────────────────
+
+function setScreen(name) {
+  state.screen = name;
+  $$('.screen').forEach(s => s.classList.toggle('active', s.id === `screen-${name}`));
+  $$('.tab').forEach(t => t.classList.toggle('active', t.dataset.screen === name));
+  switch (name) {
+    case 'org':     renderOrgTree(); break;
+    case 'changes': renderChangeRequests(); break;
+    case 'plans':   renderPlans(); break;
+    case 'bylaws':  renderBylawsScreen(); break;
+  }
+  updateFooterMeta();
 }
 
-async function deleteRecord(entityKey, id) {
-  const cfg = ENTITIES[entityKey];
-  return apiFetch(`${cfg.api}/${id}`, { method: 'DELETE' });
+// ── Footer meta ───────────────────────────────────────────────────────────────
+
+function updateFooterMeta() {
+  const host = $('#footer-meta');
+  if (!host) return;
+  const d = state.data;
+  const orgCount = d.orgNodes.length;
+  const crCount  = d.changeRequests.length;
+  const planCount = d.plans.length;
+  const bylawCount = d.bylaws.length;
+  let text = '';
+  switch (state.screen) {
+    case 'org':
+      text = `${orgCount} org node${orgCount === 1 ? '' : 's'} · ${bylawCount} bylaw${bylawCount === 1 ? '' : 's'}`;
+      break;
+    case 'changes':
+      text = `${crCount} change request${crCount === 1 ? '' : 's'} · ${planCount} plan${planCount === 1 ? '' : 's'}`;
+      break;
+    case 'plans': {
+      const tierCount = d.plans.filter(p => (p.payload?.tier || '') === state.plans.tier).length;
+      text = `${tierCount} ${state.plans.tier} plan${tierCount === 1 ? '' : 's'} · ${planCount} total`;
+      break;
+    }
+    case 'bylaws':
+      text = `${bylawCount} bylaw${bylawCount === 1 ? '' : 's'} · ${orgCount} org node${orgCount === 1 ? '' : 's'}`;
+      break;
+    default:
+      text = `${orgCount} org nodes · ${planCount} plans`;
+  }
+  host.textContent = text;
 }
 
-// ── Rendering ─────────────────────────────────────────────────────────────────
+// ── Editorial empty-state helper ──────────────────────────────────────────────
 
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+function emptyCard({ title, lede, hint }) {
+  const card = el('div', { class: 'empty-card' });
+  card.appendChild(el('span', { class: 'empty-mark' }, '§'));
+  card.appendChild(el('h3', {}, title));
+  card.appendChild(el('p', { class: 'lede' }, lede));
+  if (hint) {
+    const p = el('p', { class: 'hint', html: hint });
+    card.appendChild(p);
+  }
+  return card;
 }
 
-function updateBadge(entityKey) {
-  const el = document.getElementById(`badge-${entityKey}`);
-  if (el) el.textContent = state.data[entityKey]?.length ?? 0;
+// ── ORG screen ────────────────────────────────────────────────────────────────
+
+function nodeName(id) {
+  const n = state.data.orgNodes.find(n => n.id === id);
+  return n?.payload?.name || id || '—';
 }
 
-function renderList() {
-  const entityKey = state.activeEntity;
-  const cfg = ENTITIES[entityKey];
-  const items = state.data[entityKey] ?? [];
-  const needle = state.filter.trim().toLowerCase();
+function buildOrgIndex() {
+  const byParent = new Map();
+  byParent.set(null, []);
+  for (const n of state.data.orgNodes) {
+    const parent = n.payload?.parent_id || null;
+    if (!byParent.has(parent)) byParent.set(parent, []);
+    byParent.get(parent).push(n);
+  }
+  for (const arr of byParent.values()) arr.sort((a, b) => (a.payload?.name || '').localeCompare(b.payload?.name || ''));
+  return byParent;
+}
 
-  const visible = needle
-    ? items.filter(item => {
-        const label = cfg.getRowLabel(item.payload ?? {}, state.data).toLowerCase();
-        return label.includes(needle) || (item.id || '').toLowerCase().includes(needle);
-      })
-    : items;
+function renderOrgTree() {
+  const tree = $('#org-tree');
+  tree.innerHTML = '';
+  const needle = state.org.search.trim().toLowerCase();
+  const byParent = buildOrgIndex();
+  const enterprises = state.data.orgNodes.filter(n => (n.payload?.kind === 'enterprise') && !n.payload?.parent_id);
+  enterprises.sort((a, b) => (a.payload?.name || '').localeCompare(b.payload?.name || ''));
 
-  const list = document.getElementById('entity-list');
-  list.innerHTML = '';
+  // Roots: enterprises (no parent). Anything else without a known parent we still surface
+  const knownIds = new Set(state.data.orgNodes.map(n => n.id));
+  const orphanRoots = state.data.orgNodes.filter(n =>
+    n.payload?.kind !== 'enterprise' &&
+    n.payload?.parent_id &&
+    !knownIds.has(n.payload.parent_id)
+  );
+  const noParent = state.data.orgNodes.filter(n =>
+    n.payload?.kind !== 'enterprise' && !n.payload?.parent_id
+  );
+  const roots = [...enterprises, ...noParent, ...orphanRoots];
 
-  if (visible.length === 0) {
-    list.innerHTML = `<li class="empty-state">${needle ? 'no matches' : `no ${entityKey} yet — press n to add one`}</li>`;
+  if (!roots.length) {
+    tree.appendChild(emptyCard({
+      title: 'No org nodes yet',
+      lede: 'An organisation is a tree of bylaws.',
+      hint: 'Press <kbd>n</kbd> to plant the root.',
+    }));
+    $('#org-count').textContent = '';
+    return;
+  }
+
+  for (const r of roots) tree.appendChild(buildTreeNode(r, byParent, needle));
+  $('#org-count').textContent = `${state.data.orgNodes.length} nodes`;
+}
+
+function nodeMatches(node, needle, byParent) {
+  if (!needle) return true;
+  const name = (node.payload?.name || '').toLowerCase();
+  if (name.includes(needle)) return true;
+  // recurse children
+  const kids = byParent.get(node.id) || [];
+  return kids.some(k => nodeMatches(k, needle, byParent));
+}
+
+function buildTreeNode(node, byParent, needle) {
+  if (!nodeMatches(node, needle, byParent)) return document.createDocumentFragment();
+  const id = node.id;
+  const payload = node.payload || {};
+  const kids = byParent.get(id) || [];
+  const isLeaf = payload.kind === 'team' || kids.length === 0;
+  const isExpanded = state.org.expanded.has(id);
+
+  const wrap = el('div', { class: 'tree-node', dataset: { id } });
+  const row = el('div', { class: 'tree-row' });
+
+  const toggle = el('span', { class: 'tree-toggle' }, kids.length ? (isExpanded ? '▼' : '▶') : '·');
+  const name = el('span', { class: 'tree-name' }, payload.name || id);
+  const kindPill = el('span', { class: 'pill' }, payload.kind || '?');
+  row.append(toggle, name, kindPill);
+
+  if (isLeaf && payload.team_id) {
+    row.append(el('span', { class: 'tree-team' }, [`team: `, el('span', { class: 'mono' }, payload.team_id)]));
+  } else if (isLeaf) {
+    row.append(el('span', { class: 'tree-team muted' }, 'no team'));
+  }
+
+  const addBylawBtn = el('button', {
+    class: 'btn subtle sm',
+    title: 'Attach a bylaw to this node',
+    onclick: (e) => {
+      e.stopPropagation();
+      state.bylaws.selectedOrg = id;
+      setScreen('bylaws');
+      $('#bl-org').value = id;
+      renderBylawsScreen();
+      $('#bl-gate').focus();
+    },
+  }, '+ bylaw');
+  row.append(addBylawBtn);
+
+  row.addEventListener('click', () => toggleNode(id));
+  wrap.append(row);
+
+  if (isExpanded) {
+    // Effective bylaws block
+    const effHost = el('div', { class: 'tree-effective' });
+    effHost.appendChild(renderEffective(id));
+    wrap.append(effHost);
+
+    if (kids.length) {
+      const childrenWrap = el('div', { class: 'tree-children' });
+      for (const k of kids) childrenWrap.append(buildTreeNode(k, byParent, needle));
+      wrap.append(childrenWrap);
+    }
+  }
+  return wrap;
+}
+
+async function toggleNode(id) {
+  if (state.org.expanded.has(id)) {
+    state.org.expanded.delete(id);
   } else {
-    for (const item of visible) {
-      list.appendChild(buildRow(entityKey, item));
-    }
-  }
-
-  updateStatusCount(items.length, visible.length);
-}
-
-function buildRow(entityKey, item) {
-  const cfg = ENTITIES[entityKey];
-  const id = item.id;
-  const payload = item.payload ?? {};
-  const label = cfg.getRowLabel(payload, state.data);
-  const badge = cfg.getRowBadge ? cfg.getRowBadge(payload) : null;
-
-  const li = document.createElement('li');
-  li.className = 'entity-row' + (state.expandedId === id ? ' expanded' : '');
-  li.dataset.id = id;
-
-  const header = document.createElement('div');
-  header.className = 'entity-row-header';
-  header.setAttribute('tabindex', '0');
-  header.setAttribute('role', 'button');
-  header.setAttribute('aria-expanded', String(state.expandedId === id));
-
-  const icon = document.createElement('span');
-  icon.className = 'expand-icon';
-
-  const labelEl = document.createElement('span');
-  labelEl.className = 'entity-label';
-  labelEl.textContent = label;
-
-  header.append(icon, labelEl);
-
-  if (badge) {
-    const badgeEl = document.createElement('span');
-    badgeEl.className = `badge ${badge}`;
-    badgeEl.textContent = badge;
-    header.appendChild(badgeEl);
-  }
-
-  const idEl = document.createElement('span');
-  idEl.className = 'entity-id';
-  idEl.textContent = id ? id.slice(0, 8) : '';
-  header.appendChild(idEl);
-
-  const detail = document.createElement('div');
-  detail.className = 'entity-detail';
-  detail.innerHTML = buildDetailHTML(entityKey, id, payload);
-
-  li.append(header, detail);
-
-  const toggle = () => expandRow(id === state.expandedId ? null : id);
-  header.addEventListener('click', toggle);
-  header.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
-  });
-
-  detail.querySelector('.btn-save')?.addEventListener('click', () => saveRow(entityKey, id, li));
-  detail.querySelector('.btn-delete')?.addEventListener('click', () => confirmDelete(entityKey, id));
-
-  return li;
-}
-
-function buildDetailHTML(entityKey, id, payload) {
-  const cfg = ENTITIES[entityKey];
-  let html = '';
-
-  // Readonly FK fields shown at top
-  if (cfg.readonlyInDetail) {
-    for (const rf of cfg.readonlyInDetail) {
-      const val = rf.resolve(payload, state.data);
-      html += `
-        <div class="field-row">
-          <label>${esc(rf.label)}</label>
-          <span class="readonly-val">${esc(val)}</span>
-        </div>`;
-    }
-  }
-
-  // Editable fields
-  for (const f of cfg.detailFields) {
-    const val = payload[f.name] ?? '';
-    if (f.type === 'textarea') {
-      html += `
-        <div class="field-row">
-          <label for="d-${esc(id)}-${f.name}">${esc(f.label)}</label>
-          <textarea id="d-${esc(id)}-${f.name}" name="${f.name}" rows="2">${esc(val)}</textarea>
-        </div>`;
-    } else if (f.type === 'select') {
-      const opts = (f.options || []).map(o =>
-        `<option value="${esc(o)}"${o === val ? ' selected' : ''}>${esc(o) || '—'}</option>`
-      ).join('');
-      html += `
-        <div class="field-row">
-          <label for="d-${esc(id)}-${f.name}">${esc(f.label)}</label>
-          <select id="d-${esc(id)}-${f.name}" name="${f.name}">${opts}</select>
-        </div>`;
-    } else {
-      html += `
-        <div class="field-row">
-          <label for="d-${esc(id)}-${f.name}">${esc(f.label)}</label>
-          <input id="d-${esc(id)}-${f.name}" name="${f.name}" type="text" value="${esc(val)}" />
-        </div>`;
-    }
-  }
-
-  html += `
-    <div class="detail-actions">
-      <button class="btn-save primary">save</button>
-      <button class="btn-delete danger">delete</button>
-    </div>`;
-
-  return html;
-}
-
-function expandRow(id) {
-  state.expandedId = id;
-  document.querySelectorAll('.entity-row').forEach(row => {
-    const isTarget = row.dataset.id === id;
-    row.classList.toggle('expanded', isTarget);
-    const header = row.querySelector('.entity-row-header');
-    if (header) header.setAttribute('aria-expanded', String(isTarget));
-  });
-}
-
-async function saveRow(entityKey, id, li) {
-  const cfg = ENTITIES[entityKey];
-  const fields = {};
-
-  li.querySelectorAll('[name]').forEach(el => {
-    fields[el.name] = el.value.trim();
-  });
-
-  // Preserve primary field from original record (e.g. name, deployable_id)
-  const original = state.data[entityKey].find(a => a.id === id);
-  if (original) {
-    const pf = cfg.primaryField;
-    if (original.payload?.[pf] !== undefined) {
-      fields[pf] = original.payload[pf];
-    }
-    // Preserve all readonly FK fields too
-    if (cfg.readonlyInDetail) {
-      for (const rf of cfg.readonlyInDetail) {
-        if (original.payload?.[rf.name] !== undefined) {
-          fields[rf.name] = original.payload[rf.name];
-        }
+    state.org.expanded.add(id);
+    if (!state.org.effective.has(id)) {
+      try {
+        const list = await apiEffectiveBylaws(id);
+        state.org.effective.set(id, Array.isArray(list) ? list : []);
+      } catch (err) {
+        state.org.effective.set(id, []);
+        flash(err.message, 'error');
       }
     }
   }
-
-  try {
-    const updated = await updateRecord(entityKey, id, fields);
-    const idx = state.data[entityKey].findIndex(a => a.id === id);
-    if (idx !== -1) state.data[entityKey][idx] = updated;
-    setError('');
-    renderList();
-  } catch (err) {
-    setError(err.message);
-  }
+  renderOrgTree();
 }
 
-async function confirmDelete(entityKey, id) {
-  const cfg = ENTITIES[entityKey];
-  if (!confirm(`Delete this ${cfg.label}?`)) return;
-  try {
-    await deleteRecord(entityKey, id);
-    state.data[entityKey] = state.data[entityKey].filter(a => a.id !== id);
-    if (state.expandedId === id) state.expandedId = null;
-    updateBadge(entityKey);
-    setError('');
-    renderList();
-  } catch (err) {
-    setError(err.message);
+function renderEffective(id) {
+  const list = state.org.effective.get(id);
+  if (!list) return el('div', { class: 'effective-empty' }, 'Loading effective bylaws…');
+  if (!list.length) return el('div', { class: 'effective-empty' }, 'No effective bylaws inherited or attached.');
+  const heading = el('h3', { class: 'section', style: 'margin-bottom: 8px;' }, 'Effective bylaws');
+  const items = el('div', { class: 'effective-list' });
+  for (const b of list) {
+    const p = b.payload || {};
+    items.appendChild(el('div', { class: 'effective-item' }, [
+      el('span', { class: 'pill primary' }, p.gate_type || '?'),
+      el('span', {}, p.description || '(no description)'),
+      el('span', { class: 'mono', style: 'margin-left: auto;' }, `priority ${p.priority ?? '—'}`),
+    ]));
   }
+  const wrap = el('div', {});
+  wrap.append(heading, items);
+  return wrap;
 }
 
-// ── Sidebar navigation ────────────────────────────────────────────────────────
+// New node form
+function showOrgForm() {
+  const card = $('#org-form-card');
+  card.classList.remove('hidden');
+  $('#org-f-name').value = '';
+  $('#org-f-kind').value = 'team';
+  $('#org-f-team').value = '';
+  // populate parent select
+  const sel = $('#org-f-parent');
+  sel.innerHTML = '<option value="">— none —</option>';
+  for (const n of state.data.orgNodes) {
+    const opt = el('option', { value: n.id }, `${n.payload?.name || n.id} (${n.payload?.kind || '?'})`);
+    sel.appendChild(opt);
+  }
+  $('#org-f-name').focus();
+}
+function hideOrgForm() { $('#org-form-card').classList.add('hidden'); }
 
-function setActiveEntity(entityKey) {
-  state.activeEntity = entityKey;
-  state.expandedId = null;
-  state.filter = '';
-  document.getElementById('search').value = '';
+async function saveOrgForm() {
+  const fields = {
+    name: $('#org-f-name').value.trim(),
+    kind: $('#org-f-kind').value,
+    parent_id: $('#org-f-parent').value || undefined,
+    team_id: $('#org-f-team').value.trim() || undefined,
+  };
+  if (!fields.name) { flash('Name is required', 'error'); $('#org-f-name').focus(); return; }
+  for (const k of Object.keys(fields)) if (fields[k] === undefined) delete fields[k];
+  try {
+    const created = await apiCreate('orgNodes', fields);
+    state.data.orgNodes.push(created);
+    hideOrgForm();
+    renderOrgTree();
+    flash(`Created ${created.payload?.name}`, 'success');
+  } catch (err) { flash(err.message, 'error'); }
+}
 
-  document.querySelectorAll('.nav-item').forEach(el => {
-    el.classList.toggle('active', el.dataset.entity === entityKey);
+function initOrg() {
+  $('#org-search').addEventListener('input', e => { state.org.search = e.target.value; renderOrgTree(); });
+  $('#org-new').addEventListener('click', showOrgForm);
+  $('#org-form-cancel').addEventListener('click', hideOrgForm);
+  $('#org-form-cancel-2').addEventListener('click', hideOrgForm);
+  $('#org-form-save').addEventListener('click', saveOrgForm);
+}
+
+// ── CHANGES screen ────────────────────────────────────────────────────────────
+
+function renderChangeRequests() {
+  const tbody = $('#cr-tbody');
+  tbody.innerHTML = '';
+  const needle = state.cr.search.trim().toLowerCase();
+  const items = state.data.changeRequests.filter(cr => {
+    if (!needle) return true;
+    return (cr.payload?.summary || '').toLowerCase().includes(needle);
   });
 
-  hideNewForm();
-  renderList();
+  if (!items.length) {
+    const td = el('td', { colspan: 5, style: 'padding: 0; background: var(--surface);' });
+    td.appendChild(emptyCard({
+      title: 'No change requests yet',
+      lede: 'A change request is a promise to perturb production.',
+      hint: 'Press <kbd>n</kbd> to draft one.',
+    }));
+    tbody.appendChild(el('tr', {}, td));
+    $('#cr-count').textContent = '';
+    return;
+  }
+
+  for (const cr of items) {
+    const p = cr.payload || {};
+    const targets = parseTargets(p.target_deployables);
+    tbody.appendChild(el('tr', {}, [
+      el('td', {}, [
+        el('div', {}, p.summary || '(no summary)'),
+        el('div', { class: 'mono' }, cr.id?.slice(0, 8) || ''),
+      ]),
+      el('td', {}, p.tier ? el('span', { class: 'pill' }, p.tier) : el('span', { class: 'muted' }, '—')),
+      el('td', {}, statusPill(p.status)),
+      el('td', {}, el('span', { class: 'mono' }, targets.length ? `${targets.length} targets` : '—')),
+      el('td', { style: 'text-align: right;' }, el('button', {
+        class: 'btn sm',
+        onclick: () => editChangeRequest(cr),
+      }, 'View')),
+    ]));
+  }
+  $('#cr-count').textContent = `${items.length} request${items.length === 1 ? '' : 's'}`;
 }
 
-// ── Status bar ────────────────────────────────────────────────────────────────
+function statusPill(status) {
+  if (!status) return el('span', { class: 'muted' }, '—');
+  const map = {
+    draft: 'pill',
+    submitted: 'pill primary',
+    approved: 'pill success',
+    rejected: 'pill danger',
+    deployed: 'pill success',
+    rolled_back: 'pill warn',
+  };
+  return el('span', { class: map[status] || 'pill' }, status);
+}
 
-function updateStatusCount(total, shown) {
-  const el = document.getElementById('status-count');
-  if (!el) return;
-  const entityKey = state.activeEntity;
-  if (state.filter && shown !== total) {
-    el.textContent = `${shown} of ${total} ${entityKey}`;
+function parseTargets(s) {
+  if (!s) return [];
+  if (Array.isArray(s)) return s;
+  try {
+    const v = JSON.parse(s);
+    if (Array.isArray(v)) return v.map(String);
+  } catch { /* fallthrough */ }
+  return s.split(',').map(t => t.trim()).filter(Boolean);
+}
+
+function editChangeRequest(cr) {
+  const p = cr.payload || {};
+  state.cr.open = true;
+  state.cr.draftId = cr.id;
+  state.cr.fields = {
+    summary: p.summary || '',
+    description: p.description || '',
+    tier: p.tier || 'dev',
+    requested_by: p.requested_by || '',
+  };
+  state.cr.targets = parseTargets(p.target_deployables);
+  state.cr.plan = null;
+  state.cr.step = 1;
+  showWizard();
+}
+
+function newChangeRequest() {
+  state.cr.open = true;
+  state.cr.draftId = null;
+  state.cr.fields = { summary: '', description: '', tier: 'dev', requested_by: '' };
+  state.cr.targets = [];
+  state.cr.plan = null;
+  state.cr.step = 1;
+  showWizard();
+}
+
+function showWizard() {
+  $('#cr-wizard').classList.remove('hidden');
+  $('#cr-list-card').classList.add('hidden');
+  $('#cr-summary').value = state.cr.fields.summary;
+  $('#cr-description').value = state.cr.fields.description;
+  $('#cr-tier').value = state.cr.fields.tier;
+  $('#cr-requested-by').value = state.cr.fields.requested_by;
+  renderChips();
+  setWizardStep(state.cr.step);
+  $('#cr-summary').focus();
+}
+
+function hideWizard() {
+  state.cr.open = false;
+  $('#cr-wizard').classList.add('hidden');
+  $('#cr-list-card').classList.remove('hidden');
+  renderChangeRequests();
+}
+
+function setWizardStep(n) {
+  state.cr.step = n;
+  $$('.step').forEach(stepEl => {
+    const s = parseInt(stepEl.dataset.step, 10);
+    stepEl.classList.toggle('active', s === n);
+    stepEl.classList.toggle('done', s < n);
+  });
+  $$('.wizard-pane').forEach(p => p.classList.toggle('hidden', parseInt(p.dataset.pane, 10) !== n));
+  $('#cr-back').disabled = n === 1;
+  $('#cr-next').textContent = n === 4 ? 'Submit' : 'Next';
+  if (n === 3) refreshPlanPane();
+  if (n === 4) renderReviewPane();
+}
+
+function renderChips() {
+  const host = $('#cr-chip-input');
+  // remove all but the trailing input
+  $$('.chip', host).forEach(c => c.remove());
+  const entry = $('#cr-chip-entry');
+  for (const t of state.cr.targets) {
+    const chip = el('span', { class: 'chip' }, [
+      t,
+      el('button', { type: 'button', title: 'Remove', onclick: () => { state.cr.targets = state.cr.targets.filter(x => x !== t); renderChips(); } }, '×'),
+    ]);
+    host.insertBefore(chip, entry);
+  }
+}
+
+function captureFields() {
+  state.cr.fields.summary = $('#cr-summary').value.trim();
+  state.cr.fields.description = $('#cr-description').value.trim();
+  state.cr.fields.tier = $('#cr-tier').value;
+  state.cr.fields.requested_by = $('#cr-requested-by').value.trim();
+}
+
+async function persistDraft() {
+  captureFields();
+  const body = {
+    summary: state.cr.fields.summary,
+    description: state.cr.fields.description,
+    tier: state.cr.fields.tier,
+    status: state.cr.draftId ? undefined : 'draft',
+    target_deployables: JSON.stringify(state.cr.targets),
+    requested_by: state.cr.fields.requested_by || undefined,
+  };
+  for (const k of Object.keys(body)) if (body[k] === undefined) delete body[k];
+
+  if (state.cr.draftId) {
+    const original = state.data.changeRequests.find(c => c.id === state.cr.draftId);
+    if (original?.payload?.status) body.status = original.payload.status;
+    const updated = await apiUpdate('changeRequests', state.cr.draftId, body);
+    const idx = state.data.changeRequests.findIndex(c => c.id === state.cr.draftId);
+    if (idx >= 0) state.data.changeRequests[idx] = updated;
+    return updated;
   } else {
-    el.textContent = `${total} ${entityKey}`;
+    const created = await apiCreate('changeRequests', body);
+    state.cr.draftId = created.id;
+    state.data.changeRequests.unshift(created);
+    return created;
   }
 }
 
-function setError(msg) {
-  const el = document.getElementById('status-error');
-  if (el) el.textContent = msg || '';
+async function nextStep() {
+  captureFields();
+  if (state.cr.step === 1) {
+    if (!state.cr.fields.summary) { flash('Summary is required', 'error'); $('#cr-summary').focus(); return; }
+    setWizardStep(2);
+  } else if (state.cr.step === 2) {
+    if (!state.cr.targets.length) { flash('Add at least one target deployable', 'error'); $('#cr-chip-entry').focus(); return; }
+    try {
+      await persistDraft();
+      setWizardStep(3);
+    } catch (err) { flash(err.message, 'error'); }
+  } else if (state.cr.step === 3) {
+    setWizardStep(4);
+  } else if (state.cr.step === 4) {
+    try {
+      // Update status to submitted
+      const original = state.data.changeRequests.find(c => c.id === state.cr.draftId);
+      const body = { ...(original?.payload || {}), status: 'submitted' };
+      const updated = await apiUpdate('changeRequests', state.cr.draftId, body);
+      const idx = state.data.changeRequests.findIndex(c => c.id === state.cr.draftId);
+      if (idx >= 0) state.data.changeRequests[idx] = updated;
+      flash('Change request submitted', 'success');
+      hideWizard();
+      // refresh plans data and switch to plans view
+      try {
+        const plans = await apiList('plans');
+        state.data.plans = Array.isArray(plans) ? plans : [];
+      } catch { /* ignore */ }
+      setScreen('plans');
+    } catch (err) { flash(err.message, 'error'); }
+  }
 }
 
-// ── New record form ───────────────────────────────────────────────────────────
+function backStep() {
+  if (state.cr.step > 1) setWizardStep(state.cr.step - 1);
+}
 
-function showNewForm() {
-  const entityKey = state.activeEntity;
-  const cfg = ENTITIES[entityKey];
+async function refreshPlanPane() {
+  const host = $('#cr-plan-output');
+  host.innerHTML = '';
+  host.appendChild(el('div', { class: 'muted', style: 'font-size: 13px;' }, 'Computing plan…'));
 
-  const titleEl = document.getElementById('new-form-title');
-  titleEl.textContent = `new ${cfg.label}`;
+  if (!state.cr.draftId) {
+    host.innerHTML = '';
+    host.appendChild(el('div', { class: 'muted' }, 'No draft id — please advance from step 2 first.'));
+    return;
+  }
+  try {
+    const planEnvelope = await apiComputePlan(state.cr.draftId, state.cr.fields.tier || 'dev');
+    state.cr.plan = planEnvelope;
+    // also stash in plans list (latest)
+    state.data.plans.unshift(planEnvelope);
+    host.innerHTML = '';
+    host.appendChild(renderPlanDetail(planEnvelope));
+  } catch (err) {
+    host.innerHTML = '';
+    host.appendChild(el('div', { class: 'plan-blockers' }, [
+      el('h4', {}, 'Could not compute plan'),
+      el('div', {}, err.message),
+    ]));
+  }
+}
 
-  const fieldsEl = document.getElementById('new-form-fields');
-  fieldsEl.innerHTML = '';
+function renderPlanDetail(envelope) {
+  const p = envelope?.payload || {};
+  let steps = [];
+  let blockers = [];
+  try { steps = JSON.parse(p.steps || '[]'); } catch { steps = []; }
+  try { blockers = JSON.parse(p.blockers || '[]'); } catch { blockers = []; }
 
-  for (const f of cfg.newFields) {
-    const row = document.createElement('div');
-    row.className = 'field-row';
+  const wrap = el('div', { class: 'stack' });
 
-    const label = document.createElement('label');
-    label.setAttribute('for', `new-${f.name}`);
-    label.textContent = f.label;
-    label.className = f.required ? 'required' : 'optional';
+  if (!steps.length && !blockers.length) {
+    wrap.appendChild(el('div', { class: 'muted', style: 'font-size: 13px;' }, 'Plan computed with no steps.'));
+  }
 
-    let input;
-    if (f.type === 'select') {
-      input = document.createElement('select');
-      input.id = `new-${f.name}`;
-      input.name = f.name;
-      for (const opt of (f.options || [])) {
-        const o = document.createElement('option');
-        o.value = opt;
-        o.textContent = opt || '—';
-        input.appendChild(o);
-      }
-    } else if (f.type === 'dynamic-select') {
-      input = document.createElement('select');
-      input.id = `new-${f.name}`;
-      input.name = f.name;
-      const placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = '— select —';
-      input.appendChild(placeholder);
-      for (const opt of (f.optionsFrom ? f.optionsFrom(state.data) : [])) {
-        const o = document.createElement('option');
-        o.value = opt.value;
-        o.textContent = opt.label;
-        input.appendChild(o);
-      }
-    } else {
-      input = document.createElement('input');
-      input.id = `new-${f.name}`;
-      input.name = f.name;
-      input.type = 'text';
-      input.autocomplete = 'off';
-      input.spellcheck = false;
+  // Group steps by deployable
+  const groups = new Map();
+  for (const s of steps) {
+    const key = s.deployable_id || s.deployable || 'general';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  }
+  for (const [deployable, list] of groups) {
+    const group = el('div', { class: 'plan-group' });
+    group.appendChild(el('h4', {}, deployable));
+    const stepsList = el('div', { class: 'plan-steps' });
+    for (const s of list) {
+      stepsList.appendChild(el('div', { class: 'plan-step-item' }, [
+        el('span', { class: 'pill primary' }, s.gate_type || s.kind || 'step'),
+        el('div', { class: 'grow' }, [
+          el('div', {}, s.description || s.label || s.name || '(step)'),
+          el('div', { class: 'gate-name' }, s.bylaw_id ? `bylaw ${s.bylaw_id}` : (s.org_node_id ? `node ${s.org_node_id}` : '')),
+        ]),
+      ]));
     }
-
-    if (f.required) input.classList.add('required-field');
-    row.append(label, input);
-    fieldsEl.appendChild(row);
+    group.appendChild(stepsList);
+    wrap.appendChild(group);
   }
 
-  const form = document.getElementById('new-form');
-  form.classList.add('visible');
-  state.newFormOpen = true;
+  if (blockers.length) {
+    const block = el('div', { class: 'plan-blockers' }, [
+      el('h4', {}, `${blockers.length} blocker${blockers.length === 1 ? '' : 's'}`),
+      el('ul', { html: blockers.map(b => `<li>${esc(typeof b === 'string' ? b : JSON.stringify(b))}</li>`).join('') }),
+    ]);
+    wrap.appendChild(block);
+  }
 
-  // Focus first input
-  const first = fieldsEl.querySelector('input, select');
-  if (first) first.focus();
+  return wrap;
 }
 
-function hideNewForm() {
-  document.getElementById('new-form').classList.remove('visible');
-  state.newFormOpen = false;
+function renderReviewPane() {
+  const host = $('#cr-summary-review');
+  host.innerHTML = '';
+  const f = state.cr.fields;
+  host.append(
+    el('div', {}, [el('strong', {}, 'Summary: '), f.summary || '(none)']),
+    el('div', { style: 'margin-top: 6px;' }, [el('strong', {}, 'Tier: '), f.tier]),
+    el('div', { style: 'margin-top: 6px;' }, [el('strong', {}, 'Targets: '), state.cr.targets.join(', ') || '(none)']),
+    el('div', { style: 'margin-top: 6px;' }, [el('strong', {}, 'Requested by: '), f.requested_by || '(unspecified)']),
+  );
 }
 
-async function submitNewForm() {
-  const entityKey = state.activeEntity;
-  const cfg = ENTITIES[entityKey];
-  const fieldsEl = document.getElementById('new-form-fields');
-  const fields = {};
+function initChanges() {
+  $('#cr-search').addEventListener('input', e => { state.cr.search = e.target.value; renderChangeRequests(); });
+  $('#cr-new').addEventListener('click', newChangeRequest);
+  $('#cr-cancel').addEventListener('click', hideWizard);
+  $('#cr-back').addEventListener('click', backStep);
+  $('#cr-next').addEventListener('click', nextStep);
+  $('#cr-recompute').addEventListener('click', refreshPlanPane);
 
-  fieldsEl.querySelectorAll('[name]').forEach(el => {
-    const val = el.value.trim();
-    if (val) fields[el.name] = val;
+  const entry = $('#cr-chip-entry');
+  entry.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const v = entry.value.trim();
+      if (v && !state.cr.targets.includes(v)) {
+        state.cr.targets.push(v);
+        renderChips();
+      }
+      entry.value = '';
+    } else if (e.key === 'Backspace' && !entry.value && state.cr.targets.length) {
+      state.cr.targets.pop();
+      renderChips();
+    }
   });
+}
 
-  // Validate required fields
-  for (const f of cfg.newFields) {
-    if (f.required && !fields[f.name]) {
-      setError(`'${f.label}' is required`);
-      const input = fieldsEl.querySelector(`[name="${f.name}"]`);
-      if (input) input.focus();
+// ── PLANS screen ──────────────────────────────────────────────────────────────
+
+function renderPlans() {
+  // Update tier counts
+  for (const tier of TIERS) {
+    const count = state.data.plans.filter(p => (p.payload?.tier || '') === tier).length;
+    const span = $(`.tier-count[data-count="${tier}"]`);
+    if (span) span.textContent = count;
+  }
+  // Active tab
+  $$('.tier-tab').forEach(t => t.classList.toggle('active', t.dataset.tier === state.plans.tier));
+
+  const host = $('#plan-list');
+  host.innerHTML = '';
+  const filtered = state.data.plans.filter(p => (p.payload?.tier || '') === state.plans.tier);
+  if (!filtered.length) {
+    host.appendChild(emptyCard({
+      title: `No ${state.plans.tier} plans yet`,
+      lede: 'A plan is the bylaw chain made executable.',
+      hint: 'Submit a change request to compute a deployment plan.',
+    }));
+    return;
+  }
+  // Newest first
+  filtered.sort((a, b) => (b.payload?.computed_at || '').localeCompare(a.payload?.computed_at || ''));
+  for (const plan of filtered) host.appendChild(buildPlanCard(plan));
+}
+
+function buildPlanCard(plan) {
+  const id = plan.id;
+  const p = plan.payload || {};
+  const expanded = state.plans.expanded.has(id);
+  let blockers = [];
+  try { blockers = JSON.parse(p.blockers || '[]'); } catch {}
+  const card = el('div', { class: `plan-card${expanded ? ' expanded' : ''}`, dataset: { id } });
+  const head = el('div', { class: 'plan-card-head', onclick: () => togglePlan(id) });
+  head.append(
+    el('div', {}, [
+      el('div', { class: 'plan-card-title' }, p.summary || `Plan for ${(p.change_request_id || '').slice(0, 8) || 'unknown'}`),
+      el('div', { class: 'plan-card-id' }, [
+        `${id?.slice(0, 8) || ''} · `,
+        p.computed_at ? `computed ${p.computed_at}` : 'no timestamp',
+      ]),
+    ]),
+    el('div', { class: 'row' }, [
+      blockers.length ? el('span', { class: 'pill danger' }, `${blockers.length} blockers`) : el('span', { class: 'pill success' }, 'clear'),
+      el('span', { class: 'pill primary' }, p.tier || '?'),
+      el('span', { class: 'tree-toggle' }, expanded ? '▼' : '▶'),
+    ]),
+  );
+  card.append(head);
+
+  const body = el('div', { class: 'plan-card-body' });
+  body.append(renderPlanDetail(plan));
+  body.append(el('div', { style: 'margin-top: 14px;' }, [
+    el('h3', { class: 'section', style: 'margin-bottom: 8px;' }, 'Gantt'),
+    el('div', { class: 'gantt-host', dataset: { ganttFor: id } }, el('div', { class: 'muted' }, 'Loading Gantt…')),
+  ]));
+  card.append(body);
+  return card;
+}
+
+async function togglePlan(id) {
+  if (state.plans.expanded.has(id)) {
+    state.plans.expanded.delete(id);
+    renderPlans();
+    return;
+  }
+  state.plans.expanded.add(id);
+  renderPlans();
+  await renderGanttFor(id);
+}
+
+async function renderGanttFor(id) {
+  const host = document.querySelector(`[data-gantt-for="${CSS.escape(id)}"]`);
+  if (!host) return;
+  let mermaidSrc = state.plans.ganttCache.get(id);
+  if (!mermaidSrc) {
+    try {
+      const env = await apiRenderGantt(id);
+      mermaidSrc = env?.payload?.mermaid || '';
+      state.plans.ganttCache.set(id, mermaidSrc);
+    } catch (err) {
+      host.innerHTML = '';
+      host.appendChild(el('div', { class: 'plan-blockers' }, [
+        el('h4', {}, 'Gantt failed'),
+        el('div', {}, err.message),
+      ]));
       return;
     }
   }
+  if (!mermaidSrc || !mermaidSrc.trim()) {
+    host.innerHTML = '';
+    host.appendChild(el('div', { class: 'muted' }, 'No Gantt content returned.'));
+    return;
+  }
+  host.innerHTML = '';
+  const pre = el('pre', { class: 'mermaid' }, mermaidSrc);
+  host.appendChild(pre);
+  try {
+    await mermaid.run({ nodes: [pre] });
+  } catch (err) {
+    host.innerHTML = '';
+    host.appendChild(el('div', { class: 'plan-blockers' }, [
+      el('h4', {}, 'Mermaid render failed'),
+      el('div', {}, err.message || String(err)),
+      el('details', { style: 'margin-top: 8px;' }, [
+        el('summary', { class: 'muted' }, 'Source'),
+        el('pre', { class: 'mono', style: 'white-space: pre-wrap; margin-top: 6px;' }, mermaidSrc),
+      ]),
+    ]));
+  }
+}
+
+function initPlans() {
+  $$('.tier-tab').forEach(tab => tab.addEventListener('click', () => {
+    state.plans.tier = tab.dataset.tier;
+    renderPlans();
+    updateFooterMeta();
+  }));
+}
+
+// ── BYLAWS screen ─────────────────────────────────────────────────────────────
+
+function renderBylawsScreen() {
+  // Org select
+  const sel = $('#bl-org');
+  const cur = state.bylaws.selectedOrg;
+  sel.innerHTML = '<option value="">— select —</option>';
+  for (const n of state.data.orgNodes) {
+    const opt = el('option', { value: n.id }, `${n.payload?.name || n.id} (${n.payload?.kind || '?'})`);
+    if (n.id === cur) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  applyConditional();
+  renderBylawsTable();
+}
+
+function applyConditional() {
+  const gate = $('#bl-gate').value;
+  $$('.field-cond').forEach(host => {
+    const required = host.dataset.cond.split(' ').includes(gate);
+    host.classList.toggle('hidden', !required);
+  });
+}
+
+function renderBylawsTable() {
+  const tbody = $('#bl-tbody');
+  tbody.innerHTML = '';
+  const orgId = state.bylaws.selectedOrg;
+  const items = state.data.bylaws.filter(b => !orgId || b.payload?.org_node_id === orgId);
+  const dir = state.bylaws.sortDir === 'asc' ? 1 : -1;
+  items.sort((a, b) => {
+    const pa = parseInt(a.payload?.priority ?? '0', 10) || 0;
+    const pb = parseInt(b.payload?.priority ?? '0', 10) || 0;
+    return (pa - pb) * dir;
+  });
+  if (!items.length) {
+    const td = el('td', { colspan: 5, style: 'padding: 0; background: var(--surface);' });
+    td.appendChild(emptyCard({
+      title: orgId ? 'No bylaws on this node' : 'No org node selected',
+      lede: 'Govern from the top down — children may add, never override.',
+      hint: orgId ? 'Use the form above to attach a bylaw.' : 'Pick an org node from the select above.',
+    }));
+    tbody.appendChild(el('tr', {}, td));
+    $('#bl-count').textContent = '';
+    return;
+  }
+  for (const b of items) {
+    const p = b.payload || {};
+    const detailParts = [];
+    if (p.window) detailParts.push(`window: ${p.window}`);
+    if (p.quiesce_for) detailParts.push(`quiesce ${p.quiesce_for}`);
+    if (p.approvers) detailParts.push(`approvers: ${p.approvers}`);
+    if (p.conditions) detailParts.push(`cond: ${p.conditions}`);
+    tbody.appendChild(el('tr', {}, [
+      el('td', { class: 'priority-cell' }, String(p.priority ?? '—')),
+      el('td', {}, el('span', { class: 'pill primary' }, p.gate_type || '?')),
+      el('td', {}, p.description || el('span', { class: 'muted' }, '—')),
+      el('td', { class: 'mono' }, detailParts.join(' · ') || '—'),
+      el('td', { style: 'text-align: right;' }, el('button', {
+        class: 'btn sm danger',
+        onclick: () => deleteBylaw(b.id),
+      }, 'Delete')),
+    ]));
+  }
+  $('#bl-count').textContent = `${items.length} bylaw${items.length === 1 ? '' : 's'}`;
+
+  // Wire sort header
+  $$('th[data-sort]').forEach(th => {
+    th.onclick = () => {
+      state.bylaws.sortDir = state.bylaws.sortDir === 'asc' ? 'desc' : 'asc';
+      renderBylawsTable();
+    };
+  });
+}
+
+async function deleteBylaw(id) {
+  if (!confirm('Delete this bylaw?')) return;
+  try {
+    await apiDelete('bylaws', id);
+    state.data.bylaws = state.data.bylaws.filter(b => b.id !== id);
+    renderBylawsTable();
+    flash('Bylaw deleted', 'success');
+  } catch (err) { flash(err.message, 'error'); }
+}
+
+async function saveBylaw() {
+  const orgId = $('#bl-org').value;
+  const gate = $('#bl-gate').value;
+  if (!orgId) { flash('Select an org node first', 'error'); return; }
+  if (!gate) { flash('Choose a gate type', 'error'); return; }
+
+  const body = {
+    org_node_id: orgId,
+    gate_type: gate,
+    priority: $('#bl-priority').value.trim() || undefined,
+    description: $('#bl-desc').value.trim() || undefined,
+    window: $('#bl-window').value.trim() || undefined,
+    quiesce_for: $('#bl-quiesce').value.trim() || undefined,
+    approvers: $('#bl-approvers').value.trim() || undefined,
+    conditions: $('#bl-conditions').value.trim() || undefined,
+  };
+
+  // Conditional validation
+  if ((gate === 'WindowGate' || gate === 'FreezePeriod') && !body.window) {
+    flash(`${gate} requires a window`, 'error'); $('#bl-window').focus(); return;
+  }
+  if (gate === 'QuiesceGate' && !body.quiesce_for) {
+    flash('QuiesceGate requires quiesce_for', 'error'); $('#bl-quiesce').focus(); return;
+  }
+  if (gate === 'ApprovalGate' && !body.approvers) {
+    flash('ApprovalGate requires approvers', 'error'); $('#bl-approvers').focus(); return;
+  }
+
+  for (const k of Object.keys(body)) if (body[k] === undefined) delete body[k];
 
   try {
-    const created = await createRecord(entityKey, fields);
-    state.data[entityKey].unshift(created);
-    updateBadge(entityKey);
-    hideNewForm();
-    state.expandedId = created.id;
-    setError('');
-    renderList();
-  } catch (err) {
-    setError(err.message);
+    const created = await apiCreate('bylaws', body);
+    state.data.bylaws.unshift(created);
+    // Bust effective cache for affected node
+    state.org.effective.delete(orgId);
+    flash('Bylaw saved', 'success');
+    resetBylawForm();
+    renderBylawsTable();
+  } catch (err) { flash(err.message, 'error'); }
+}
+
+function resetBylawForm() {
+  for (const id of ['bl-priority', 'bl-desc', 'bl-window', 'bl-quiesce', 'bl-approvers', 'bl-conditions']) {
+    $(`#${id}`).value = '';
   }
+}
+
+function initBylaws() {
+  $('#bl-org').addEventListener('change', e => {
+    state.bylaws.selectedOrg = e.target.value;
+    renderBylawsTable();
+  });
+  $('#bl-gate').addEventListener('change', applyConditional);
+  $('#bl-save').addEventListener('click', saveBylaw);
+  $('#bl-reset').addEventListener('click', () => {
+    resetBylawForm();
+    $('#bl-gate').value = 'AutoGate';
+    applyConditional();
+  });
 }
 
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
 
 function initKeyboard() {
-  const search = document.getElementById('search');
-
   document.addEventListener('keydown', e => {
-    const tag = document.activeElement?.tagName?.toLowerCase();
-    const inInput = tag === 'input' || tag === 'textarea' || tag === 'select';
+    const tag = (document.activeElement?.tagName || '').toLowerCase();
+    const inField = tag === 'input' || tag === 'textarea' || tag === 'select';
 
     if (e.key === 'Escape') {
-      if (state.newFormOpen) { hideNewForm(); return; }
-      if (state.expandedId !== null) { expandRow(null); return; }
-      if (document.activeElement === search) {
-        search.value = '';
-        state.filter = '';
-        renderList();
+      clearFlash();
+      if (state.screen === 'changes' && state.cr.open) { hideWizard(); return; }
+      if (state.screen === 'org' && !$('#org-form-card').classList.contains('hidden')) { hideOrgForm(); return; }
+      if (inField) document.activeElement.blur();
+      return;
+    }
+
+    if (!inField) {
+      if (e.key === '/') {
+        e.preventDefault();
+        const search = ({
+          org: '#org-search',
+          changes: '#cr-search',
+        })[state.screen];
+        if (search) $(search)?.focus();
+        return;
       }
-      return;
+      if (e.key === 'n') {
+        e.preventDefault();
+        if (state.screen === 'org') showOrgForm();
+        else if (state.screen === 'changes') newChangeRequest();
+        else if (state.screen === 'bylaws') $('#bl-org')?.focus();
+      }
     }
-
-    if (e.key === '/' && !inInput) {
-      e.preventDefault();
-      search.focus();
-      search.select();
-      return;
-    }
-
-    if (e.key === 'n' && !inInput) {
-      e.preventDefault();
-      showNewForm();
-      return;
-    }
-
-    // Enter in new form fields: submit
-    if (e.key === 'Enter' && state.newFormOpen && inInput) {
-      e.preventDefault();
-      submitNewForm();
-      return;
-    }
-  });
-
-  search.addEventListener('input', () => {
-    state.filter = search.value;
-    renderList();
-  });
-}
-
-function initSidebar() {
-  document.querySelectorAll('.nav-item').forEach(el => {
-    el.addEventListener('click', () => setActiveEntity(el.dataset.entity));
   });
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
+function initTabs() {
+  $$('.tab').forEach(t => t.addEventListener('click', () => setScreen(t.dataset.screen)));
+}
+
 async function init() {
+  initTabs();
+  initOrg();
+  initChanges();
+  initPlans();
+  initBylaws();
   initKeyboard();
-  initSidebar();
 
   try {
     await loadAll();
-    setError('');
   } catch (err) {
-    setError(err.message);
+    flash(err.message, 'error', 6000);
   }
-
-  renderList();
-  document.getElementById('search').focus();
+  setScreen('org');
+  updateFooterMeta();
 }
 
 init();

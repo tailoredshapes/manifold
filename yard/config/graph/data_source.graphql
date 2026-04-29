@@ -1,0 +1,14 @@
+type DataSource {
+    id: ID
+    name: String!
+    kind: String!
+    location: String
+    refresh_policy: String
+    notes: String
+}
+type Query {
+    getById(id: ID, at: Float): DataSource
+    getAll(at: Float): [DataSource]
+    getByKind(kind: String, at: Float): [DataSource]
+    getByName(name: String, at: Float): [DataSource]
+}

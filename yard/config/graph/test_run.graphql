@@ -1,0 +1,48 @@
+type TestRun {
+    id: ID
+    test_environment_id: String!
+    change_request_id: String
+    test_suite_id: String
+    team_id: String
+    started_at: String
+    finished_at: String
+    status: String
+    duration_minutes: String
+    cost_actual: String
+    test_environment: TestEnvironment
+    change_request: ChangeRequest
+    team: Team
+    test_suite: TestSuite
+}
+type TestEnvironment {
+    id: ID
+    name: String
+    kind: String
+    deployable_id: String
+}
+type ChangeRequest {
+    id: ID
+    summary: String
+    status: String
+    tier: String
+}
+type Team {
+    id: ID
+    name: String
+    kind: String
+    description: String
+}
+type TestSuite {
+    id: ID
+    name: String
+    runner: String
+    deployable_id: String
+}
+type Query {
+    getById(id: ID, at: Float): TestRun
+    getAll(at: Float): [TestRun]
+    getByTestEnvironmentId(test_environment_id: String, at: Float): [TestRun]
+    getByChangeRequestId(change_request_id: String, at: Float): [TestRun]
+    getByStatus(status: String, at: Float): [TestRun]
+    getByTeamId(team_id: String, at: Float): [TestRun]
+}

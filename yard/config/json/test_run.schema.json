@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["test_environment_id"],
+  "properties": {
+    "test_environment_id": { "type": "string" },
+    "change_request_id":   { "type": "string" },
+    "test_suite_id":       { "type": "string" },
+    "team_id":             { "type": "string" },
+    "started_at":          { "type": "string" },
+    "finished_at":         { "type": "string" },
+    "status":              { "type": "string", "enum": ["pending", "running", "passed", "failed", "cancelled", "errored"] },
+    "duration_minutes":    { "type": "string" },
+    "cost_actual":         { "type": "string" }
+  },
+  "additionalProperties": true
+}

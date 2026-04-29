@@ -59,7 +59,7 @@ deploy:
     - docker compose up -d
     - |
       echo "Waiting for services to be ready..."
-      for svc in "Groundwork:3050" "Union:3051" "Cityhall:3052"; do
+      for svc in "Groundwork:3050" "Union:3051" "Cityhall:3052" "Yard:3053"; do
         name=${svc%%:*}
         port=${svc##*:}
         for i in $(seq 1 30); do

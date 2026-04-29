@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["kind", "target_env_id"],
+  "properties": {
+    "kind":              { "type": "string", "enum": ["push", "pull", "shared"] },
+    "target_env_id":     { "type": "string" },
+    "source_env_id":     { "type": "string" },
+    "source_data_id":    { "type": "string" },
+    "refresh_policy":    { "type": "string", "enum": ["on_demand", "periodic", "per_test_run", "versioned"] },
+    "estimated_minutes": { "type": "string" },
+    "notes":             { "type": "string" }
+  },
+  "additionalProperties": true
+}

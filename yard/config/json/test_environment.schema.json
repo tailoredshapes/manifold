@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["name", "kind"],
+  "properties": {
+    "name":                 { "type": "string" },
+    "kind":                 { "type": "string", "enum": ["mock", "stub", "sandbox", "isolated", "multi-tenant", "external"] },
+    "deployable_id":        { "type": "string" },
+    "service_id":           { "type": "string" },
+    "infrastructure_id":    { "type": "string" },
+    "mock_source_id":       { "type": "string" },
+    "cost_per_hour":        { "type": "string" },
+    "spinup_minutes":       { "type": "string" },
+    "teardown_policy":      { "type": "string", "enum": ["on_finish", "on_idle", "manual", "never"] },
+    "max_duration_minutes": { "type": "string" },
+    "concurrency_limit":    { "type": "string" },
+    "rate_limit":           { "type": "string" },
+    "contractual_limit":    { "type": "string" },
+    "notes":                { "type": "string" }
+  },
+  "additionalProperties": true
+}

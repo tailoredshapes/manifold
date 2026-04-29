@@ -1,0 +1,15 @@
+type TestInfrastructure {
+    id: ID
+    name: String!
+    provider: String!
+    region: String
+    instance_type: String
+    cost_per_hour: String
+    notes: String
+}
+type Query {
+    getById(id: ID, at: Float): TestInfrastructure
+    getAll(at: Float): [TestInfrastructure]
+    getByProvider(provider: String, at: Float): [TestInfrastructure]
+    getByName(name: String, at: Float): [TestInfrastructure]
+}
