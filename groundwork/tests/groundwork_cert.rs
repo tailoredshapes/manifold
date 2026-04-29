@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-const APPLICATION_GRAPHQL: &str = include_str!("../config/graph/application.graphql");
+const DEPLOYABLE_GRAPHQL: &str = include_str!("../config/graph/deployable.graphql");
 
 #[derive(Debug, World)]
 pub struct GroundworkWorld {
@@ -87,13 +87,13 @@ async fn build_test_server() -> String {
         .build();
 
     let schema_json: Value =
-        serde_json::from_str(include_str!("../config/json/application.schema.json")).unwrap();
+        serde_json::from_str(include_str!("../config/json/deployable.schema.json")).unwrap();
 
     let server_config = ServerConfig {
         port: 0,
         graphlettes: vec![GraphletteConfig {
-            path: "/application/graph".into(),
-            schema_text: APPLICATION_GRAPHQL.into(),
+            path: "/deployable/graph".into(),
+            schema_text: DEPLOYABLE_GRAPHQL.into(),
             root_config,
             searcher,
         }],
@@ -121,7 +121,7 @@ async fn build_test_server() -> String {
     });
 
     let restlette = meshql_server::build_restlette_router_ext(
-        "/application/api",
+        "/deployable/api",
         repo,
         Arc::new(NoAuth),
         None,
@@ -173,8 +173,8 @@ async fn do_request(world: &mut GroundworkWorld, method: &str, path: &str, body:
     world.store_response(status, body_text, ct);
 }
 
-async fn register_app_raw(world: &mut GroundworkWorld, name: &str) -> String {
-    let url = format!("{}/application/api", world.base_url());
+async fn register_deployable_raw(world: &mut GroundworkWorld, name: &str) -> String {
+    let url = format!("{}/deployable/api", world.base_url());
     let resp = world
         .client
         .post(&url)
@@ -206,19 +206,19 @@ async fn start_server(world: &mut GroundworkWorld) {
     world.timestamps.clear();
 }
 
-#[given(regex = r#"^I have registered application "(.+)"$"#)]
-async fn register_one(world: &mut GroundworkWorld, name: String) {
-    let id = register_app_raw(world, &name).await;
+#[given(regex = r#"^I have registered deployable "(.+)"$"#)]
+async fn register_one_deployable(world: &mut GroundworkWorld, name: String) {
+    let id = register_deployable_raw(world, &name).await;
     world.ids.insert(name, id);
 }
 
-#[given(regex = r#"^I have registered applications:$"#)]
-async fn register_many(world: &mut GroundworkWorld, step: &cucumber::gherkin::Step) {
+#[given(regex = r#"^I have registered deployables:$"#)]
+async fn register_many_deployables(world: &mut GroundworkWorld, step: &cucumber::gherkin::Step) {
     let table = step.table.as_ref().expect("expected a table");
     let mut pairs: Vec<(String, String)> = Vec::new();
     for row in table.rows.iter().skip(1) {
         let name = row[0].trim().to_string();
-        let id = register_app_raw(world, &name).await;
+        let id = register_deployable_raw(world, &name).await;
         pairs.push((name, id));
     }
     for (name, id) in pairs {
@@ -236,10 +236,10 @@ async fn capture_timestamp(world: &mut GroundworkWorld, key: String) {
     tokio::time::sleep(tokio::time::Duration::from_millis(20)).await;
 }
 
-#[given(regex = r#"^I update application "(.+)" with body (.+)$"#)]
-async fn update_app_given(world: &mut GroundworkWorld, name: String, body_str: String) {
-    let id = world.ids.get(&name).cloned().expect("app not registered");
-    let path = format!("/application/api/{id}");
+#[given(regex = r#"^I update deployable "(.+)" with body (.+)$"#)]
+async fn update_deployable_given(world: &mut GroundworkWorld, name: String, body_str: String) {
+    let id = world.ids.get(&name).cloned().expect("deployable not registered");
+    let path = format!("/deployable/api/{id}");
     let body: Value = serde_json::from_str(&body_str).expect("invalid JSON body");
     do_request(world, "PUT", &path, Some(body)).await;
 }

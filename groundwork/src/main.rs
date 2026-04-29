@@ -15,7 +15,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::str::FromStr;
 use std::sync::Arc;
 
-const APPLICATION_GRAPHQL: &str = include_str!("../config/graph/application.graphql");
+const DEPLOYABLE_GRAPHQL: &str = include_str!("../config/graph/deployable.graphql");
 const SERVICE_GRAPHQL: &str = include_str!("../config/graph/service.graphql");
 const DEPENDENCY_GRAPHQL: &str = include_str!("../config/graph/dependency.graphql");
 const CONTRACT_GRAPHQL: &str = include_str!("../config/graph/contract.graphql");
@@ -109,15 +109,15 @@ async fn main() -> anyhow::Result<()> {
 
     std::fs::create_dir_all(&data_dir)?;
 
-    let application = make_entity(&data_dir, "application").await;
+    let deployable = make_entity(&data_dir, "deployable").await;
     let service = make_entity(&data_dir, "service").await;
     let dependency = make_entity(&data_dir, "dependency").await;
     let contract = make_entity(&data_dir, "contract").await;
     let sla = make_entity(&data_dir, "sla").await;
 
-    let application_schema_json: serde_json::Value =
-        serde_json::from_str(include_str!("../config/json/application.schema.json"))
-            .expect("invalid application schema JSON");
+    let deployable_schema_json: serde_json::Value =
+        serde_json::from_str(include_str!("../config/json/deployable.schema.json"))
+            .expect("invalid deployable schema JSON");
     let service_schema_json: serde_json::Value =
         serde_json::from_str(include_str!("../config/json/service.schema.json"))
             .expect("invalid service schema JSON");
@@ -131,7 +131,7 @@ async fn main() -> anyhow::Result<()> {
         serde_json::from_str(include_str!("../config/json/sla.schema.json"))
             .expect("invalid sla schema JSON");
 
-    let application_gql_config = RootConfig::builder()
+    let deployable_gql_config = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
@@ -166,10 +166,10 @@ async fn main() -> anyhow::Result<()> {
         port,
         graphlettes: vec![
             GraphletteConfig {
-                path: "/application/graph".into(),
-                schema_text: APPLICATION_GRAPHQL.into(),
-                root_config: application_gql_config,
-                searcher: application.searcher,
+                path: "/deployable/graph".into(),
+                schema_text: DEPLOYABLE_GRAPHQL.into(),
+                root_config: deployable_gql_config,
+                searcher: deployable.searcher,
             },
             GraphletteConfig {
                 path: "/service/graph".into(),
@@ -201,12 +201,12 @@ async fn main() -> anyhow::Result<()> {
 
     let auth = Arc::new(NoAuth);
 
-    let application_restlette = meshql_server::build_restlette_router_ext(
-        "/application/api",
-        application.repo,
+    let deployable_restlette = meshql_server::build_restlette_router_ext(
+        "/deployable/api",
+        deployable.repo,
         auth.clone(),
         None,
-        Some(make_required_validator(&application_schema_json)),
+        Some(make_required_validator(&deployable_schema_json)),
         None,
         None,
     );
@@ -251,7 +251,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(serve_index))
         .route("/static/app.js", get(serve_app_js))
         .route("/health", get(health_check))
-        .merge(application_restlette)
+        .merge(deployable_restlette)
         .merge(service_restlette)
         .merge(dependency_restlette)
         .merge(contract_restlette)

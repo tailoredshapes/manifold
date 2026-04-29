@@ -1,0 +1,12 @@
+type Deployable {
+    id: ID
+    name: String!
+    description: String
+    repo_url: String
+    team: String
+}
+type Query {
+    getById(id: ID, at: Float): Deployable
+    getAll(at: Float): [Deployable]
+    getByName(name: String, at: Float): [Deployable]
+}

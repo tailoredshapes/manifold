@@ -4,9 +4,9 @@
 // ── Entity config ─────────────────────────────────────────────────────────────
 
 const ENTITIES = {
-  applications: {
-    api: '/application/api',
-    label: 'application',
+  deployables: {
+    api: '/deployable/api',
+    label: 'deployable',
     newFields: [
       { name: 'name', label: 'name', type: 'text', required: true },
       { name: 'description', label: 'description', type: 'text', required: false },
@@ -48,8 +48,8 @@ const ENTITIES = {
     api: '/dependency/api',
     label: 'dependency',
     newFields: [
-      { name: 'application_id', label: 'application', type: 'dynamic-select', required: true,
-        optionsFrom: (data) => data.applications.map(a => ({ value: a.id, label: a.payload?.name || a.id })) },
+      { name: 'deployable_id', label: 'deployable', type: 'dynamic-select', required: true,
+        optionsFrom: (data) => data.deployables.map(a => ({ value: a.id, label: a.payload?.name || a.id })) },
       { name: 'service_id', label: 'service', type: 'dynamic-select', required: true,
         optionsFrom: (data) => data.services.map(s => ({ value: s.id, label: s.payload?.name || s.id })) },
       { name: 'criticality', label: 'criticality', type: 'select', required: false,
@@ -63,18 +63,18 @@ const ENTITIES = {
       { name: 'protocol', label: 'protocol', type: 'text' },
       { name: 'auth_method', label: 'auth_method', type: 'text' },
     ],
-    primaryField: 'application_id',
+    primaryField: 'deployable_id',
     getRowLabel: (payload, data) => {
-      const appName = data.applications.find(a => a.id === payload.application_id)?.payload?.name
-        || payload.application_id || '?';
+      const depName = data.deployables.find(a => a.id === payload.deployable_id)?.payload?.name
+        || payload.deployable_id || '?';
       const svcName = data.services.find(s => s.id === payload.service_id)?.payload?.name
         || payload.service_id || '?';
-      return `${appName} → ${svcName}`;
+      return `${depName} → ${svcName}`;
     },
     getRowBadge: (payload) => payload.criticality || null,
     readonlyInDetail: [
-      { name: 'application_id', label: 'application',
-        resolve: (payload, data) => data.applications.find(a => a.id === payload.application_id)?.payload?.name || payload.application_id || '—' },
+      { name: 'deployable_id', label: 'deployable',
+        resolve: (payload, data) => data.deployables.find(a => a.id === payload.deployable_id)?.payload?.name || payload.deployable_id || '—' },
       { name: 'service_id', label: 'service',
         resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.payload?.name || payload.service_id || '—' },
     ],
@@ -155,8 +155,8 @@ const ENTITIES = {
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const state = {
-  activeEntity: 'applications',
-  data: { applications: [], services: [], dependencies: [], contracts: [], slas: [] },
+  activeEntity: 'deployables',
+  data: { deployables: [], services: [], dependencies: [], contracts: [], slas: [] },
   expandedId: null,
   filter: '',
   newFormOpen: false,
