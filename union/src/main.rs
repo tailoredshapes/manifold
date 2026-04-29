@@ -134,6 +134,10 @@ async fn main() -> anyhow::Result<()> {
         .parse()
         .expect("PORT must be a valid u16");
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "./data".into());
+    let groundwork_url =
+        std::env::var("GROUNDWORK_URL").unwrap_or_else(|_| "http://localhost:3000".into());
+    let cityhall_url =
+        std::env::var("CITYHALL_URL").unwrap_or_else(|_| "http://localhost:3002".into());
 
     std::fs::create_dir_all(&data_dir)?;
 
@@ -182,6 +186,18 @@ async fn main() -> anyhow::Result<()> {
         .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
         .vector("getByChangeRequestId", r#"{"payload.change_request_id": "{{change_request_id}}"}"#)
         .vector("getByStatus", r#"{"payload.status": "{{status}}"}"#)
+        .singleton_resolver(
+            "deployable",
+            Some("deployable_id"),
+            "getById",
+            format!("{}/deployable/graph", groundwork_url),
+        )
+        .singleton_resolver(
+            "change_request",
+            Some("change_request_id"),
+            "getById",
+            format!("{}/change_request/graph", cityhall_url),
+        )
         .build();
 
     let config = ServerConfig {

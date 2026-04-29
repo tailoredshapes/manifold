@@ -6,6 +6,21 @@ type WorkOrder {
     change_request_id: String
     status: String
     priority: String
+    deployable: Deployable
+    change_request: ChangeRequest
+}
+type Deployable {
+    id: ID
+    name: String
+    team_id: String
+    repo_url: String
+    description: String
+}
+type ChangeRequest {
+    id: ID
+    summary: String
+    status: String
+    tier: String
 }
 type Query {
     getById(id: ID, at: Float): WorkOrder

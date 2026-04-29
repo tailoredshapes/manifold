@@ -1,4 +1,8 @@
+mod common;
+
 use axum::{http::header, response::IntoResponse, routing::get, Router};
+use common::stub_cityhall::{self, ChangeRequestRegistry, StubChangeRequest};
+use common::stub_groundwork::{self, DeployableRegistry, StubDeployable};
 use cucumber::{World, given, then, when};
 use meshql_core::{GraphletteConfig, NoAuth, RootConfig, ServerConfig, Stash};
 use meshql_server::{ValidatorContext, ValidatorFn};
@@ -23,6 +27,8 @@ pub struct UnionWorld {
     pub last_response_body: Option<String>,
     pub last_response_content_type: Option<String>,
     pub client: Client,
+    pub deployables: Option<DeployableRegistry>,
+    pub change_requests: Option<ChangeRequestRegistry>,
 }
 
 impl Default for UnionWorld {
@@ -34,6 +40,8 @@ impl Default for UnionWorld {
             last_response_body: None,
             last_response_content_type: None,
             client: Client::new(),
+            deployables: None,
+            change_requests: None,
         }
     }
 }
@@ -133,11 +141,14 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
     })
 }
 
-async fn build_test_server() -> String {
+async fn build_test_server() -> (String, DeployableRegistry, ChangeRequestRegistry) {
     let person = make_entity().await;
     let team = make_entity().await;
     let team_member = make_entity().await;
     let work_order = make_entity().await;
+
+    let (groundwork_url, deployable_registry) = stub_groundwork::spawn().await;
+    let (cityhall_url, change_request_registry) = stub_cityhall::spawn().await;
 
     let person_root = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
@@ -166,6 +177,18 @@ async fn build_test_server() -> String {
         .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
         .vector("getByChangeRequestId", r#"{"payload.change_request_id": "{{change_request_id}}"}"#)
         .vector("getByStatus", r#"{"payload.status": "{{status}}"}"#)
+        .singleton_resolver(
+            "deployable",
+            Some("deployable_id"),
+            "getById",
+            format!("{}/deployable/graph", groundwork_url),
+        )
+        .singleton_resolver(
+            "change_request",
+            Some("change_request_id"),
+            "getById",
+            format!("{}/change_request/graph", cityhall_url),
+        )
         .build();
 
     let server_config = ServerConfig {
@@ -259,7 +282,11 @@ async fn build_test_server() -> String {
     tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    format!("http://127.0.0.1:{}", addr.port())
+    (
+        format!("http://127.0.0.1:{}", addr.port()),
+        deployable_registry,
+        change_request_registry,
+    )
 }
 
 // ── HTTP helpers ──────────────────────────────────────────────────────────────
@@ -305,9 +332,54 @@ async fn post_for_id(world: &mut UnionWorld, path: &str, payload: serde_json::Va
 
 #[given("a Union server is running")]
 async fn start_server(world: &mut UnionWorld) {
-    let addr = build_test_server().await;
+    let (addr, deployables, change_requests) = build_test_server().await;
     world.server_addr = Some(addr);
+    world.deployables = Some(deployables);
+    world.change_requests = Some(change_requests);
     world.ids.clear();
+}
+
+#[given(regex = r#"^I capture the last id as "(.+)"$"#)]
+async fn capture_last_id(world: &mut UnionWorld, label: String) {
+    let body = world.last_response_body.as_deref().unwrap_or("");
+    let parsed: Value = serde_json::from_str(body).expect("response not JSON");
+    let id = parsed
+        .get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or_else(|| panic!("no id in response: {body}"))
+        .to_string();
+    world.ids.insert(label, id);
+}
+
+#[given(regex = r#"^the Groundwork stub knows deployable "(.+)" as "(.+)"$"#)]
+async fn groundwork_stub_knows_deployable(
+    world: &mut UnionWorld,
+    id: String,
+    name: String,
+) {
+    let reg = world.deployables.as_ref().expect("Groundwork stub not started");
+    reg.insert(StubDeployable {
+        id,
+        name,
+        team_id: None,
+        repo_url: None,
+        description: None,
+    });
+}
+
+#[given(regex = r#"^the Cityhall stub knows change request "(.+)" with summary "(.+)"$"#)]
+async fn cityhall_stub_knows_change_request(
+    world: &mut UnionWorld,
+    id: String,
+    summary: String,
+) {
+    let reg = world.change_requests.as_ref().expect("Cityhall stub not started");
+    reg.insert(StubChangeRequest {
+        id,
+        summary,
+        status: Some("submitted".into()),
+        tier: Some("prod".into()),
+    });
 }
 
 #[given(regex = r#"^I have registered person "(.+)"$"#)]
