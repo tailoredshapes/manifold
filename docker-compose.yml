@@ -4,6 +4,8 @@ services:
       context: /tank/repos/tailoredshapes
       dockerfile: manifold/Dockerfile
       target: runtime
+      args:
+        APP: groundwork
     container_name: groundwork
     restart: unless-stopped
     ports:
@@ -14,5 +16,46 @@ services:
       - PORT=3000
       - DATA_DIR=/data
 
+  union:
+    build:
+      context: /tank/repos/tailoredshapes
+      dockerfile: manifold/Dockerfile
+      target: runtime
+      args:
+        APP: union
+    container_name: union
+    restart: unless-stopped
+    ports:
+      - "3051:3000"
+    volumes:
+      - union-data:/data
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+
+  cityhall:
+    build:
+      context: /tank/repos/tailoredshapes
+      dockerfile: manifold/Dockerfile
+      target: runtime
+      args:
+        APP: cityhall
+    container_name: cityhall
+    restart: unless-stopped
+    depends_on:
+      - groundwork
+      - union
+    ports:
+      - "3052:3000"
+    volumes:
+      - cityhall-data:/data
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+      - GROUNDWORK_URL=http://groundwork:3000
+      - UNION_URL=http://union:3000
+
 volumes:
   groundwork-data:
+  union-data:
+  cityhall-data:
