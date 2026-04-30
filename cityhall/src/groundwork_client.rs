@@ -38,7 +38,12 @@ impl GroundworkLookup for HttpGroundworkClient {
             anyhow::bail!("groundwork {url} -> {}", resp.status());
         }
         let env: serde_json::Value = resp.json().await?;
-        let payload = env.get("payload").cloned().unwrap_or(serde_json::Value::Null);
+        // meshql-restlette flattens id+payload onto one object; tests sometimes
+        // nest under "payload". Accept either shape.
+        let payload = match env.get("payload") {
+            Some(v) if v.is_object() => v.clone(),
+            _ => env.clone(),
+        };
         let name = payload
             .get("name")
             .and_then(|v| v.as_str())

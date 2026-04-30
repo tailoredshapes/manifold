@@ -267,6 +267,19 @@ impl McpWorld {
             .as_ref()
             .expect("no tool result captured")
     }
+
+    /// Unwrap the `{ "result": [...] }` envelope the server uses to keep MCP's
+    /// `structuredContent` an object, when the underlying value is an array.
+    fn structured_array(&self) -> Vec<Value> {
+        let r = self.structured_result();
+        if let Some(arr) = r.as_array() {
+            return arr.clone();
+        }
+        if let Some(arr) = r.get("result").and_then(|v| v.as_array()) {
+            return arr.clone();
+        }
+        panic!("expected array (raw or wrapped under 'result'), got: {r}");
+    }
 }
 
 // ── Step definitions ─────────────────────────────────────────────────────────
@@ -410,14 +423,13 @@ async fn response_includes_tool(world: &mut McpWorld, name: String) {
 
 #[then("the tool result should be a JSON array")]
 async fn tool_result_is_array(world: &mut McpWorld) {
-    let r = world.structured_result();
-    assert!(r.is_array(), "expected array, got: {r}");
+    // Either raw array or `{ "result": [...] }` (the wire wrapper).
+    let _ = world.structured_array();
 }
 
 #[then(regex = r#"^the tool result should contain a record named "([^"]+)"$"#)]
 async fn tool_result_contains_named(world: &mut McpWorld, name: String) {
-    let r = world.structured_result();
-    let arr = r.as_array().expect("array");
+    let arr = world.structured_array();
     let found = arr.iter().any(|env| {
         let n = env
             .get("payload")
@@ -426,7 +438,7 @@ async fn tool_result_contains_named(world: &mut McpWorld, name: String) {
             .or_else(|| env.get("name").and_then(|v| v.as_str()));
         n == Some(name.as_str())
     });
-    assert!(found, "no record named {name} in {r}");
+    assert!(found, "no record named {name} in {arr:?}");
 }
 
 #[then(regex = r#"^the tool result envelope name should be "([^"]+)"$"#)]

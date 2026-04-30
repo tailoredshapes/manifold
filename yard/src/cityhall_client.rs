@@ -36,7 +36,12 @@ impl ChangeRequestLookup for HttpCityhallClient {
             anyhow::bail!("cityhall {url} -> {}", resp.status());
         }
         let env: serde_json::Value = resp.json().await?;
-        let payload = env.get("payload").cloned().unwrap_or(serde_json::Value::Null);
+        // meshql-restlette flattens id+payload onto one object; tests sometimes
+        // nest under "payload". Accept either shape.
+        let payload = match env.get("payload") {
+            Some(v) if v.is_object() => v.clone(),
+            _ => env.clone(),
+        };
         let summary = payload.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
         let tier = payload.get("tier").and_then(|v| v.as_str()).map(String::from);
         let target_str = payload

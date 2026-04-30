@@ -33,12 +33,21 @@ pub fn all_tools() -> Vec<Tool> {
 
 /// Helper: wrap a `Value` result so MCP `tools/call` returns the
 /// `{ content: [{ type: "text", text: "..." }] }` shape clients expect.
+///
+/// MCP requires `structuredContent` to be an object — wrap arrays and scalars
+/// in `{ "result": <value> }` so clients that validate the wire format don't
+/// reject the response.
 pub fn wrap_text_result(value: &Value) -> Value {
+    let structured = if value.is_object() {
+        value.clone()
+    } else {
+        serde_json::json!({ "result": value })
+    };
     serde_json::json!({
         "content": [{
             "type": "text",
             "text": serde_json::to_string_pretty(value).unwrap_or_default(),
         }],
-        "structuredContent": value,
+        "structuredContent": structured,
     })
 }
