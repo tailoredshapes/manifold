@@ -45,3 +45,33 @@ STORAGE=merkql MERKQL_DATA_PATH=/mnt/merkql cargo run --features merkql
 - `terraform/aws/` — ECS + MongoDB Atlas
 - `terraform/azure/` — Container Apps + Azure Files
 - `terraform/k8s/` — Kubernetes manifests
+
+## MCP server
+
+Groundwork ships an MCP server (`groundwork-mcp`) so an LLM (Claude, Qwen, etc.) can interrogate the catalogue in a structured way — list entities, walk the dependency graph, scope an outage, compute a deployment order. It speaks JSON-RPC 2.0 over stdio (one frame per line).
+
+### Register with Claude Code
+
+```bash
+cargo build --release --bin groundwork-mcp
+claude mcp add groundwork --env GROUNDWORK_URL=http://localhost:3050 -- "$(pwd)/target/release/groundwork-mcp"
+```
+
+`GROUNDWORK_URL` defaults to `http://localhost:3000`; point it at whichever Groundwork the LLM should query.
+
+### Tools (Phase 5)
+
+| Tool | Purpose |
+|---|---|
+| `catalog.list` | List every record of an entity type (deployable / service / exposes / dependency / contract / sla) |
+| `catalog.get` | Fetch one record by id |
+| `catalog.search` | Find records whose name matches a substring (case-insensitive) |
+| `graph.blast_radius` | If this service goes down, which deployables — and which services those deployables expose — break, transitively? |
+| `graph.dependencies_of` | What does this deployable consume? Forward walk. |
+| `graph.deployment_plan` | Topologically order every deployable transitively required by the target; surface external (publisher-less) services as prerequisites; report cycles |
+
+The IaC import/export tool family (Phase 2/3/4) is scoped for a future phase.
+
+### Try it
+
+Once registered, ask Claude something like *"What would break if Auth Service API went down?"* — it should call `catalog.search` to find the service id, then `graph.blast_radius` to enumerate the dependents.

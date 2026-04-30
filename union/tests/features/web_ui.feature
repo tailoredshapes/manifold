@@ -7,14 +7,14 @@ Feature: Web UI static assets
     When I GET "/"
     Then the response status should be 200
     And the response content-type should contain "text/html"
-    And the response body should contain "<title>union</title>"
+    And the response body should contain "<title>Union"
     And the response body should contain "app.js"
 
   Scenario: App JS is served
     When I GET "/static/app.js"
     Then the response status should be 200
     And the response content-type should contain "javascript"
-    And the response body should contain "loadEntity"
+    And the response body should contain "loadAll"
     And the response body should contain "createRecord"
 
   Scenario: Health check endpoint
