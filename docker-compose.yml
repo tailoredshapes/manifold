@@ -15,6 +15,7 @@ services:
     environment:
       - PORT=3000
       - DATA_DIR=/data
+      - UNION_URL=http://union:3000
 
   union:
     build:
