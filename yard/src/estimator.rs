@@ -281,8 +281,21 @@ pub async fn compute_estimate(inputs: EstimateInputs<'_>) -> anyhow::Result<Comp
         if rate_limit.is_empty() || kind != "external" {
             continue;
         }
+        // Emit a coordination wait if either this env is a sync target OR it
+        // serves an affected deployable (regardless of whether it was the
+        // estimator's *chosen* env for that deployable — multiple envs may be
+        // attached to the same deployable, and an external one with a rate
+        // limit is always worth surfacing).
+        let env_dep_id = env
+            .payload
+            .get("deployable_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let serves_affected_deployable = !env_dep_id.is_empty()
+            && summaries.contains_key(env_dep_id);
         let used_as_target = sync_total_minutes.contains_key(&env_id)
-            || env_for_dep.values().any(|e| e.env_id == env_id);
+            || env_for_dep.values().any(|e| e.env_id == env_id)
+            || serves_affected_deployable;
         if !used_as_target {
             continue;
         }
