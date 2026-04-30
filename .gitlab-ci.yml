@@ -48,12 +48,28 @@ deploy:
     - main
   needs:
     - build
+  variables:
+    # Stable name so docker compose volumes persist across deploys regardless
+    # of the runner's working directory.
+    COMPOSE_PROJECT_NAME: manifold
+    DEPLOY_ROOT: /home/gitlab-runner/manifold-deploy
   script:
-    - cd /tank/repos/tailoredshapes/manifold
-    - git config --global --add safe.directory /tank/repos/tailoredshapes/manifold
-    - git fetch origin
-    - git checkout main
-    - git reset --hard origin/main
+    # Stage the build context under a path the runner owns. The Dockerfile's
+    # context is the *parent* of manifold/ because it COPYs meshql-rs/ and
+    # merkql/ as siblings, so we need all three repos co-located.
+    - mkdir -p "$DEPLOY_ROOT"
+    - rsync -a --delete --exclude target --exclude .git "$CI_PROJECT_DIR"/ "$DEPLOY_ROOT/manifold/"
+    - |
+      for sibling in meshql-rs merkql; do
+        if [ -d "$DEPLOY_ROOT/$sibling/.git" ]; then
+          git -C "$DEPLOY_ROOT/$sibling" fetch --quiet origin
+          git -C "$DEPLOY_ROOT/$sibling" reset --hard --quiet origin/HEAD
+        else
+          rm -rf "$DEPLOY_ROOT/$sibling"
+          git clone --quiet "http://oauth2:${LOCAL_GITLAB_TOKEN}@192.168.7.42:8929/tailoredshapes/${sibling}.git" "$DEPLOY_ROOT/$sibling"
+        fi
+      done
+    - cd "$DEPLOY_ROOT/manifold"
     - docker compose down
     - docker compose build
     - docker compose up -d
