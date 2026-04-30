@@ -52,11 +52,13 @@ deploy:
     # Stable name so docker compose volumes persist across deploys regardless
     # of the runner's working directory.
     COMPOSE_PROJECT_NAME: manifold
-    DEPLOY_ROOT: /home/gitlab-runner/manifold-deploy
   script:
-    # Stage the build context under a path the runner owns. The Dockerfile's
-    # context is the *parent* of manifold/ because it COPYs meshql-rs/ and
-    # merkql/ as siblings, so we need all three repos co-located.
+    # Stage the build context under a path the runner user owns. The
+    # Dockerfile's context is the *parent* of manifold/ because it COPYs
+    # meshql-rs/ and merkql/ as siblings, so we need all three repos
+    # co-located. Using $HOME so this works regardless of which user the
+    # runner is registered under.
+    - export DEPLOY_ROOT="$HOME/manifold-deploy"
     - mkdir -p "$DEPLOY_ROOT"
     - rsync -a --delete --exclude target --exclude .git "$CI_PROJECT_DIR"/ "$DEPLOY_ROOT/manifold/"
     - |
