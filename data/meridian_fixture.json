@@ -1,0 +1,1846 @@
+{
+  "company": "Meridian Freight Solutions",
+  "description": "Mid-size logistics / last-mile freight delivery company (~250 employees). Fictional test dataset for Manifold.",
+  "groundwork": {
+    "deployables": [
+      {
+        "description": "Append-only compliance audit trail. On-demand releases. No test env \u2014 append-only, production-validated.",
+        "id": "04dc842c-fe15-452b-accc-2fc27707b439",
+        "name": "Audit Log",
+        "repo_url": "https://github.com/meridian-internal/audit-log",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Kafka-backed async messaging backbone. Monthly releases. Dev sandbox env only.",
+        "id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
+        "name": "Event Bus",
+        "repo_url": "https://github.com/meridian-internal/event-bus",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Feature flags and runtime configuration. On-demand releases. Dev isolated env.",
+        "id": "116ef77b-1304-4666-b680-50a744319368",
+        "name": "Config Service",
+        "repo_url": "https://github.com/meridian-internal/config-service",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Old customer relationship management system (being replaced by new CRM). On-demand patches only. No test env \u2014 too risky to replicate.",
+        "id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "name": "Legacy CRM",
+        "repo_url": "https://github.com/meridian-internal/legacy-crm",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+      },
+      {
+        "description": "Rate-limited API gateway for third-party integrators. Bi-weekly releases. Dev + staging envs.",
+        "id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "name": "Customer API Gateway",
+        "repo_url": "https://github.com/meridian-internal/customer-api-gateway",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "Snowflake loader \u2014 transforms and loads from ETL. Quarterly releases. No dedicated test env.",
+        "id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
+        "name": "Data Warehouse Loader",
+        "repo_url": "https://github.com/meridian-internal/data-warehouse",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Central OMS handling order intake, status, and fulfilment workflow. Bi-weekly releases. Dev + UAT envs.",
+        "id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "name": "Order Management System",
+        "repo_url": "https://github.com/meridian-internal/order-management",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "External customs API for cross-border shipments. Quarterly releases. External vendor sandbox only.",
+        "id": "21d5312e-de38-47a3-98ba-4346caab9920",
+        "name": "Customs Clearance Integration",
+        "repo_url": "https://github.com/meridian-internal/customs-clearance",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "SMS and WhatsApp delivery via Twilio. Continuous CD. Mock-only env (Twilio test mode).",
+        "id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
+        "name": "SMS Gateway",
+        "repo_url": "https://github.com/meridian-internal/sms-gateway",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Internal dispatcher UI \u2014 assign jobs, monitor drivers, handle exceptions. Monthly releases. Dev stub only.",
+        "id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "name": "Dispatch Console",
+        "repo_url": "https://github.com/meridian-internal/dispatch-console",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "Android driver application. Bi-weekly Play Store releases. Test via AWS Device Farm only.",
+        "id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
+        "name": "Driver App Android",
+        "repo_url": "https://github.com/meridian-internal/driver-app-android",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "Fleet tracker \u2014 vehicle assignments, maintenance schedules, fuel logs. Monthly releases. Shared UAT.",
+        "id": "48bfbc55-a08e-404b-8bb7-556b2fd68882",
+        "name": "Fleet Management",
+        "repo_url": "https://github.com/meridian-internal/fleet-management",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Internal admin for ops team \u2014 user management, config, manual overrides. Quarterly releases. No test env; feature-flagged in prod.",
+        "id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "name": "Admin Panel",
+        "repo_url": "https://github.com/meridian-internal/admin-panel",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "S3-backed object storage API \u2014 POD photos, documents. On-demand releases. No dedicated test env; mock via stub.",
+        "id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
+        "name": "File Storage",
+        "repo_url": "https://github.com/meridian-internal/file-storage",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Google Maps wrapper \u2014 address validation, lat/lng lookup. On-demand releases. No test env; uses Google Maps test API key.",
+        "id": "6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
+        "name": "Geocoding Service",
+        "repo_url": "https://github.com/meridian-internal/geocoding-service",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "BI dashboard \u2014 KPIs, SLA breach reports, driver performance. Quarterly releases. No test env; uses prod snapshots.",
+        "id": "7398af23-f605-4e2d-a092-adfadb636c1a",
+        "name": "Reporting Dashboard",
+        "repo_url": "https://github.com/meridian-internal/reporting-dashboard",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Fan-out push notifications, email, and SMS alerts. Bi-weekly releases. Dev stub env only.",
+        "id": "760922f7-529d-4cb4-9876-422b83732463",
+        "name": "Notification Service",
+        "repo_url": "https://github.com/meridian-internal/notification-service",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "ClickHouse-backed analytics for ops and executive dashboards. Quarterly releases. No test env \u2014 cost prohibitive.",
+        "id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
+        "name": "Analytics Platform",
+        "repo_url": "https://github.com/meridian-internal/analytics-platform",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Nightly ETL from operational DBs to data warehouse. Monthly releases. Dev isolated env only.",
+        "id": "93418a84-de18-4beb-b1de-95a155497944",
+        "name": "ETL Pipeline",
+        "repo_url": "https://github.com/meridian-internal/etl-pipeline",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Third-party carrier APIs \u2014 FedEx, UPS, USPS rate shopping and tracking. Monthly releases. External sandbox envs.",
+        "id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "name": "Carrier Integration",
+        "repo_url": "https://github.com/meridian-internal/carrier-integration",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "iOS driver application. Bi-weekly App Store releases. Test via AWS Device Farm only.",
+        "id": "975e9d50-641d-4010-b42f-326327fd6bc3",
+        "name": "Driver App iOS",
+        "repo_url": "https://github.com/meridian-internal/driver-app-ios",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "Core routing engine \u2014 optimises last-mile delivery paths in real time. Weekly releases. Full test env stack.",
+        "id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "name": "Route Optimizer",
+        "repo_url": "https://github.com/meridian-internal/route-optimizer",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "AuthN/AuthZ \u2014 JWT issuance, RBAC, MFA. Bi-weekly releases. Full test env stack; changes require security sign-off.",
+        "id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "name": "Auth Service",
+        "repo_url": "https://github.com/meridian-internal/auth-service",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Public shipment tracking page (no auth). Weekly releases. No dedicated test env \u2014 tests against staging OMS.",
+        "id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
+        "name": "Tracking Page",
+        "repo_url": "https://github.com/meridian-internal/tracking-page",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "Mobile backend for driver apps \u2014 job assignment, proof of delivery, GPS telemetry. Weekly releases.",
+        "id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "name": "Driver API",
+        "repo_url": "https://github.com/meridian-internal/driver-api",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "Billing and invoice generation from completed orders. Monthly releases. UAT sandbox only.",
+        "id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "name": "Invoice Engine",
+        "repo_url": "https://github.com/meridian-internal/invoice-engine",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Transactional email via SendGrid. Continuous CD. Mock-only env (Mailtrap).",
+        "id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
+        "name": "Email Service",
+        "repo_url": "https://github.com/meridian-internal/email-service",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "WMS \u2014 inbound receiving, pick/pack, outbound manifests. Quarterly releases. Shared UAT with fleet.",
+        "id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "name": "Warehouse Management",
+        "repo_url": "https://github.com/meridian-internal/warehouse-mgmt",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Deprecated driver app \u2014 sunset in progress, migrating users to v2. No new releases. No test env.",
+        "id": "e255adea-15d0-420e-9247-b435a2e78a14",
+        "name": "Old Driver App (v1)",
+        "repo_url": "https://github.com/meridian-internal/driver-app-v1",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+      },
+      {
+        "description": "Web portal for shippers \u2014 booking, tracking, invoices. Weekly releases. Dev + staging envs.",
+        "id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "name": "Customer Portal",
+        "repo_url": "https://github.com/meridian-internal/customer-portal",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      }
+    ],
+    "services": [
+      {
+        "description": "JWT issuance, token introspection, RBAC enforcement",
+        "endpoint": "https://groundwork.meridianfreight.internal/auth-service",
+        "id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "name": "Auth Service API",
+        "type": "rest"
+      },
+      {
+        "description": "Order CRUD, status transitions, fulfilment workflow",
+        "endpoint": "https://groundwork.meridianfreight.internal/order-management",
+        "id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
+        "name": "OMS REST API",
+        "type": "rest"
+      },
+      {
+        "description": "Send SMS/WhatsApp via Twilio",
+        "endpoint": "https://groundwork.meridianfreight.internal/sms-gateway",
+        "id": "25c80ba2-88dc-4e06-840d-de1ff782b708",
+        "name": "SMS Gateway API",
+        "type": "rest"
+      },
+      {
+        "description": "Feature flag evaluation and config fetch",
+        "endpoint": "https://groundwork.meridianfreight.internal/config-service",
+        "id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "name": "Config Service API",
+        "type": "rest"
+      },
+      {
+        "description": "Topic management and health endpoint",
+        "endpoint": "https://groundwork.meridianfreight.internal/event-bus",
+        "id": "4bf6afba-a4f4-4784-b12b-3ead01c6668a",
+        "name": "Event Bus API",
+        "type": "rest"
+      },
+      {
+        "description": "Internal dispatcher job management",
+        "endpoint": "https://groundwork.meridianfreight.internal/dispatch-console",
+        "id": "520ce2d5-8f22-4266-9353-d64448d71a51",
+        "name": "Dispatch Console API",
+        "type": "rest"
+      },
+      {
+        "description": "Object upload/download/presign",
+        "endpoint": "https://groundwork.meridianfreight.internal/file-storage",
+        "id": "585d78d8-92ec-40d8-865b-16402a850b04",
+        "name": "File Storage API",
+        "type": "rest"
+      },
+      {
+        "description": "Trigger nightly runs and check job status",
+        "endpoint": "https://groundwork.meridianfreight.internal/etl-pipeline",
+        "id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf",
+        "name": "ETL Pipeline API",
+        "type": "rest"
+      },
+      {
+        "description": "Rate shopping and tracking across FedEx, UPS, USPS",
+        "endpoint": "https://groundwork.meridianfreight.internal/carrier-integration",
+        "id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
+        "name": "Carrier Integration API",
+        "type": "rest"
+      },
+      {
+        "description": "Vehicle status, maintenance scheduling",
+        "endpoint": "https://groundwork.meridianfreight.internal/fleet-management",
+        "id": "64700b35-7ad3-496c-b759-1988f4cad414",
+        "name": "Fleet Management API",
+        "type": "rest"
+      },
+      {
+        "description": "Order lifecycle events on the event bus",
+        "id": "6c08f467-ea71-4081-aea1-0af7bdb9d670",
+        "name": "OMS Event Stream",
+        "type": "event"
+      },
+      {
+        "description": "Optimisation endpoint \u2014 POST a delivery batch, get back ordered stops",
+        "endpoint": "https://groundwork.meridianfreight.internal/route-optimizer",
+        "id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c",
+        "name": "Route Optimizer API",
+        "type": "rest"
+      },
+      {
+        "description": "Rate-limited gateway for third-party integrators",
+        "endpoint": "https://api.meridianfreight.com",
+        "id": "7311740a-cdbc-41b9-b5e9-431d54956eb2",
+        "name": "Customer API Gateway",
+        "type": "rest"
+      },
+      {
+        "description": "Send transactional email via SendGrid",
+        "endpoint": "https://groundwork.meridianfreight.internal/email-service",
+        "id": "806222a9-b095-4307-9366-e28a6aadabe7",
+        "name": "Email Service API",
+        "type": "rest"
+      },
+      {
+        "description": "ClickHouse-backed analytics query API",
+        "endpoint": "https://groundwork.meridianfreight.internal/analytics-platform",
+        "id": "8293c07d-4609-40a6-a023-1823bfd6c893",
+        "name": "Analytics Platform API",
+        "type": "graphql"
+      },
+      {
+        "description": "Inbound/outbound manifest and inventory endpoints",
+        "endpoint": "https://groundwork.meridianfreight.internal/warehouse-mgmt",
+        "id": "85e4b044-57f8-4f37-81c5-4dcef64ba12e",
+        "name": "Warehouse Management API",
+        "type": "rest"
+      },
+      {
+        "description": "Job assignment, GPS telemetry, POD capture",
+        "endpoint": "https://groundwork.meridianfreight.internal/driver-api",
+        "id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
+        "name": "Driver API",
+        "type": "rest"
+      },
+      {
+        "description": "Address validation and lat/lng lookup",
+        "endpoint": "https://groundwork.meridianfreight.internal/geocoding-service",
+        "id": "b41354d8-f627-4251-b55d-d3e8b4895985",
+        "name": "Geocoding Service API",
+        "type": "rest"
+      },
+      {
+        "description": "Booking, tracking, and account endpoints for the portal SPA",
+        "endpoint": "https://groundwork.meridianfreight.internal/customer-portal",
+        "id": "cc0ec6a2-f2a4-4fb9-8124-d0b3cd4e37fc",
+        "name": "Customer Portal API",
+        "type": "rest"
+      },
+      {
+        "description": "Login, logout, and permission change events",
+        "id": "cea4c841-e3ca-4186-897d-f31c66a797ec",
+        "name": "Auth Event Stream",
+        "type": "event"
+      },
+      {
+        "description": "Fan-out trigger endpoint for push/email/SMS",
+        "endpoint": "https://groundwork.meridianfreight.internal/notification-service",
+        "id": "d664876c-2a0a-4f21-a10a-b076931cc64c",
+        "name": "Notification Service API",
+        "type": "rest"
+      },
+      {
+        "description": "Append-only audit event ingest and query",
+        "endpoint": "https://groundwork.meridianfreight.internal/audit-log",
+        "id": "d7f612a3-6900-4112-8bf9-9189e43a0891",
+        "name": "Audit Log API",
+        "type": "rest"
+      },
+      {
+        "description": "Public shipment tracking \u2014 no auth required",
+        "endpoint": "https://groundwork.meridianfreight.internal/tracking-page",
+        "id": "e9c978d1-2890-4f1e-8a65-27d6d9eb62ae",
+        "name": "Tracking API",
+        "type": "rest"
+      },
+      {
+        "description": "Invoice generation and billing queries",
+        "endpoint": "https://groundwork.meridianfreight.internal/invoice-engine",
+        "id": "edf89fa0-54ec-44fb-9377-7eedbee4f6d2",
+        "name": "Invoice Engine API",
+        "type": "rest"
+      }
+    ],
+    "exposes": [
+      {
+        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
+        "id": "050879fd-57e7-4d4b-98a0-4d76505a8703",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7"
+      },
+      {
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "177e46a6-6655-495f-b7de-12d054d4a5cc",
+        "protocol": "kafka",
+        "service_id": "cea4c841-e3ca-4186-897d-f31c66a797ec"
+      },
+      {
+        "deployable_id": "04dc842c-fe15-452b-accc-2fc27707b439",
+        "id": "187c9cc4-0e85-43f1-a648-d8e523057df7",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891"
+      },
+      {
+        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "id": "27284162-4839-447f-a660-ca56de4bdff3",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c"
+      },
+      {
+        "deployable_id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
+        "id": "2b6a8b1e-8532-4182-904e-15fc919866af",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "8293c07d-4609-40a6-a023-1823bfd6c893"
+      },
+      {
+        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
+        "id": "3a6026da-6241-4f65-875b-65d21fcdc6d2",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "d664876c-2a0a-4f21-a10a-b076931cc64c"
+      },
+      {
+        "deployable_id": "116ef77b-1304-4666-b680-50a744319368",
+        "id": "42cf193c-7faa-4699-bd02-225e7ce0a214",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
+      },
+      {
+        "deployable_id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
+        "id": "512f817a-1e63-45c4-b46e-b78bedb32c54",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "25c80ba2-88dc-4e06-840d-de1ff782b708"
+      },
+      {
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "id": "5a2da4c0-44c8-45a2-978c-88787cf86825",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "85e4b044-57f8-4f37-81c5-4dcef64ba12e"
+      },
+      {
+        "deployable_id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
+        "id": "708deccd-01c1-4f45-a252-de0791b0cd70",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
+      },
+      {
+        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "id": "73c74e78-26d3-4c03-8d92-c255a278022a",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805"
+      },
+      {
+        "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
+        "id": "7be515aa-9092-4609-b2eb-210fab9abd20",
+        "port": "443",
+        "protocol": "https",
+        "service_id": "e9c978d1-2890-4f1e-8a65-27d6d9eb62ae"
+      },
+      {
+        "deployable_id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "id": "7f2a3300-c8d0-473f-94b8-01e301635000",
+        "port": "443",
+        "protocol": "https",
+        "service_id": "7311740a-cdbc-41b9-b5e9-431d54956eb2"
+      },
+      {
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "id": "82aab53c-86d4-4307-bc89-e7b39a844970",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf"
+      },
+      {
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "9a69a773-bc22-4fad-9d61-89797b8d13fd",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
+      },
+      {
+        "deployable_id": "6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
+        "id": "ae618dd3-d8fd-4ed7-aaa8-394a2248ced2",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985"
+      },
+      {
+        "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
+        "id": "c5256d92-9914-459e-bd2a-c6908e862683",
+        "port": "9092",
+        "protocol": "kafka",
+        "service_id": "4bf6afba-a4f4-4784-b12b-3ead01c6668a"
+      },
+      {
+        "deployable_id": "48bfbc55-a08e-404b-8bb7-556b2fd68882",
+        "id": "ced7fac1-29fe-45ec-b388-018318a68b54",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414"
+      },
+      {
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "cf58a867-857b-4de0-886a-ce93831ab180",
+        "protocol": "kafka",
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670"
+      },
+      {
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "id": "d90d4260-a0d7-4c41-9179-4ace14f20fd0",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97"
+      },
+      {
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "id": "dd9054ea-5b93-42de-98bd-d223fb3ca2bc",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "edf89fa0-54ec-44fb-9377-7eedbee4f6d2"
+      },
+      {
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "id": "e161508e-99ec-4eac-87a4-90fed5aa38e5",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "520ce2d5-8f22-4266-9353-d64448d71a51"
+      },
+      {
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "ec8a97cd-05f3-4ac7-baeb-2945f1a33ec5",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "cc0ec6a2-f2a4-4fb9-8124-d0b3cd4e37fc"
+      },
+      {
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "f2a66343-b93f-48e3-821e-c81455b9258f",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      }
+    ],
+    "dependencies": [
+      {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "01707193-d9b0-46f3-ad7c-d21abea369c7",
+        "protocol": "http",
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "medium",
+        "deployable_id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
+        "id": "13859e40-fe43-4be7-a563-70da884fc68f",
+        "protocol": "http",
+        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "medium",
+        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "id": "15b61ed1-afc0-4a12-b7e2-48edd9367a58",
+        "protocol": "http",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "id": "17b76217-8f7c-4a77-888a-038585c41c8c",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "medium",
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "308ae8cf-41b3-4fc4-bdf3-dec21850f0ca",
+        "protocol": "http",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "id": "33e64624-87ac-4256-a035-b1e0755f9b62",
+        "protocol": "http",
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
+      },
+      {
+        "auth_method": "api_key",
+        "criticality": "medium",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "3799cff4-cdbc-4719-96c1-576fe7704c08",
+        "protocol": "http",
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "id": "3c8059fb-ef28-4a32-82af-e568ee7c114f",
+        "protocol": "http",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "id": "44b1bdd2-91da-4fc1-8dd3-85bdb036e4a2",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "low",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "51b68aeb-71b5-4131-b61c-bd0ba26837fe",
+        "protocol": "http",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "id": "55abdd1c-8d3b-45b9-b2a0-daf3a80235b8",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "id": "573322d7-3ad0-4378-a68c-f5dad0613522",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "high",
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "id": "59185d94-2754-4518-9a2f-f73e4ce4774b",
+        "protocol": "http",
+        "service_id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
+        "id": "5ae10b3d-4c8c-4fbe-b48f-f9e7464118aa",
+        "protocol": "http",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "low",
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "id": "5e0dda09-6077-4b39-b612-bc79d034f8f8",
+        "protocol": "http",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "low",
+        "deployable_id": "7398af23-f605-4e2d-a092-adfadb636c1a",
+        "id": "5ec848ea-e572-47de-952a-23431e42f898",
+        "protocol": "http",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
+      },
+      {
+        "auth_method": "none",
+        "criticality": "high",
+        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
+        "id": "60a50d8b-c8e6-418f-9cf3-5b462dcfc30a",
+        "protocol": "kafka",
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "61a9dc64-3fb2-4699-9aa0-5ac16dad592d",
+        "protocol": "http",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
+      },
+      {
+        "auth_method": "api_key",
+        "criticality": "high",
+        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "id": "726b1be2-3133-4dd9-a4b2-217521242792",
+        "protocol": "http",
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985"
+      },
+      {
+        "auth_method": "api_key",
+        "criticality": "medium",
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "id": "7fc08b37-0af6-4355-81f5-7a9c5fab462a",
+        "protocol": "http",
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805"
+      },
+      {
+        "auth_method": "api_key",
+        "criticality": "medium",
+        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
+        "id": "8050af1c-c60f-46d2-a302-1d04b779c4f8",
+        "protocol": "http",
+        "service_id": "25c80ba2-88dc-4e06-840d-de1ff782b708"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "low",
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "83a22fc4-0426-4f88-8abc-14d8deefbd5e",
+        "protocol": "http",
+        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891"
+      },
+      {
+        "auth_method": "none",
+        "criticality": "high",
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "id": "86a50a5c-bee5-4c12-8199-b38207edcd64",
+        "protocol": "kafka",
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "id": "9218c45f-f4f1-4c88-8be2-84889db275e3",
+        "protocol": "http",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "id": "a16cd38a-0946-4483-a33d-8ca210876bf9",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "high",
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "id": "aad1598b-1ed3-461a-8259-4245d22f8d35",
+        "protocol": "http",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
+      },
+      {
+        "auth_method": "api_key",
+        "criticality": "medium",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "ab0a55de-5cc2-4d60-88db-68b13e252a76",
+        "protocol": "http",
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "low",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "id": "b2d6ebff-17f0-4da3-9e84-17f52cee8ddc",
+        "protocol": "http",
+        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "id": "b62b8719-1521-45aa-a649-a1b3a90ab090",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "48bfbc55-a08e-404b-8bb7-556b2fd68882",
+        "id": "cc3247b8-6ca7-4915-98a4-733b6821535b",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "cc8a9808-fa58-47f1-bec9-b2d14c6e7e78",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "medium",
+        "deployable_id": "7398af23-f605-4e2d-a092-adfadb636c1a",
+        "id": "d13a6df1-8513-460d-8cfd-e360301173c0",
+        "protocol": "graphql",
+        "service_id": "8293c07d-4609-40a6-a023-1823bfd6c893"
+      },
+      {
+        "auth_method": "none",
+        "criticality": "high",
+        "deployable_id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "id": "e283c560-7bab-443a-80cb-b50e6587fe6f",
+        "protocol": "http",
+        "service_id": "e9c978d1-2890-4f1e-8a65-27d6d9eb62ae"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "e5ef6131-a18c-49cd-8900-6affe424550e",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "auth_method": "api_key",
+        "criticality": "medium",
+        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
+        "id": "e9d6dea9-3933-44bc-b21c-c2fd94c9d86e",
+        "protocol": "http",
+        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7"
+      },
+      {
+        "auth_method": "service_token",
+        "criticality": "low",
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "eb80b938-d479-42ce-b1ae-60a116248dc4",
+        "protocol": "http",
+        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891"
+      },
+      {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "id": "f76e7283-bc34-424a-9b9a-98beba615332",
+        "protocol": "http",
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
+      }
+    ],
+    "contracts": [
+      {
+        "format": "openapi",
+        "id": "0d690ef8-848d-4c3f-8433-b5c49709c540",
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
+        "spec_url": "https://specs.meridianfreight.internal/carrier/v2.1.yaml",
+        "version": "2.1"
+      },
+      {
+        "format": "openapi",
+        "id": "110f712b-9e81-4f00-8e74-fc0d850b4bf9",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "spec_url": "https://specs.meridianfreight.internal/auth-service/v2.0.yaml",
+        "version": "2.0"
+      },
+      {
+        "format": "openapi",
+        "id": "621beb33-53ca-42e1-b7bd-f609cef677e3",
+        "service_id": "7311740a-cdbc-41b9-b5e9-431d54956eb2",
+        "spec_url": "https://specs.meridianfreight.internal/customer-api-gw/v1.2.yaml",
+        "version": "1.2"
+      },
+      {
+        "format": "openapi",
+        "id": "6cfaa091-39e0-4f77-9def-b1f014d015e0",
+        "service_id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c",
+        "spec_url": "https://specs.meridianfreight.internal/route-optimizer/v2.3.yaml",
+        "version": "2.3"
+      },
+      {
+        "format": "openapi",
+        "id": "bedc965f-c03a-40da-8447-d7d4db25662a",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
+        "spec_url": "https://specs.meridianfreight.internal/order-management/v1.8.yaml",
+        "version": "1.8"
+      },
+      {
+        "format": "openapi",
+        "id": "d323d7f2-c81b-42f6-b5f2-67152a83a286",
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
+        "spec_url": "https://specs.meridianfreight.internal/driver-api/v3.1.yaml",
+        "version": "3.1"
+      },
+      {
+        "format": "graphql",
+        "id": "eddacf26-724e-4aa0-ab0f-b6c28c2246f8",
+        "service_id": "8293c07d-4609-40a6-a023-1823bfd6c893",
+        "spec_url": "https://specs.meridianfreight.internal/analytics/v1.0.graphql",
+        "version": "1.0"
+      }
+    ],
+    "slas": [
+      {
+        "contract_id": "bedc965f-c03a-40da-8447-d7d4db25662a",
+        "id": "09206052-025a-47fc-9ea4-511132f6e58c",
+        "metric": "p99_latency_ms",
+        "target": "500",
+        "window": "1h"
+      },
+      {
+        "contract_id": "110f712b-9e81-4f00-8e74-fc0d850b4bf9",
+        "id": "0d6bb892-0bb6-4605-8f64-8826e0336e93",
+        "metric": "p99_latency_ms",
+        "target": "100",
+        "window": "1h"
+      },
+      {
+        "contract_id": "110f712b-9e81-4f00-8e74-fc0d850b4bf9",
+        "id": "1b21ff02-10a0-4204-840f-918e2f3c6ae6",
+        "metric": "availability",
+        "target": "99.99",
+        "window": "30d"
+      },
+      {
+        "contract_id": "621beb33-53ca-42e1-b7bd-f609cef677e3",
+        "id": "39738bba-9fe5-4a6d-82c4-5b02e2f8d574",
+        "metric": "p99_latency_ms",
+        "target": "200",
+        "window": "1h"
+      },
+      {
+        "contract_id": "6cfaa091-39e0-4f77-9def-b1f014d015e0",
+        "id": "56a0d78a-63f8-4738-880c-db0dbe248440",
+        "metric": "availability",
+        "target": "99.9",
+        "window": "30d"
+      },
+      {
+        "contract_id": "0d690ef8-848d-4c3f-8433-b5c49709c540",
+        "id": "586481d9-025c-47d0-b070-c03bd1f59fff",
+        "metric": "p99_latency_ms",
+        "target": "2000",
+        "window": "1h"
+      },
+      {
+        "contract_id": "d323d7f2-c81b-42f6-b5f2-67152a83a286",
+        "id": "666e68c0-4f93-4fc9-90da-0f774e2e62ce",
+        "metric": "availability",
+        "target": "99.95",
+        "window": "30d"
+      },
+      {
+        "contract_id": "d323d7f2-c81b-42f6-b5f2-67152a83a286",
+        "id": "80762cfd-b8b4-4c28-9d47-505215722b28",
+        "metric": "p99_latency_ms",
+        "target": "300",
+        "window": "1h"
+      },
+      {
+        "contract_id": "6cfaa091-39e0-4f77-9def-b1f014d015e0",
+        "id": "ab77e0b8-99ce-4335-bf3d-02029eb3e766",
+        "metric": "p99_latency_ms",
+        "target": "800",
+        "window": "1h"
+      },
+      {
+        "contract_id": "bedc965f-c03a-40da-8447-d7d4db25662a",
+        "id": "cc845f8e-3217-47c5-a514-e0b50b4da39d",
+        "metric": "availability",
+        "target": "99.9",
+        "window": "30d"
+      },
+      {
+        "contract_id": "621beb33-53ca-42e1-b7bd-f609cef677e3",
+        "id": "e3a12d91-9f5b-47ac-b99c-e4b0ab805e09",
+        "metric": "availability",
+        "target": "99.9",
+        "window": "30d"
+      },
+      {
+        "contract_id": "0d690ef8-848d-4c3f-8433-b5c49709c540",
+        "id": "fa7a4431-953d-4c70-bab8-cf93edbdf756",
+        "metric": "availability",
+        "target": "99.5",
+        "window": "30d"
+      }
+    ]
+  },
+  "union": {
+    "teams": [
+      {
+        "description": "Agency \u2014 staff aug on analytics, ETL, and data platform",
+        "id": "6f099b92-535e-4a24-b186-d1e28506e4ba",
+        "kind": "support",
+        "name": "NorthBridge Tech"
+      },
+      {
+        "description": "Product engineering \u2014 customer-facing apps, routing, driver experience",
+        "id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "kind": "product",
+        "name": "Team Orion"
+      },
+      {
+        "description": "Agency \u2014 staff aug on OMS, customer portal, and tracking",
+        "id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d",
+        "kind": "support",
+        "name": "Apex Digital"
+      },
+      {
+        "description": "Platform engineering \u2014 shared services, data, infrastructure",
+        "id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "kind": "platform",
+        "name": "Team Anvil"
+      },
+      {
+        "description": "Agency \u2014 legacy CRM modernisation and old driver app sunset",
+        "id": "e9a581ef-b83b-434d-9afb-becf75669d9b",
+        "kind": "support",
+        "name": "DevStar"
+      }
+    ],
+    "people": [
+      {
+        "contact": "ryan.murphy@meridianfreight.com",
+        "id": "04ffb88d-0a2a-499d-9afa-aa877419bba5",
+        "name": "Ryan Murphy",
+        "role": "Engineer"
+      },
+      {
+        "contact": "marcus.webb@meridianfreight.com",
+        "id": "0b3ded84-f023-4244-848a-03f2b7f6ff89",
+        "name": "Marcus Webb",
+        "role": "Senior Engineer"
+      },
+      {
+        "contact": "mreyes@devstar.co",
+        "id": "18c7f9a5-6c16-468a-ae38-4ed25e5b3b1c",
+        "name": "Mia Reyes",
+        "role": "Senior Dev"
+      },
+      {
+        "contact": "cblake@apexdigital.io",
+        "id": "4d73ab6f-83b5-4cb5-8dd8-8a568627e88c",
+        "name": "Chris Blake",
+        "role": "Agency Lead"
+      },
+      {
+        "contact": "david.kim@meridianfreight.com",
+        "id": "5d7acb9b-5fd9-4424-917a-2711caebd9bc",
+        "name": "David Kim",
+        "role": "Tech Lead"
+      },
+      {
+        "contact": "bnakamura@northbridgetech.com",
+        "id": "6c746376-c6e6-432f-a884-1df71bed4b2a",
+        "name": "Ben Nakamura",
+        "role": "Data Engineer"
+      },
+      {
+        "contact": "aisha.johnson@meridianfreight.com",
+        "id": "6e1802c9-fcf8-4532-840a-dd3df9ad9efd",
+        "name": "Aisha Johnson",
+        "role": "Senior Engineer"
+      },
+      {
+        "contact": "priya.patel@meridianfreight.com",
+        "id": "719d82ce-3046-4578-980c-19d2d967ae75",
+        "name": "Priya Patel",
+        "role": "Engineer"
+      },
+      {
+        "contact": "osiddiqui@apexdigital.io",
+        "id": "90ef2fa1-2127-4910-a61c-e42937607c50",
+        "name": "Omar Siddiqui",
+        "role": "Dev"
+      },
+      {
+        "contact": "cmartins@northbridgetech.com",
+        "id": "91d68256-954b-4537-9439-7909bb45fbdf",
+        "name": "Cleo Martins",
+        "role": "Data Engineer"
+      },
+      {
+        "contact": "sarah.chen@meridianfreight.com",
+        "id": "a3e3fae9-2885-41e3-a953-7a94fa2bfa94",
+        "name": "Sarah Chen",
+        "role": "Tech Lead"
+      },
+      {
+        "contact": "lstrand@northbridgetech.com",
+        "id": "ab31829f-4aa5-4cd9-b8ef-f208cdbd1b53",
+        "name": "Laura Strand",
+        "role": "Agency Lead"
+      },
+      {
+        "contact": "nkowalski@apexdigital.io",
+        "id": "aef723cc-3a7e-4f1f-abe5-a1aabfd3070b",
+        "name": "Nina Kowalski",
+        "role": "Senior Dev"
+      },
+      {
+        "contact": "afoster@devstar.co",
+        "id": "d0b7960c-9755-4842-84ae-26f725a697d1",
+        "name": "Alex Foster",
+        "role": "Agency Lead"
+      },
+      {
+        "contact": "fatima.hassan@meridianfreight.com",
+        "id": "d3855229-9b1b-4aa0-b052-c9ceb83ffe8e",
+        "name": "Fatima Hassan",
+        "role": "Engineer"
+      },
+      {
+        "contact": "jake.torres@meridianfreight.com",
+        "id": "f18913c0-1b56-43ad-aac4-955307fbf337",
+        "name": "Jake Torres",
+        "role": "Engineer"
+      },
+      {
+        "contact": "emma.liu@meridianfreight.com",
+        "id": "fd56dba3-1392-4e0d-84b7-bd906184066c",
+        "name": "Emma Liu",
+        "role": "Engineer"
+      }
+    ],
+    "team_members": [
+      {
+        "id": "0f8cf6c4-b704-4d9c-ad62-74a93ec61151",
+        "person_id": "04ffb88d-0a2a-499d-9afa-aa877419bba5",
+        "role": "Engineer",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "id": "1040761a-de2a-4924-9950-7612c77affa7",
+        "person_id": "91d68256-954b-4537-9439-7909bb45fbdf",
+        "role": "Data Engineer",
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+      },
+      {
+        "id": "129f4814-a2ae-4758-a88b-b3885768dbe3",
+        "person_id": "0b3ded84-f023-4244-848a-03f2b7f6ff89",
+        "role": "Senior Engineer",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "id": "2375d0f7-13bd-4940-b37f-3ba407d27bb8",
+        "person_id": "ab31829f-4aa5-4cd9-b8ef-f208cdbd1b53",
+        "role": "Agency Lead",
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+      },
+      {
+        "id": "34d50d66-e14d-4655-8587-65a58ff863a2",
+        "person_id": "90ef2fa1-2127-4910-a61c-e42937607c50",
+        "role": "Dev",
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+      },
+      {
+        "id": "3739d205-231b-49f7-9e99-0c90d37dbe05",
+        "person_id": "fd56dba3-1392-4e0d-84b7-bd906184066c",
+        "role": "Engineer",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "id": "3f56eb25-1845-48d3-bf25-3648306b88d4",
+        "person_id": "18c7f9a5-6c16-468a-ae38-4ed25e5b3b1c",
+        "role": "Senior Dev",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+      },
+      {
+        "id": "528fa966-456e-4d4f-b811-e7432e8e20ba",
+        "person_id": "d3855229-9b1b-4aa0-b052-c9ceb83ffe8e",
+        "role": "Engineer",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "id": "67a6811d-8c0f-4b60-b60e-58f6476f66bd",
+        "person_id": "a3e3fae9-2885-41e3-a953-7a94fa2bfa94",
+        "role": "Tech Lead",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "id": "6dec0adc-e01a-45ba-9d5f-c6c8f4cb8553",
+        "person_id": "4d73ab6f-83b5-4cb5-8dd8-8a568627e88c",
+        "role": "Agency Lead",
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+      },
+      {
+        "id": "82344e75-f00c-4bcc-8861-f7a59cfcd48e",
+        "person_id": "6c746376-c6e6-432f-a884-1df71bed4b2a",
+        "role": "Data Engineer",
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+      },
+      {
+        "id": "af7f6abb-2419-4836-8978-dd0ebc06eee2",
+        "person_id": "719d82ce-3046-4578-980c-19d2d967ae75",
+        "role": "Engineer",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "id": "d2f834ad-005a-4200-a44f-af3e80720f45",
+        "person_id": "d0b7960c-9755-4842-84ae-26f725a697d1",
+        "role": "Agency Lead",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+      },
+      {
+        "id": "de16b032-d217-4321-be19-da19c817c140",
+        "person_id": "aef723cc-3a7e-4f1f-abe5-a1aabfd3070b",
+        "role": "Senior Dev",
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+      },
+      {
+        "id": "eab5a92a-7c37-4492-b381-045f7955a28b",
+        "person_id": "5d7acb9b-5fd9-4424-917a-2711caebd9bc",
+        "role": "Tech Lead",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "id": "f4a25831-d7c5-4c32-9e4b-d346854cb2b8",
+        "person_id": "f18913c0-1b56-43ad-aac4-955307fbf337",
+        "role": "Engineer",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "id": "f6d2c867-4def-4346-8aab-cc477242f5c4",
+        "person_id": "6e1802c9-fcf8-4532-840a-dd3df9ad9efd",
+        "role": "Senior Engineer",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      }
+    ],
+    "work_orders": [
+      {
+        "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
+        "id": "02c6f8b3-bb8c-492e-94bd-647f52697aeb",
+        "priority": "high",
+        "status": "in_progress",
+        "summary": "Sunset old driver app \u2014 push final users to v2 app",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+      },
+      {
+        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "id": "2a308604-5de5-4c19-a965-94b14316d4e2",
+        "priority": "high",
+        "status": "in_progress",
+        "summary": "Phase 1: Export all CRM records to Hubspot (CR-005)",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+      },
+      {
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "48a984f4-710b-4db4-8db8-36e63ca6dc76",
+        "priority": "medium",
+        "status": "proposed",
+        "summary": "Update portal login flow for MFA phase 2 (CR-003)",
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+      },
+      {
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "5647317d-8f4e-480a-b02e-9f137e3b8db4",
+        "priority": "high",
+        "status": "in_progress",
+        "summary": "MFA enforcement rollout \u2014 TOTP for internal users (CR-003)",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
+        "id": "70b34d7d-d0b4-4b22-ab12-ed081ccd3392",
+        "priority": "medium",
+        "status": "in_progress",
+        "summary": "Add estimated delivery time to tracking page",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "deployable_id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
+        "id": "959efd20-cd49-4e0f-b7c7-ece4e9f1aaf3",
+        "priority": "medium",
+        "status": "proposed",
+        "summary": "New carrier telemetry dashboard in analytics (CR-004)",
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+      },
+      {
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "id": "9e325b5e-06ec-4a92-bf7c-09bae7305720",
+        "priority": "medium",
+        "status": "in_progress",
+        "summary": "Add FedEx Firehose source to ETL pipeline (CR-004)",
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+      },
+      {
+        "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
+        "id": "a38451cf-18bd-47bb-86a3-3e4e8729d03a",
+        "priority": "low",
+        "status": "proposed",
+        "summary": "Upgrade Kafka from 3.4 to 3.8 \u2014 rolling restart plan",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
+        "id": "bb030d1c-6848-467e-8279-5fbae16e6357",
+        "priority": "low",
+        "status": "proposed",
+        "summary": "Add WhatsApp delivery channel for driver alerts",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "cbb31f61-5216-4029-8c7e-2063b6beaab5",
+        "priority": "high",
+        "status": "in_progress",
+        "summary": "Stripe v3 migration \u2014 webhook payload adapter (CR-002)",
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+      },
+      {
+        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "id": "ce6c1fd7-c132-44dd-8260-3235cc58f3a0",
+        "priority": "high",
+        "status": "in_progress",
+        "summary": "Integrate Google Maps Traffic API for dynamic re-routing (CR-001)",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      }
+    ]
+  },
+  "cityhall": {
+    "org_nodes": [
+      {
+        "id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
+        "kind": "enterprise",
+        "name": "Meridian Freight Solutions"
+      },
+      {
+        "id": "0b780517-05fb-44ef-a19f-a42ceb7884d3",
+        "kind": "domain",
+        "name": "Agency Partners",
+        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
+      },
+      {
+        "id": "11701439-d41e-4ea8-aab8-d33f8bf87c9e",
+        "kind": "product",
+        "name": "Platform & Data",
+        "parent_id": "621b60c2-2164-41cc-92f2-e10e21064a5f",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "id": "1cbbffef-4052-4a79-a319-31936f15baf4",
+        "kind": "product",
+        "name": "DevStar (Partner)",
+        "parent_id": "0b780517-05fb-44ef-a19f-a42ceb7884d3",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+      },
+      {
+        "id": "1d43d16b-84f1-4040-b664-4c7d1516799d",
+        "kind": "product",
+        "name": "NorthBridge Tech (Partner)",
+        "parent_id": "0b780517-05fb-44ef-a19f-a42ceb7884d3",
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+      },
+      {
+        "id": "4434cc12-8c57-4f68-a89c-22581752bd75",
+        "kind": "domain",
+        "name": "Product Engineering",
+        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
+      },
+      {
+        "id": "621b60c2-2164-41cc-92f2-e10e21064a5f",
+        "kind": "domain",
+        "name": "Platform Engineering",
+        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
+      },
+      {
+        "id": "9e829514-1c45-4993-8563-25be0f76cabf",
+        "kind": "product",
+        "name": "Apex Digital (Partner)",
+        "parent_id": "0b780517-05fb-44ef-a19f-a42ceb7884d3",
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+      },
+      {
+        "id": "ae4cda4b-7adf-4553-89d7-3dd4f12b2662",
+        "kind": "product",
+        "name": "Customer Experience",
+        "parent_id": "4434cc12-8c57-4f68-a89c-22581752bd75",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b",
+        "kind": "division",
+        "name": "Engineering",
+        "parent_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4"
+      }
+    ],
+    "bylaws": [
+      {
+        "approvers": "cto,eng-director",
+        "conditions": "tier == prod",
+        "description": "All production deployments require CTO or Engineering Director sign-off",
+        "gate_type": "ApprovalGate",
+        "id": "0b2a2018-36c2-44b6-b19b-c41012629472",
+        "org_node_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
+        "priority": "2"
+      },
+      {
+        "description": "Platform changes must deploy Mon-Fri 09:00-17:00 ET unless on-call approved",
+        "gate_type": "WindowGate",
+        "id": "6cbf58e2-eeab-4db1-8fde-9ead2fdf2dd4",
+        "org_node_id": "621b60c2-2164-41cc-92f2-e10e21064a5f",
+        "priority": "3",
+        "window": "Mon-Fri 09:00-17:00 ET"
+      },
+      {
+        "approvers": "product-owner",
+        "conditions": "tier == uat",
+        "description": "Customer-facing systems need UAT sign-off from product owner before prod",
+        "gate_type": "ApprovalGate",
+        "id": "a02ee248-623c-4fb4-b19e-3378ca05c7db",
+        "org_node_id": "ae4cda4b-7adf-4553-89d7-3dd4f12b2662",
+        "priority": "2"
+      },
+      {
+        "description": "Q4 peak-season deployment freeze \u2014 no prod changes Nov 15 through Jan 5",
+        "gate_type": "FreezePeriod",
+        "id": "aefdabe0-a83f-425a-b6ee-1aabf8182b33",
+        "org_node_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
+        "priority": "1",
+        "window": "Nov-15 to Jan-05"
+      },
+      {
+        "conditions": "deployable in [route-optimizer, order-management, driver-api]",
+        "description": "Core systems (route-optimizer, OMS, driver-api) require 30-min quiesce before UAT promotion",
+        "gate_type": "QuiesceGate",
+        "id": "c9728bd3-5ec8-40a9-a982-8a4b10ceb776",
+        "org_node_id": "4434cc12-8c57-4f68-a89c-22581752bd75",
+        "priority": "1",
+        "quiesce_for": "30m"
+      },
+      {
+        "approvers": "security-team",
+        "conditions": "deployable in [auth-service, config-service]",
+        "description": "Any change touching auth-service or config-service requires security team approval",
+        "gate_type": "ApprovalGate",
+        "id": "de85631d-b2cd-4c48-b858-be176441b6c2",
+        "org_node_id": "621b60c2-2164-41cc-92f2-e10e21064a5f",
+        "priority": "1"
+      }
+    ],
+    "change_requests": [
+      {
+        "description": "First phase of CRM sunset: export all customer and contact records from legacy-crm to Hubspot. DevStar leading. No downtime required \u2014 read-only migration script.",
+        "id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
+        "requested_by": "d0b7960c-9755-4842-84ae-26f725a697d1",
+        "status": "approved",
+        "summary": "Legacy CRM \u2192 Hubspot migration (phase 1: data export)",
+        "target_deployables": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "target_versions": "legacy-crm:0.9.1-export-patch",
+        "tier": "prod"
+      },
+      {
+        "description": "Phase 2 of MFA rollout: enforce TOTP for all internal users. Requires auth-service config change + customer-portal login flow update. Coordination with admin-panel for user onboarding flow.",
+        "id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "requested_by": "5d7acb9b-5fd9-4424-917a-2711caebd9bc",
+        "status": "draft",
+        "summary": "Auth Service \u2014 MFA enforcement rollout (phase 2)",
+        "target_deployables": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3,ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9,5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "target_versions": "auth-service:2.1.0,customer-portal:4.2.0,admin-panel:1.8.0",
+        "tier": "dev"
+      },
+      {
+        "description": "Upgrade route-optimizer to v2.4 which adds real-time traffic integration via Google Maps Traffic API. Requires geocoding-service dependency bump. Blast radius: driver-api, customer-portal.",
+        "id": "55586510-e6a8-4be1-911c-b61311fb9e05",
+        "requested_by": "a3e3fae9-2885-41e3-a953-7a94fa2bfa94",
+        "status": "approved",
+        "summary": "Route Optimizer v2.4 \u2014 dynamic re-routing on traffic events",
+        "target_deployables": "9bb28e8c-5a35-48df-8276-2ac0c86fe188,6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
+        "target_versions": "route-optimizer:2.4.0,geocoding-service:1.6.2",
+        "tier": "uat"
+      },
+      {
+        "description": "Stripe v2 API deprecated Q3. Migrating order-management to Stripe v3 SDK. Breaking change in webhook payload shape \u2014 notification-service and invoice-engine need coordinated update.",
+        "id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "requested_by": "0b3ded84-f023-4244-848a-03f2b7f6ff89",
+        "status": "submitted",
+        "summary": "OMS \u2014 migrate payment gateway from Stripe v2 to v3",
+        "target_deployables": "211a2a9d-3d61-41f1-be49-9bbe775e8b86,760922f7-529d-4cb4-9876-422b83732463,cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "target_versions": "order-management:1.9.0,notification-service:2.3.1,invoice-engine:3.1.0",
+        "tier": "dev"
+      },
+      {
+        "description": "Extend ETL to ingest carrier tracking events from FedEx Firehose. New data source feeds analytics-platform and reporting-dashboard. NorthBridge leading implementation.",
+        "id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
+        "requested_by": "ab31829f-4aa5-4cd9-b8ef-f208cdbd1b53",
+        "status": "draft",
+        "summary": "ETL Pipeline \u2014 add carrier telemetry source",
+        "target_deployables": "93418a84-de18-4beb-b1de-95a155497944,7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1,938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "target_versions": "etl-pipeline:2.2.0,analytics-platform:1.3.0,carrier-integration:2.2.0",
+        "tier": "dev"
+      }
+    ],
+    "deployment_plans": []
+  },
+  "yard": {
+    "test_infrastructure": [
+      {
+        "cost_per_hour": "0.12",
+        "id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "instance_type": "fargate",
+        "name": "AWS ECS Cluster (eu-west-1)",
+        "notes": "Fargate-based isolated envs; spins up per-PR, tears down on merge",
+        "provider": "aws_ecs",
+        "region": "eu-west-1"
+      },
+      {
+        "cost_per_hour": "0.17",
+        "id": "96e8142d-26ba-48ba-82fa-79728b1d75f1",
+        "instance_type": "device-farm",
+        "name": "AWS Device Farm",
+        "notes": "Mobile device testing \u2014 iOS + Android physical device pool",
+        "provider": "external_saas",
+        "region": "us-east-1"
+      },
+      {
+        "cost_per_hour": "0.03",
+        "id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "instance_type": "k8s-shared",
+        "name": "Internal K8s (on-prem)",
+        "notes": "Shared Kubernetes cluster; used for persistent sandbox envs",
+        "provider": "kubernetes",
+        "region": "dc-london"
+      }
+    ],
+    "mock_sources": [
+      {
+        "id": "1ac34505-940d-4aad-bd3a-429c9e61345d",
+        "language": "json",
+        "name": "Google Maps Test Key",
+        "notes": "GCP test project API key with geocoding quota limits",
+        "path": "fixtures/gcp_test",
+        "repo_url": "https://github.com/meridian-internal/geocoding-service"
+      },
+      {
+        "id": "1b24f363-b533-429c-968f-85f387cd8e44",
+        "language": "ruby",
+        "name": "Mailtrap (email sandbox)",
+        "notes": "Captures outbound email; asserts subject/body in test suites",
+        "path": "fixtures/mailtrap_sink",
+        "repo_url": "https://github.com/meridian-internal/email-service"
+      },
+      {
+        "id": "4738b345-84c2-4f34-a0ec-f6497f5ee640",
+        "language": "java",
+        "name": "WireMock OMS Stub",
+        "notes": "WireMock recording of OMS API responses for tracking-page tests",
+        "path": "fixtures/oms_stub",
+        "repo_url": "https://github.com/meridian-internal/tracking-page"
+      },
+      {
+        "id": "550ecde1-7289-41ae-b095-9ad782402851",
+        "language": "json",
+        "name": "Carrier Sandbox Accounts",
+        "notes": "FedEx/UPS/USPS sandbox API credentials and test shipment IDs",
+        "path": "fixtures/sandboxes",
+        "repo_url": "https://github.com/meridian-internal/carrier-integration"
+      },
+      {
+        "id": "6ea62f6b-5913-4b81-88fc-19f9f914e6bb",
+        "language": "python",
+        "name": "Twilio Test Credentials",
+        "notes": "Twilio magic numbers for SMS delivery simulation",
+        "path": "fixtures/twilio_test",
+        "repo_url": "https://github.com/meridian-internal/sms-gateway"
+      }
+    ],
+    "data_sources": [],
+    "test_environments": [
+      {
+        "concurrency_limit": "5",
+        "cost_per_hour": "0.15",
+        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "id": "062c3952-7831-4a34-8cde-52b52837293d",
+        "infrastructure_id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "kind": "isolated",
+        "max_duration_minutes": "60",
+        "name": "route-optimizer / dev (isolated)",
+        "notes": "Spun up per-PR via GitHub Actions. Torn down on merge or 60-min timeout.",
+        "spinup_minutes": "6",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "cost_per_hour": "0.00",
+        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
+        "id": "09af19b2-505e-4658-9c16-403f9ba616d7",
+        "kind": "mock",
+        "mock_source_id": "1b24f363-b533-429c-968f-85f387cd8e44",
+        "name": "email-service / mock (Mailtrap)",
+        "notes": "Mailtrap sandbox. All outbound email captured. No real infrastructure needed.",
+        "spinup_minutes": "1",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "contractual_limit": "400 device-minutes/month under current plan",
+        "cost_per_hour": "0.17",
+        "deployable_id": "975e9d50-641d-4010-b42f-326327fd6bc3",
+        "id": "1822dec3-3e4e-4e8c-9adb-4730cc5b53e1",
+        "infrastructure_id": "96e8142d-26ba-48ba-82fa-79728b1d75f1",
+        "kind": "external",
+        "name": "mobile-apps / external (AWS Device Farm)",
+        "notes": "Physical device pool. iOS and Android. Runs Appium tests on real hardware.",
+        "spinup_minutes": "8",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "concurrency_limit": "2",
+        "cost_per_hour": "0.06",
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "33d141a7-57e5-47e4-aebe-417e9cb4558a",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "multi-tenant",
+        "name": "order-management / UAT (multi-tenant)",
+        "notes": "Shared UAT env. Apex Digital and Orion book time slots. Manual teardown only.",
+        "rate_limit": "2 concurrent UAT campaigns",
+        "spinup_minutes": "5",
+        "teardown_policy": "manual"
+      },
+      {
+        "cost_per_hour": "0.00",
+        "deployable_id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
+        "id": "34da3498-76a9-47b5-a7bb-02ba9fd82dc4",
+        "kind": "mock",
+        "mock_source_id": "6ea62f6b-5913-4b81-88fc-19f9f914e6bb",
+        "name": "sms-gateway / mock (Twilio test mode)",
+        "notes": "Twilio test credentials. Magic numbers for delivery/failure simulation.",
+        "spinup_minutes": "1",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "cost_per_hour": "0.08",
+        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
+        "id": "57289eb9-e75d-4d96-aa40-29e3dfc7a5db",
+        "infrastructure_id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "kind": "stub",
+        "max_duration_minutes": "30",
+        "mock_source_id": "1b24f363-b533-429c-968f-85f387cd8e44",
+        "name": "notification-service / dev (stub)",
+        "notes": "Stub env with Mailtrap + Twilio test mode. No staging \u2014 relies on staging OMS events.",
+        "spinup_minutes": "4",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "cost_per_hour": "0.08",
+        "deployable_id": "116ef77b-1304-4666-b680-50a744319368",
+        "id": "68c05445-f44a-4d8d-81d8-4972d1035e64",
+        "infrastructure_id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "kind": "isolated",
+        "name": "config-service / dev (isolated)",
+        "notes": "Per-PR isolated env. Tests flag evaluation logic in isolation.",
+        "spinup_minutes": "3",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "cost_per_hour": "0.05",
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "id": "7034e8fc-7518-4e16-bda9-ac45d46eb5b7",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "sandbox",
+        "name": "invoice-engine / UAT (sandbox)",
+        "notes": "UAT-only sandbox. Seeded with synthetic order data. No dev env \u2014 tested via OMS dev.",
+        "spinup_minutes": "5",
+        "teardown_policy": "manual"
+      },
+      {
+        "cost_per_hour": "0.04",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "77ea9cd4-556f-41cf-b692-d1a75c1d3287",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "sandbox",
+        "name": "customer-portal / staging (sandbox)",
+        "notes": "Persistent staging. Apex Digital uses this for UAT validation runs.",
+        "spinup_minutes": "3",
+        "teardown_policy": "never"
+      },
+      {
+        "cost_per_hour": "0.05",
+        "deployable_id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "id": "9b258dcc-05d8-49b8-8059-4cdf258d015c",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "sandbox",
+        "name": "customer-api-gateway / staging (sandbox)",
+        "notes": "Persistent staging. External partners test against this endpoint.",
+        "spinup_minutes": "3",
+        "teardown_policy": "never"
+      },
+      {
+        "cost_per_hour": "0.04",
+        "deployable_id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "id": "9b29ccb3-f689-4dfe-9f7a-e2ac1122a4d1",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "sandbox",
+        "name": "customer-api-gateway / dev (sandbox)",
+        "notes": "Shared dev sandbox. Used for integration tests with Apex Digital integrators.",
+        "spinup_minutes": "3",
+        "teardown_policy": "on_idle"
+      },
+      {
+        "cost_per_hour": "0.20",
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "id": "9ea048ab-65c6-4751-8add-4f0a224f5503",
+        "infrastructure_id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "kind": "isolated",
+        "max_duration_minutes": "120",
+        "name": "etl-pipeline / dev (isolated)",
+        "notes": "Isolated env with synthetic data fixtures. Long spinup due to DB snapshot restore.",
+        "spinup_minutes": "12",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "concurrency_limit": "3",
+        "cost_per_hour": "0.18",
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d",
+        "infrastructure_id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "kind": "isolated",
+        "max_duration_minutes": "90",
+        "name": "order-management / dev (isolated)",
+        "notes": "Isolated per-branch env. Heavy DB migrations mean longer spinup.",
+        "spinup_minutes": "8",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "contractual_limit": "FedEx/UPS/USPS sandbox ToS \u2014 no production data, rate limited",
+        "cost_per_hour": "0.00",
+        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "id": "aec0dc7f-c731-4f83-b6a1-c54596f04108",
+        "kind": "external",
+        "name": "carrier-integration / external (vendor sandboxes)",
+        "notes": "FedEx, UPS, USPS all provide sandbox API environments. No Meridian infra required.",
+        "spinup_minutes": "0",
+        "teardown_policy": "never"
+      },
+      {
+        "concurrency_limit": "4",
+        "cost_per_hour": "0.14",
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "id": "b57712e2-f63e-47cb-8097-d86d2e7386d8",
+        "infrastructure_id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "kind": "isolated",
+        "max_duration_minutes": "60",
+        "name": "driver-api / dev (isolated)",
+        "notes": "Isolated env with mock GPS telemetry injector. Used for unit + contract tests.",
+        "spinup_minutes": "5",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "cost_per_hour": "0.04",
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "sandbox",
+        "name": "auth-service / staging (sandbox)",
+        "notes": "Persistent staging env shared by all services that depend on auth. Treated as production-like.",
+        "spinup_minutes": "3",
+        "teardown_policy": "never"
+      },
+      {
+        "cost_per_hour": "0.04",
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "id": "c3417d05-f98a-433c-8d51-5774d5680c4e",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "sandbox",
+        "name": "driver-api / staging (sandbox)",
+        "notes": "Persistent staging. Connected to route-optimizer staging for end-to-end flows.",
+        "spinup_minutes": "3",
+        "teardown_policy": "never"
+      },
+      {
+        "concurrency_limit": "6",
+        "cost_per_hour": "0.10",
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "d4dafbb7-eb07-4248-8b19-0fd12034a9cc",
+        "infrastructure_id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "kind": "isolated",
+        "max_duration_minutes": "45",
+        "name": "auth-service / dev (isolated)",
+        "notes": "Isolated per-PR. Security team reviews any test environment provisioning for auth-service.",
+        "spinup_minutes": "4",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "cost_per_hour": "0.04",
+        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "sandbox",
+        "name": "route-optimizer / staging (sandbox)",
+        "notes": "Persistent staging env. Redeployed on merge to main. Seeded with synthetic route data.",
+        "spinup_minutes": "3",
+        "teardown_policy": "never"
+      },
+      {
+        "cost_per_hour": "0.05",
+        "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
+        "id": "e3467475-0ada-4c86-a495-3a1573a512b6",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "sandbox",
+        "name": "event-bus / dev (sandbox)",
+        "notes": "Shared Kafka dev sandbox. All services in dev consume from this topic namespace.",
+        "spinup_minutes": "6",
+        "teardown_policy": "on_idle"
+      },
+      {
+        "concurrency_limit": "1",
+        "cost_per_hour": "0.08",
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "id": "e76a589d-e1fe-45e7-8071-3426fbc57470",
+        "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "kind": "multi-tenant",
+        "name": "ops-suite / UAT (multi-tenant, shared)",
+        "notes": "Shared UAT used by both warehouse-mgmt and fleet-management. Booked via shared calendar.",
+        "rate_limit": "1 UAT campaign at a time",
+        "spinup_minutes": "10",
+        "teardown_policy": "manual"
+      },
+      {
+        "cost_per_hour": "0.06",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "id": "e88713d5-3abd-4a31-a04a-d8db74df31f4",
+        "infrastructure_id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "kind": "stub",
+        "mock_source_id": "4738b345-84c2-4f34-a0ec-f6497f5ee640",
+        "name": "dispatch-console / dev (stub)",
+        "notes": "Stub env against WireMock OMS. Playwright E2E tests run here.",
+        "spinup_minutes": "3",
+        "teardown_policy": "on_finish"
+      },
+      {
+        "concurrency_limit": "4",
+        "cost_per_hour": "0.12",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "eaa0cc54-554f-403c-8177-0a6883a7a47b",
+        "infrastructure_id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "kind": "isolated",
+        "max_duration_minutes": "60",
+        "name": "customer-portal / dev (isolated)",
+        "notes": "Per-PR isolated env. Points to auth-service staging and OMS dev.",
+        "spinup_minutes": "5",
+        "teardown_policy": "on_finish"
+      }
+    ],
+    "test_suites": [],
+    "test_runs": []
+  }
+}
