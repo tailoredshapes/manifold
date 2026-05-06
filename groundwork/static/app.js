@@ -49,9 +49,9 @@ const ENTITIES = {
     label: 'exposes',
     newFields: [
       { name: 'deployable_id', label: 'deployable', type: 'dynamic-select', required: true,
-        optionsFrom: (data) => data.deployables.map(d => ({ value: d.id, label: d.payload?.name || d.id })) },
+        optionsFrom: (data) => data.deployables.map(d => ({ value: d.id, label: d.name || d.id })) },
       { name: 'service_id', label: 'service', type: 'dynamic-select', required: true,
-        optionsFrom: (data) => data.services.map(s => ({ value: s.id, label: s.payload?.name || s.id })) },
+        optionsFrom: (data) => data.services.map(s => ({ value: s.id, label: s.name || s.id })) },
       { name: 'port', label: 'port', type: 'text', required: false },
       { name: 'protocol', label: 'protocol', type: 'select', required: false,
         options: ['', 'http', 'https', 'grpc', 'tcp', 'udp', 'other'] },
@@ -63,18 +63,18 @@ const ENTITIES = {
     ],
     primaryField: 'deployable_id',
     getRowLabel: (payload, data) => {
-      const dep = data.deployables.find(d => d.id === payload.deployable_id)?.payload?.name
+      const dep = data.deployables.find(d => d.id === payload.deployable_id)?.name
         || payload.deployable_id || '?';
-      const svc = data.services.find(s => s.id === payload.service_id)?.payload?.name
+      const svc = data.services.find(s => s.id === payload.service_id)?.name
         || payload.service_id || '?';
       return `${dep} ⇒ ${svc}`;
     },
     getRowBadge: (payload) => payload.protocol || null,
     readonlyInDetail: [
       { name: 'deployable_id', label: 'deployable',
-        resolve: (payload, data) => data.deployables.find(d => d.id === payload.deployable_id)?.payload?.name || payload.deployable_id || '—' },
+        resolve: (payload, data) => data.deployables.find(d => d.id === payload.deployable_id)?.name || payload.deployable_id || '—' },
       { name: 'service_id', label: 'service',
-        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.payload?.name || payload.service_id || '—' },
+        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.name || payload.service_id || '—' },
     ],
   },
 
@@ -83,9 +83,9 @@ const ENTITIES = {
     label: 'dependency',
     newFields: [
       { name: 'deployable_id', label: 'deployable', type: 'dynamic-select', required: true,
-        optionsFrom: (data) => data.deployables.map(a => ({ value: a.id, label: a.payload?.name || a.id })) },
+        optionsFrom: (data) => data.deployables.map(a => ({ value: a.id, label: a.name || a.id })) },
       { name: 'service_id', label: 'service', type: 'dynamic-select', required: true,
-        optionsFrom: (data) => data.services.map(s => ({ value: s.id, label: s.payload?.name || s.id })) },
+        optionsFrom: (data) => data.services.map(s => ({ value: s.id, label: s.name || s.id })) },
       { name: 'criticality', label: 'criticality', type: 'select', required: false,
         options: ['', 'high', 'medium', 'low'] },
       { name: 'protocol', label: 'protocol', type: 'text', required: false },
@@ -99,18 +99,18 @@ const ENTITIES = {
     ],
     primaryField: 'deployable_id',
     getRowLabel: (payload, data) => {
-      const depName = data.deployables.find(a => a.id === payload.deployable_id)?.payload?.name
+      const depName = data.deployables.find(a => a.id === payload.deployable_id)?.name
         || payload.deployable_id || '?';
-      const svcName = data.services.find(s => s.id === payload.service_id)?.payload?.name
+      const svcName = data.services.find(s => s.id === payload.service_id)?.name
         || payload.service_id || '?';
       return `${depName} → ${svcName}`;
     },
     getRowBadge: (payload) => payload.criticality || null,
     readonlyInDetail: [
       { name: 'deployable_id', label: 'deployable',
-        resolve: (payload, data) => data.deployables.find(a => a.id === payload.deployable_id)?.payload?.name || payload.deployable_id || '—' },
+        resolve: (payload, data) => data.deployables.find(a => a.id === payload.deployable_id)?.name || payload.deployable_id || '—' },
       { name: 'service_id', label: 'service',
-        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.payload?.name || payload.service_id || '—' },
+        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.name || payload.service_id || '—' },
     ],
   },
 
@@ -119,7 +119,7 @@ const ENTITIES = {
     label: 'contract',
     newFields: [
       { name: 'service_id', label: 'service', type: 'dynamic-select', required: true,
-        optionsFrom: (data) => data.services.map(s => ({ value: s.id, label: s.payload?.name || s.id })) },
+        optionsFrom: (data) => data.services.map(s => ({ value: s.id, label: s.name || s.id })) },
       { name: 'spec_url', label: 'spec_url', type: 'text', required: false },
       { name: 'version', label: 'version', type: 'text', required: false },
       { name: 'format', label: 'format', type: 'select', required: false,
@@ -133,7 +133,7 @@ const ENTITIES = {
     ],
     primaryField: 'service_id',
     getRowLabel: (payload, data) => {
-      const svcName = data.services.find(s => s.id === payload.service_id)?.payload?.name
+      const svcName = data.services.find(s => s.id === payload.service_id)?.name
         || payload.service_id || '?';
       const ver = payload.version ? `v${payload.version}` : '';
       const fmt = payload.format || '';
@@ -142,7 +142,7 @@ const ENTITIES = {
     getRowBadge: (payload) => payload.format || null,
     readonlyInDetail: [
       { name: 'service_id', label: 'service',
-        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.payload?.name || payload.service_id || '—' },
+        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.name || payload.service_id || '—' },
     ],
   },
 
@@ -152,8 +152,8 @@ const ENTITIES = {
     newFields: [
       { name: 'contract_id', label: 'contract', type: 'dynamic-select', required: true,
         optionsFrom: (data) => data.contracts.map(c => {
-          const svcName = data.services.find(s => s.id === c.payload?.service_id)?.payload?.name || '?';
-          const ver = c.payload?.version ? `v${c.payload.version}` : c.id.slice(0, 8);
+          const svcName = data.services.find(s => s.id === c.service_id)?.name || '?';
+          const ver = c.version ? `v${c.version}` : c.id.slice(0, 8);
           return { value: c.id, label: `${ver} (${svcName})` };
         }) },
       { name: 'metric', label: 'metric', type: 'text', required: false },
@@ -169,7 +169,7 @@ const ENTITIES = {
     getRowLabel: (payload, data) => {
       const contract = data.contracts.find(c => c.id === payload.contract_id);
       const svcName = contract
-        ? (data.services.find(s => s.id === contract.payload?.service_id)?.payload?.name || '?')
+        ? (data.services.find(s => s.id === contract.service_id)?.name || '?')
         : '?';
       return `${payload.metric || '?'}: ${payload.target || '?'} [${svcName}]`;
     },
@@ -179,8 +179,8 @@ const ENTITIES = {
         resolve: (payload, data) => {
           const c = data.contracts.find(x => x.id === payload.contract_id);
           if (!c) return payload.contract_id || '—';
-          const svcName = data.services.find(s => s.id === c.payload?.service_id)?.payload?.name || '?';
-          return `${c.payload?.version || c.id.slice(0, 8)} (${svcName})`;
+          const svcName = data.services.find(s => s.id === c.service_id)?.name || '?';
+          return `${c.version || c.id.slice(0, 8)} (${svcName})`;
         } },
     ],
   },
@@ -261,7 +261,7 @@ function renderList() {
 
   const visible = needle
     ? items.filter(item => {
-        const label = cfg.getRowLabel(item.payload ?? {}, state.data).toLowerCase();
+        const label = cfg.getRowLabel(item, state.data).toLowerCase();
         return label.includes(needle) || (item.id || '').toLowerCase().includes(needle);
       })
     : items;
@@ -283,7 +283,7 @@ function renderList() {
 function buildRow(entityKey, item) {
   const cfg = ENTITIES[entityKey];
   const id = item.id;
-  const payload = item.payload ?? {};
+  const payload = item;
   const label = cfg.getRowLabel(payload, state.data);
   const badge = cfg.getRowBadge ? cfg.getRowBadge(payload) : null;
 
@@ -410,14 +410,14 @@ async function saveRow(entityKey, id, li) {
   const original = state.data[entityKey].find(a => a.id === id);
   if (original) {
     const pf = cfg.primaryField;
-    if (original.payload?.[pf] !== undefined) {
-      fields[pf] = original.payload[pf];
+    if (original[pf] !== undefined) {
+      fields[pf] = original[pf];
     }
     // Preserve all readonly FK fields too
     if (cfg.readonlyInDetail) {
       for (const rf of cfg.readonlyInDetail) {
-        if (original.payload?.[rf.name] !== undefined) {
-          fields[rf.name] = original.payload[rf.name];
+        if (original[rf.name] !== undefined) {
+          fields[rf.name] = original[rf.name];
         }
       }
     }

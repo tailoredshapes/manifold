@@ -100,30 +100,30 @@ function personById(id) { return state.data.people.find(p => p.id === id); }
 
 function teamName(id) {
   const t = teamById(id);
-  return t?.payload?.name || id || '—';
+  return t?.name || id || '—';
 }
 
 function personName(id) {
   const p = personById(id);
-  return p?.payload?.name || id || '—';
+  return p?.name || id || '—';
 }
 
 function membersForTeam(teamId) {
-  return state.data.members.filter(m => m.payload?.team_id === teamId);
+  return state.data.members.filter(m => m.team_id === teamId);
 }
 
 function teamsForPerson(personId) {
   const teamIds = state.data.members
-    .filter(m => m.payload?.person_id === personId)
-    .map(m => m.payload?.team_id)
+    .filter(m => m.person_id === personId)
+    .map(m => m.team_id)
     .filter(Boolean);
   return teamIds.map(id => teamById(id)).filter(Boolean);
 }
 
 function openWorkOrdersForTeam(teamId) {
   return state.data.workOrders.filter(wo =>
-    wo.payload?.team_id === teamId &&
-    OPEN_STATUSES.has(wo.payload?.status)
+    wo.team_id === teamId &&
+    OPEN_STATUSES.has(wo.status)
   );
 }
 
@@ -196,10 +196,9 @@ function renderTeams() {
   let teams = state.data.teams.slice();
   if (needle) {
     teams = teams.filter(t => {
-      const p = t.payload || {};
-      return (p.name || '').toLowerCase().includes(needle) ||
-             (p.kind || '').toLowerCase().includes(needle) ||
-             (p.description || '').toLowerCase().includes(needle);
+      return (t.name || '').toLowerCase().includes(needle) ||
+             (t.kind || '').toLowerCase().includes(needle) ||
+             (t.description || '').toLowerCase().includes(needle);
     });
   }
 
@@ -230,15 +229,14 @@ function renderTeams() {
 }
 
 function renderTeamCard(t) {
-  const p = t.payload || {};
   const members = membersForTeam(t.id);
   const open = openWorkOrdersForTeam(t.id);
   const cap = capacityState(members.length, open.length);
   const expanded = state.expandedTeamId === t.id;
 
   const memberItems = members.map(m => {
-    const pname = personName(m.payload?.person_id);
-    const role = m.payload?.role ? ` · ${esc(m.payload.role)}` : '';
+    const pname = personName(m.person_id);
+    const role = m.role ? ` · ${esc(m.role)}` : '';
     return `<li>${esc(pname)}${role}</li>`;
   }).join('') || '<li style="color:var(--muted)">No members yet</li>';
 
@@ -250,12 +248,12 @@ function renderTeamCard(t) {
       ${open.length === 0
         ? '<p style="color:var(--muted);font-size:13px;">No open work.</p>'
         : '<ul class="member-list">' + open.map(w => {
-            const pr = w.payload?.priority || '';
+            const pr = w.priority || '';
             const cls = pr === 'urgent' ? 'danger' : pr === 'high' ? 'warn' : pr === 'medium' ? 'primary' : '';
-            return `<li><span class="pill ${cls}" style="margin-right:6px">${esc(w.payload?.status || '')}</span>${esc(w.payload?.summary || '')}</li>`;
+            return `<li><span class="pill ${cls}" style="margin-right:6px">${esc(w.status || '')}</span>${esc(w.summary || '')}</li>`;
           }).join('') + '</ul>'
       }
-      ${p.description ? `<p style="margin-top:12px;font-size:13px;color:var(--muted);">${esc(p.description)}</p>` : ''}
+      ${t.description ? `<p style="margin-top:12px;font-size:13px;color:var(--muted);">${esc(t.description)}</p>` : ''}
     </div>
   ` : '';
 
@@ -263,9 +261,9 @@ function renderTeamCard(t) {
     <div class="team-card${expanded ? ' expanded' : ''}" data-id="${esc(t.id)}">
       <div class="team-card-top">
         <div class="name-block">
-          <div class="team-name">${esc(p.name || 'Untitled team')}</div>
+          <div class="team-name">${esc(t.name || 'Untitled team')}</div>
           <div class="team-meta">
-            ${p.kind ? `<span class="pill">${esc(p.kind)}</span>` : ''}
+            ${t.kind ? `<span class="pill">${esc(t.kind)}</span>` : ''}
           </div>
         </div>
         ${donutSvg(cap)}
@@ -310,20 +308,20 @@ function renderStaffing() {
   const months = nextSixMonths();
 
   let teams = state.data.teams.slice().sort((a, b) =>
-    (a.payload?.name || '').localeCompare(b.payload?.name || '')
+    (a.name || '').localeCompare(b.name || '')
   );
 
   const needle = state.filter.trim().toLowerCase();
   if (needle) {
-    teams = teams.filter(t => (t.payload?.name || '').toLowerCase().includes(needle));
+    teams = teams.filter(t => (t.name || '').toLowerCase().includes(needle));
   }
 
   // Filter work orders to proposed/blocked.
   const woByTeamBucket = new Map();
   for (const wo of state.data.workOrders) {
-    const status = wo.payload?.status;
+    const status = wo.status;
     if (status !== 'proposed' && status !== 'blocked') continue;
-    const tid = wo.payload?.team_id;
+    const tid = wo.team_id;
     if (!tid) continue;
     const bucket = bucketForWorkOrder(wo.id || '');
     const key = `${tid}::${bucket}`;
@@ -347,15 +345,15 @@ function renderStaffing() {
   const lanes = teams.map(t => {
     const cells = months.map((_, i) => {
       const dots = (woByTeamBucket.get(`${t.id}::${i}`) || []).map(wo => {
-        const pr = wo.payload?.priority || 'low';
-        const tip = `${esc(wo.payload?.summary || '(no summary)')} — ${esc(wo.payload?.status || '')} / ${esc(pr)}`;
+        const pr = wo.priority || 'low';
+        const tip = `${esc(wo.summary || '(no summary)')} — ${esc(wo.status || '')} / ${esc(pr)}`;
         return `<span class="dot ${esc(pr)}" data-tip="${tip}"></span>`;
       }).join('');
       return `<div class="lane-cell">${dots}</div>`;
     }).join('');
     return `
       <div class="swimlane">
-        <div class="lane-label">${esc(t.payload?.name || 'Untitled team')}</div>
+        <div class="lane-label">${esc(t.name || 'Untitled team')}</div>
         ${cells}
       </div>`;
   }).join('');
@@ -389,12 +387,12 @@ function renderStaffing() {
 function availabilityFor(personId) {
   const teamIds = new Set(
     state.data.members
-      .filter(m => m.payload?.person_id === personId)
-      .map(m => m.payload?.team_id)
+      .filter(m => m.person_id === personId)
+      .map(m => m.team_id)
   );
   let open = 0;
   for (const wo of state.data.workOrders) {
-    if (OPEN_STATUSES.has(wo.payload?.status) && teamIds.has(wo.payload?.team_id)) {
+    if (OPEN_STATUSES.has(wo.status) && teamIds.has(wo.team_id)) {
       open++;
     }
   }
@@ -410,10 +408,9 @@ function renderPeople() {
   let people = state.data.people.slice();
   if (needle) {
     people = people.filter(p => {
-      const x = p.payload || {};
-      return (x.name || '').toLowerCase().includes(needle) ||
-             (x.role || '').toLowerCase().includes(needle) ||
-             (x.contact || '').toLowerCase().includes(needle);
+      return (p.name || '').toLowerCase().includes(needle) ||
+             (p.role || '').toLowerCase().includes(needle) ||
+             (p.contact || '').toLowerCase().includes(needle);
     });
   }
 
@@ -430,17 +427,16 @@ function renderPeople() {
   }
 
   grid.innerHTML = people.map(p => {
-    const x = p.payload || {};
     const teams = teamsForPerson(p.id);
     const avail = availabilityFor(p.id);
     const teamPills = teams.length > 0
-      ? teams.map(t => `<span class="pill">${esc(t.payload?.name || '')}</span>`).join('')
+      ? teams.map(t => `<span class="pill">${esc(t.name || '')}</span>`).join('')
       : '<span style="color:var(--muted);font-size:12px;">No team</span>';
     return `
       <div class="person-card">
-        <div class="person-name">${esc(x.name || 'Unnamed')}</div>
-        <div class="person-role">${esc(x.role || '—')}</div>
-        <div class="person-contact">${esc(x.contact || '')}</div>
+        <div class="person-name">${esc(p.name || 'Unnamed')}</div>
+        <div class="person-role">${esc(p.role || '—')}</div>
+        <div class="person-contact">${esc(p.contact || '')}</div>
         <div class="person-teams">${teamPills}</div>
         <div class="person-foot">
           <span class="pill ${avail.cls}">${esc(avail.label)}</span>
@@ -460,11 +456,10 @@ function renderKanban() {
   let workOrders = state.data.workOrders.slice();
   if (needle) {
     workOrders = workOrders.filter(w => {
-      const x = w.payload || {};
-      return (x.summary || '').toLowerCase().includes(needle) ||
-             teamName(x.team_id).toLowerCase().includes(needle) ||
-             (x.priority || '').toLowerCase().includes(needle) ||
-             (x.deployable_id || '').toLowerCase().includes(needle);
+      return (w.summary || '').toLowerCase().includes(needle) ||
+             teamName(w.team_id).toLowerCase().includes(needle) ||
+             (w.priority || '').toLowerCase().includes(needle) ||
+             (w.deployable_id || '').toLowerCase().includes(needle);
     });
   }
 
@@ -483,7 +478,7 @@ function renderKanban() {
   const byStatus = {};
   for (const col of KANBAN_COLUMNS) byStatus[col.status] = [];
   for (const wo of workOrders) {
-    const s = wo.payload?.status;
+    const s = wo.status;
     if (byStatus[s]) byStatus[s].push(wo);
   }
 
@@ -507,15 +502,14 @@ function renderKanban() {
 }
 
 function woCardHtml(wo) {
-  const x = wo.payload || {};
-  const pr = x.priority || '';
+  const pr = wo.priority || '';
   const cls = pr === 'urgent' ? 'danger' : pr === 'high' ? 'warn' : pr === 'medium' ? 'primary' : '';
-  const dep = x.deployable_id ? `<div class="wo-deployable">deployable: ${esc(x.deployable_id)}</div>` : '';
+  const dep = wo.deployable_id ? `<div class="wo-deployable">deployable: ${esc(wo.deployable_id)}</div>` : '';
   return `
     <div class="wo-card" draggable="true" data-id="${esc(wo.id)}">
-      <div class="wo-summary">${esc(x.summary || '(no summary)')}</div>
+      <div class="wo-summary">${esc(wo.summary || '(no summary)')}</div>
       <div class="wo-meta">
-        <span class="wo-team">${esc(teamName(x.team_id))}</span>
+        <span class="wo-team">${esc(teamName(wo.team_id))}</span>
         ${pr ? `<span class="pill ${cls}">${esc(pr)}</span>` : ''}
       </div>
       ${dep}
@@ -566,10 +560,9 @@ async function moveWorkOrder(id, newStatus) {
   const idx = state.data.workOrders.findIndex(w => w.id === id);
   if (idx === -1) return;
   const wo = state.data.workOrders[idx];
-  if (wo.payload?.status === newStatus) return;
+  if (wo.status === newStatus) return;
 
-  // Build full payload (PUT requires required fields).
-  const payload = { ...(wo.payload || {}), status: newStatus };
+  const payload = { ...wo, status: newStatus };
   // Drop empty optional strings to avoid stomping enums.
   for (const k of Object.keys(payload)) {
     if (payload[k] === '' || payload[k] == null) delete payload[k];
@@ -582,8 +575,7 @@ async function moveWorkOrder(id, newStatus) {
     if (updated && updated.id) {
       state.data.workOrders[idx] = updated;
     } else {
-      // Some envelopes may not include id; fall back to optimistic merge.
-      state.data.workOrders[idx] = { ...wo, payload };
+      state.data.workOrders[idx] = { ...wo, status: newStatus };
     }
     setError('');
     setInfo(`Moved to ${newStatus}`);
@@ -621,8 +613,8 @@ const MODAL_FORMS = {
     title: 'New team member',
     endpoint: ENDPOINTS.members,
     fields: [
-      { name: 'person_id', label: 'Person', type: 'ref', required: true, source: () => state.data.people, labelOf: p => p.payload?.name || p.id },
-      { name: 'team_id', label: 'Team', type: 'ref', required: true, source: () => state.data.teams, labelOf: t => t.payload?.name || t.id },
+      { name: 'person_id', label: 'Person', type: 'ref', required: true, source: () => state.data.people, labelOf: p => p.name || p.id },
+      { name: 'team_id', label: 'Team', type: 'ref', required: true, source: () => state.data.teams, labelOf: t => t.name || t.id },
       { name: 'role', label: 'Role on team', type: 'text' },
     ],
     afterCreate(envelope) { state.data.members.unshift(envelope); },
@@ -631,7 +623,7 @@ const MODAL_FORMS = {
     title: 'New work order',
     endpoint: ENDPOINTS.workOrders,
     fields: [
-      { name: 'team_id', label: 'Team', type: 'ref', required: true, source: () => state.data.teams, labelOf: t => t.payload?.name || t.id },
+      { name: 'team_id', label: 'Team', type: 'ref', required: true, source: () => state.data.teams, labelOf: t => t.name || t.id },
       { name: 'summary', label: 'Summary', type: 'text', required: true },
       { name: 'status', label: 'Status', type: 'select', options: WORK_ORDER_STATUSES, default: 'proposed' },
       { name: 'priority', label: 'Priority', type: 'select', options: WORK_ORDER_PRIORITIES, default: 'medium' },

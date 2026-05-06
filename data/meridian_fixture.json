@@ -174,7 +174,7 @@
       {
         "description": "Mobile backend for driver apps \u2014 job assignment, proof of delivery, GPS telemetry. Weekly releases.",
         "id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
-        "name": "Driver API",
+        "name": "Driver Service",
         "repo_url": "https://github.com/meridian-internal/driver-api",
         "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
       },
@@ -302,7 +302,7 @@
         "description": "Rate-limited gateway for third-party integrators",
         "endpoint": "https://api.meridianfreight.com",
         "id": "7311740a-cdbc-41b9-b5e9-431d54956eb2",
-        "name": "Customer API Gateway",
+        "name": "Customer Gateway API",
         "type": "rest"
       },
       {
@@ -380,6 +380,20 @@
         "id": "edf89fa0-54ec-44fb-9377-7eedbee4f6d2",
         "name": "Invoice Engine API",
         "type": "rest"
+      },
+      {
+        "name": "Customs Clearance API",
+        "type": "rest",
+        "description": "Submits export declarations, queries clearance status, and uploads supporting documents to customs brokers.",
+        "endpoint": "https://groundwork.meridianfreight.internal/customs",
+        "id": "b8889699-8051-433c-9963-f381084f06b4"
+      },
+      {
+        "name": "Legacy CRM API",
+        "type": "soap",
+        "description": "Legacy customer record API. Read-only since Q1 \u2014 Hubspot is the new system of record. Maintained for historical reads.",
+        "endpoint": "https://groundwork.meridianfreight.internal/legacy-crm",
+        "id": "c8aab52a-3438-442f-b872-88f556518dcd"
       }
     ],
     "exposes": [
@@ -548,6 +562,20 @@
         "port": "8080",
         "protocol": "http",
         "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "id": "263d0cd9-635c-4120-99f5-e249edb69eb2",
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
+        "service_id": "b8889699-8051-433c-9963-f381084f06b4",
+        "port": "8080",
+        "protocol": "https"
+      },
+      {
+        "id": "0dcbd88b-c4a6-4751-87cb-efbab4f6bcf1",
+        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "service_id": "c8aab52a-3438-442f-b872-88f556518dcd",
+        "port": "8443",
+        "protocol": "https"
       }
     ],
     "dependencies": [
@@ -846,6 +874,398 @@
         "id": "f76e7283-bc34-424a-9b9a-98beba615332",
         "protocol": "http",
         "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
+      },
+      {
+        "id": "db6bb4d3-d674-440f-98e8-daa9a281cd1f",
+        "deployable_id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "6d224c6f-6dcf-4988-85df-b58ab0764eee",
+        "deployable_id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "35b11df9-d201-4560-8562-baf0f50e5a44",
+        "deployable_id": "975e9d50-641d-4010-b42f-326327fd6bc3",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "fb930a12-90ff-4ec9-9afa-528a6c8d5e2b",
+        "deployable_id": "975e9d50-641d-4010-b42f-326327fd6bc3",
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "ea24a16e-644c-42a1-bf6d-9aee19267a80",
+        "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "73072825-7f7e-461b-89fb-01fd34feca36",
+        "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
+        "protocol": "https",
+        "auth_method": "basic",
+        "criticality": "high"
+      },
+      {
+        "id": "559a812c-17f7-4cf7-bb66-5279e83eec7d",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "ad4b7615-5443-4cc0-9b73-525cd48db962",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "5b27cdc4-88c2-4128-a6bf-493d021c6d62",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "3bc26c71-69cd-47f8-86a3-5158dba94a31",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "service_id": "7311740a-cdbc-41b9-b5e9-431d54956eb2",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "c23dde2c-ea03-42ba-ba78-be54d7e8adc0",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "service_id": "d664876c-2a0a-4f21-a10a-b076931cc64c",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "243c628d-0be0-4c73-ad3a-ce781b0fda5b",
+        "deployable_id": "7398af23-f605-4e2d-a092-adfadb636c1a",
+        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "5d3572cc-6dab-4777-85d5-125c7f7a47d4",
+        "deployable_id": "7398af23-f605-4e2d-a092-adfadb636c1a",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "2cb60793-7559-40d9-82d0-5dbe1a8388d7",
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "794bd9db-d6e7-4ab1-9536-36b0178e7601",
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "8c47a8fc-f476-47d6-91d8-0d83b5a7530e",
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "d0753fd6-9885-45d8-8ad4-01df2a24e825",
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "83d7f07e-20ae-46c5-a377-c70850fac06f",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670",
+        "protocol": "tcp",
+        "auth_method": "mtls",
+        "criticality": "high"
+      },
+      {
+        "id": "a52a2b21-6053-4297-88b6-5ff39367493c",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "8f25977b-7a04-4e35-bfc7-fd8b04d964f6",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "8b55036b-ffdd-4693-9c98-09a943f9c00e",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
+        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "996eb70b-68b1-47bf-85a0-5ee48f27c617",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
+        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "32aac4df-10e8-471c-8e14-fdbb53215cce",
+        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "basic",
+        "criticality": "high"
+      },
+      {
+        "id": "517808ad-f4c0-42ae-825b-34b0bb308a7a",
+        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "93346efa-2c8b-4869-9776-0a61578ae43c",
+        "deployable_id": "04dc842c-fe15-452b-accc-2fc27707b439",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "mtls",
+        "criticality": "high"
+      },
+      {
+        "id": "2dd68b27-0184-4e6f-af7e-ee2bbd1d03b2",
+        "deployable_id": "04dc842c-fe15-452b-accc-2fc27707b439",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "6ce2241e-aa78-441e-bf03-b1e88596cf84",
+        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "mtls",
+        "criticality": "high"
+      },
+      {
+        "id": "c0a86eb6-8203-45ca-b6c5-6e78a035980d",
+        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "3bacba1d-700a-483a-95f1-dcb8ce2158f6",
+        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "service_id": "b8889699-8051-433c-9963-f381084f06b4",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "37a712a0-f620-4c78-be45-cfed499155b3",
+        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "8c4e7647-174a-4b2e-bc64-d816996179aa",
+        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "cea0e3d2-e72b-4496-b882-3c6bed7df8b7",
+        "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "c3f59d37-55bd-493a-b8a0-c33056032e95",
+        "deployable_id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "mtls",
+        "criticality": "high"
+      },
+      {
+        "id": "7ee9b30b-da40-4909-9ceb-77beda04db71",
+        "deployable_id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "1034b3d5-95ee-4470-a714-2a37d90a26c3",
+        "deployable_id": "6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "cace9557-a441-44ce-ba8a-5847a50a9371",
+        "deployable_id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "3be6e2d7-9e9e-40c2-84c6-f72a99e7c38c",
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670",
+        "protocol": "tcp",
+        "auth_method": "mtls",
+        "criticality": "medium"
+      },
+      {
+        "id": "a8beccb0-e6a9-4da0-bd44-9ce9f0b6d734",
+        "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "a92c6a85-6a21-426e-9278-fd2a9ed7850f",
+        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "mtls",
+        "criticality": "high"
+      },
+      {
+        "id": "88ae01e6-c347-4584-aa07-64313335468a",
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "ee7929f3-ddd3-48d2-ba06-3d95504de175",
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "2fc2d932-023b-44ad-9259-f493f83d5eb5",
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "dd60570e-a5e9-4b5f-9287-c3c4e99b815f",
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "ddedde85-ec99-48be-82e6-deffcd4d9611",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "high"
+      },
+      {
+        "id": "bdb97b6e-4a51-4852-8a1f-528cd5196fe4",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "87be3f86-008d-4812-a237-f6763c533114",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "medium"
+      },
+      {
+        "id": "5838240b-b959-4fd8-82f7-ec4c4c10b302",
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "protocol": "https",
+        "auth_method": "mtls",
+        "criticality": "medium"
+      },
+      {
+        "id": "fb70e04e-0c08-4c69-9dc6-c73fe1c35161",
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891",
+        "protocol": "https",
+        "auth_method": "jwt",
+        "criticality": "low"
+      },
+      {
+        "id": "fd8e9c23-e767-4900-8e69-eac2a708eaa0",
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670",
+        "protocol": "tcp",
+        "auth_method": "mtls",
+        "criticality": "high"
       }
     ],
     "contracts": [
@@ -897,6 +1317,48 @@
         "service_id": "8293c07d-4609-40a6-a023-1823bfd6c893",
         "spec_url": "https://specs.meridianfreight.internal/analytics/v1.0.graphql",
         "version": "1.0"
+      },
+      {
+        "id": "e99f772d-a5e0-45d0-a319-37fb74e83963",
+        "service_id": "cc0ec6a2-f2a4-4fb9-8124-d0b3cd4e37fc",
+        "spec_url": "https://specs.meridianfreight.internal/customer-portal/v1.0.yaml",
+        "version": "1.0",
+        "format": "openapi"
+      },
+      {
+        "id": "cea2c190-af74-4509-a59f-c461faf8cbd3",
+        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7",
+        "spec_url": "https://specs.meridianfreight.internal/email/v1.4.yaml",
+        "version": "1.4",
+        "format": "openapi"
+      },
+      {
+        "id": "dc2cd4c0-77e0-4488-9006-53e6743d9de9",
+        "service_id": "d664876c-2a0a-4f21-a10a-b076931cc64c",
+        "spec_url": "https://specs.meridianfreight.internal/notify/v2.0.yaml",
+        "version": "2.0",
+        "format": "openapi"
+      },
+      {
+        "id": "d5fc35dc-9fae-41e6-9a17-0057fa06f935",
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985",
+        "spec_url": "https://specs.meridianfreight.internal/geocoding/v1.1.yaml",
+        "version": "1.1",
+        "format": "openapi"
+      },
+      {
+        "id": "7bcd8dcf-6fdc-419e-9a72-b74b1262f29b",
+        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414",
+        "spec_url": "https://specs.meridianfreight.internal/fleet/v1.6.yaml",
+        "version": "1.6",
+        "format": "openapi"
+      },
+      {
+        "id": "6c37c05b-b3d3-4cc8-b603-2b7ab3d294ff",
+        "service_id": "b8889699-8051-433c-9963-f381084f06b4",
+        "spec_url": "https://specs.meridianfreight.internal/customs/v0.9.yaml",
+        "version": "0.9",
+        "format": "openapi"
       }
     ],
     "slas": [
@@ -983,6 +1445,62 @@
         "metric": "availability",
         "target": "99.5",
         "window": "30d"
+      },
+      {
+        "id": "8017a68c-4750-4b87-88b6-73496d0b4303",
+        "contract_id": "e99f772d-a5e0-45d0-a319-37fb74e83963",
+        "metric": "p99_latency_ms",
+        "target": "300",
+        "window": "1h"
+      },
+      {
+        "id": "1478d675-06c5-4421-8178-ffe42d63743e",
+        "contract_id": "e99f772d-a5e0-45d0-a319-37fb74e83963",
+        "metric": "availability",
+        "target": "99.9",
+        "window": "30d"
+      },
+      {
+        "id": "11ebe7f8-e29c-4c11-85cb-6f88b0f3350c",
+        "contract_id": "cea2c190-af74-4509-a59f-c461faf8cbd3",
+        "metric": "p99_latency_ms",
+        "target": "1500",
+        "window": "1h"
+      },
+      {
+        "id": "c26d14b3-f3fc-4ccf-b3bc-5ed75f64d52a",
+        "contract_id": "dc2cd4c0-77e0-4488-9006-53e6743d9de9",
+        "metric": "p99_latency_ms",
+        "target": "750",
+        "window": "1h"
+      },
+      {
+        "id": "517e7e52-a5b8-480b-b568-aab052592299",
+        "contract_id": "dc2cd4c0-77e0-4488-9006-53e6743d9de9",
+        "metric": "availability",
+        "target": "99.9",
+        "window": "30d"
+      },
+      {
+        "id": "aa5a2696-83a3-476d-8cc5-bfb22e655097",
+        "contract_id": "d5fc35dc-9fae-41e6-9a17-0057fa06f935",
+        "metric": "p99_latency_ms",
+        "target": "400",
+        "window": "1h"
+      },
+      {
+        "id": "50cd5782-6560-4abb-ad9a-30033adbf30e",
+        "contract_id": "7bcd8dcf-6fdc-419e-9a72-b74b1262f29b",
+        "metric": "availability",
+        "target": "99.95",
+        "window": "30d"
+      },
+      {
+        "id": "37d511f7-dd0c-47b4-89be-b33b9ec235d1",
+        "contract_id": "7bcd8dcf-6fdc-419e-9a72-b74b1262f29b",
+        "metric": "p99_latency_ms",
+        "target": "250",
+        "window": "1h"
       }
     ]
   },

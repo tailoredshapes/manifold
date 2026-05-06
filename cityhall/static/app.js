@@ -172,7 +172,7 @@ function updateFooterMeta() {
       text = `${crCount} change request${crCount === 1 ? '' : 's'} · ${planCount} plan${planCount === 1 ? '' : 's'}`;
       break;
     case 'plans': {
-      const tierCount = d.plans.filter(p => (p.payload?.tier || '') === state.plans.tier).length;
+      const tierCount = d.plans.filter(p => (p.tier || '') === state.plans.tier).length;
       text = `${tierCount} ${state.plans.tier} plan${tierCount === 1 ? '' : 's'} · ${planCount} total`;
       break;
     }
@@ -203,18 +203,18 @@ function emptyCard({ title, lede, hint }) {
 
 function nodeName(id) {
   const n = state.data.orgNodes.find(n => n.id === id);
-  return n?.payload?.name || id || '—';
+  return n?.name || id || '—';
 }
 
 function buildOrgIndex() {
   const byParent = new Map();
   byParent.set(null, []);
   for (const n of state.data.orgNodes) {
-    const parent = n.payload?.parent_id || null;
+    const parent = n.parent_id || null;
     if (!byParent.has(parent)) byParent.set(parent, []);
     byParent.get(parent).push(n);
   }
-  for (const arr of byParent.values()) arr.sort((a, b) => (a.payload?.name || '').localeCompare(b.payload?.name || ''));
+  for (const arr of byParent.values()) arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   return byParent;
 }
 
@@ -223,18 +223,18 @@ function renderOrgTree() {
   tree.innerHTML = '';
   const needle = state.org.search.trim().toLowerCase();
   const byParent = buildOrgIndex();
-  const enterprises = state.data.orgNodes.filter(n => (n.payload?.kind === 'enterprise') && !n.payload?.parent_id);
-  enterprises.sort((a, b) => (a.payload?.name || '').localeCompare(b.payload?.name || ''));
+  const enterprises = state.data.orgNodes.filter(n => (n.kind === 'enterprise') && !n.parent_id);
+  enterprises.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   // Roots: enterprises (no parent). Anything else without a known parent we still surface
   const knownIds = new Set(state.data.orgNodes.map(n => n.id));
   const orphanRoots = state.data.orgNodes.filter(n =>
-    n.payload?.kind !== 'enterprise' &&
-    n.payload?.parent_id &&
-    !knownIds.has(n.payload.parent_id)
+    n.kind !== 'enterprise' &&
+    n.parent_id &&
+    !knownIds.has(n.parent_id)
   );
   const noParent = state.data.orgNodes.filter(n =>
-    n.payload?.kind !== 'enterprise' && !n.payload?.parent_id
+    n.kind !== 'enterprise' && !n.parent_id
   );
   const roots = [...enterprises, ...noParent, ...orphanRoots];
 
@@ -254,7 +254,7 @@ function renderOrgTree() {
 
 function nodeMatches(node, needle, byParent) {
   if (!needle) return true;
-  const name = (node.payload?.name || '').toLowerCase();
+  const name = (node.name || '').toLowerCase();
   if (name.includes(needle)) return true;
   // recurse children
   const kids = byParent.get(node.id) || [];
@@ -264,21 +264,20 @@ function nodeMatches(node, needle, byParent) {
 function buildTreeNode(node, byParent, needle) {
   if (!nodeMatches(node, needle, byParent)) return document.createDocumentFragment();
   const id = node.id;
-  const payload = node.payload || {};
   const kids = byParent.get(id) || [];
-  const isLeaf = payload.kind === 'team' || kids.length === 0;
+  const isLeaf = node.kind === 'team' || kids.length === 0;
   const isExpanded = state.org.expanded.has(id);
 
   const wrap = el('div', { class: 'tree-node', dataset: { id } });
   const row = el('div', { class: 'tree-row' });
 
   const toggle = el('span', { class: 'tree-toggle' }, kids.length ? (isExpanded ? '▼' : '▶') : '·');
-  const name = el('span', { class: 'tree-name' }, payload.name || id);
-  const kindPill = el('span', { class: 'pill' }, payload.kind || '?');
+  const name = el('span', { class: 'tree-name' }, node.name || id);
+  const kindPill = el('span', { class: 'pill' }, node.kind || '?');
   row.append(toggle, name, kindPill);
 
-  if (isLeaf && payload.team_id) {
-    row.append(el('span', { class: 'tree-team' }, [`team: `, el('span', { class: 'mono' }, payload.team_id)]));
+  if (isLeaf && node.team_id) {
+    row.append(el('span', { class: 'tree-team' }, [`team: `, el('span', { class: 'mono' }, node.team_id)]));
   } else if (isLeaf) {
     row.append(el('span', { class: 'tree-team muted' }, 'no team'));
   }
@@ -340,11 +339,10 @@ function renderEffective(id) {
   const heading = el('h3', { class: 'section', style: 'margin-bottom: 8px;' }, 'Effective bylaws');
   const items = el('div', { class: 'effective-list' });
   for (const b of list) {
-    const p = b.payload || {};
     items.appendChild(el('div', { class: 'effective-item' }, [
-      el('span', { class: 'pill primary' }, p.gate_type || '?'),
-      el('span', {}, p.description || '(no description)'),
-      el('span', { class: 'mono', style: 'margin-left: auto;' }, `priority ${p.priority ?? '—'}`),
+      el('span', { class: 'pill primary' }, b.gate_type || '?'),
+      el('span', {}, b.description || '(no description)'),
+      el('span', { class: 'mono', style: 'margin-left: auto;' }, `priority ${b.priority ?? '—'}`),
     ]));
   }
   const wrap = el('div', {});
@@ -363,7 +361,7 @@ function showOrgForm() {
   const sel = $('#org-f-parent');
   sel.innerHTML = '<option value="">— none —</option>';
   for (const n of state.data.orgNodes) {
-    const opt = el('option', { value: n.id }, `${n.payload?.name || n.id} (${n.payload?.kind || '?'})`);
+    const opt = el('option', { value: n.id }, `${n.name || n.id} (${n.kind || '?'})`);
     sel.appendChild(opt);
   }
   $('#org-f-name').focus();
@@ -384,7 +382,7 @@ async function saveOrgForm() {
     state.data.orgNodes.push(created);
     hideOrgForm();
     renderOrgTree();
-    flash(`Created ${created.payload?.name}`, 'success');
+    flash(`Created ${created.name}`, 'success');
   } catch (err) { flash(err.message, 'error'); }
 }
 
@@ -404,7 +402,7 @@ function renderChangeRequests() {
   const needle = state.cr.search.trim().toLowerCase();
   const items = state.data.changeRequests.filter(cr => {
     if (!needle) return true;
-    return (cr.payload?.summary || '').toLowerCase().includes(needle);
+    return (cr.summary || '').toLowerCase().includes(needle);
   });
 
   if (!items.length) {
@@ -420,15 +418,14 @@ function renderChangeRequests() {
   }
 
   for (const cr of items) {
-    const p = cr.payload || {};
-    const targets = parseTargets(p.target_deployables);
+    const targets = parseTargets(cr.target_deployables);
     tbody.appendChild(el('tr', {}, [
       el('td', {}, [
-        el('div', {}, p.summary || '(no summary)'),
+        el('div', {}, cr.summary || '(no summary)'),
         el('div', { class: 'mono' }, cr.id?.slice(0, 8) || ''),
       ]),
-      el('td', {}, p.tier ? el('span', { class: 'pill' }, p.tier) : el('span', { class: 'muted' }, '—')),
-      el('td', {}, statusPill(p.status)),
+      el('td', {}, cr.tier ? el('span', { class: 'pill' }, cr.tier) : el('span', { class: 'muted' }, '—')),
+      el('td', {}, statusPill(cr.status)),
       el('td', {}, el('span', { class: 'mono' }, targets.length ? `${targets.length} targets` : '—')),
       el('td', { style: 'text-align: right;' }, el('button', {
         class: 'btn sm',
@@ -463,16 +460,15 @@ function parseTargets(s) {
 }
 
 function editChangeRequest(cr) {
-  const p = cr.payload || {};
   state.cr.open = true;
   state.cr.draftId = cr.id;
   state.cr.fields = {
-    summary: p.summary || '',
-    description: p.description || '',
-    tier: p.tier || 'dev',
-    requested_by: p.requested_by || '',
+    summary: cr.summary || '',
+    description: cr.description || '',
+    tier: cr.tier || 'dev',
+    requested_by: cr.requested_by || '',
   };
-  state.cr.targets = parseTargets(p.target_deployables);
+  state.cr.targets = parseTargets(cr.target_deployables);
   state.cr.plan = null;
   state.cr.step = 1;
   showWizard();
@@ -556,7 +552,7 @@ async function persistDraft() {
 
   if (state.cr.draftId) {
     const original = state.data.changeRequests.find(c => c.id === state.cr.draftId);
-    if (original?.payload?.status) body.status = original.payload.status;
+    if (original?.status) body.status = original.status;
     const updated = await apiUpdate('changeRequests', state.cr.draftId, body);
     const idx = state.data.changeRequests.findIndex(c => c.id === state.cr.draftId);
     if (idx >= 0) state.data.changeRequests[idx] = updated;
@@ -586,7 +582,8 @@ async function nextStep() {
     try {
       // Update status to submitted
       const original = state.data.changeRequests.find(c => c.id === state.cr.draftId);
-      const body = { ...(original?.payload || {}), status: 'submitted' };
+      const { id: _id, ...rest } = original || {};
+      const body = { ...rest, status: 'submitted' };
       const updated = await apiUpdate('changeRequests', state.cr.draftId, body);
       const idx = state.data.changeRequests.findIndex(c => c.id === state.cr.draftId);
       if (idx >= 0) state.data.changeRequests[idx] = updated;
@@ -633,11 +630,10 @@ async function refreshPlanPane() {
 }
 
 function renderPlanDetail(envelope) {
-  const p = envelope?.payload || {};
   let steps = [];
   let blockers = [];
-  try { steps = JSON.parse(p.steps || '[]'); } catch { steps = []; }
-  try { blockers = JSON.parse(p.blockers || '[]'); } catch { blockers = []; }
+  try { steps = JSON.parse(envelope?.steps || '[]'); } catch { steps = []; }
+  try { blockers = JSON.parse(envelope?.blockers || '[]'); } catch { blockers = []; }
 
   const wrap = el('div', { class: 'stack' });
 
@@ -722,7 +718,7 @@ function initChanges() {
 function renderPlans() {
   // Update tier counts
   for (const tier of TIERS) {
-    const count = state.data.plans.filter(p => (p.payload?.tier || '') === tier).length;
+    const count = state.data.plans.filter(p => (p.tier || '') === tier).length;
     const span = $(`.tier-count[data-count="${tier}"]`);
     if (span) span.textContent = count;
   }
@@ -731,7 +727,7 @@ function renderPlans() {
 
   const host = $('#plan-list');
   host.innerHTML = '';
-  const filtered = state.data.plans.filter(p => (p.payload?.tier || '') === state.plans.tier);
+  const filtered = state.data.plans.filter(p => (p.tier || '') === state.plans.tier);
   if (!filtered.length) {
     host.appendChild(emptyCard({
       title: `No ${state.plans.tier} plans yet`,
@@ -741,29 +737,28 @@ function renderPlans() {
     return;
   }
   // Newest first
-  filtered.sort((a, b) => (b.payload?.computed_at || '').localeCompare(a.payload?.computed_at || ''));
+  filtered.sort((a, b) => (b.computed_at || '').localeCompare(a.computed_at || ''));
   for (const plan of filtered) host.appendChild(buildPlanCard(plan));
 }
 
 function buildPlanCard(plan) {
   const id = plan.id;
-  const p = plan.payload || {};
   const expanded = state.plans.expanded.has(id);
   let blockers = [];
-  try { blockers = JSON.parse(p.blockers || '[]'); } catch {}
+  try { blockers = JSON.parse(plan.blockers || '[]'); } catch {}
   const card = el('div', { class: `plan-card${expanded ? ' expanded' : ''}`, dataset: { id } });
   const head = el('div', { class: 'plan-card-head', onclick: () => togglePlan(id) });
   head.append(
     el('div', {}, [
-      el('div', { class: 'plan-card-title' }, p.summary || `Plan for ${(p.change_request_id || '').slice(0, 8) || 'unknown'}`),
+      el('div', { class: 'plan-card-title' }, plan.summary || `Plan for ${(plan.change_request_id || '').slice(0, 8) || 'unknown'}`),
       el('div', { class: 'plan-card-id' }, [
         `${id?.slice(0, 8) || ''} · `,
-        p.computed_at ? `computed ${p.computed_at}` : 'no timestamp',
+        plan.computed_at ? `computed ${plan.computed_at}` : 'no timestamp',
       ]),
     ]),
     el('div', { class: 'row' }, [
       blockers.length ? el('span', { class: 'pill danger' }, `${blockers.length} blockers`) : el('span', { class: 'pill success' }, 'clear'),
-      el('span', { class: 'pill primary' }, p.tier || '?'),
+      el('span', { class: 'pill primary' }, plan.tier || '?'),
       el('span', { class: 'tree-toggle' }, expanded ? '▼' : '▶'),
     ]),
   );
@@ -797,7 +792,7 @@ async function renderGanttFor(id) {
   if (!mermaidSrc) {
     try {
       const env = await apiRenderGantt(id);
-      mermaidSrc = env?.payload?.mermaid || '';
+      mermaidSrc = env?.mermaid || '';
       state.plans.ganttCache.set(id, mermaidSrc);
     } catch (err) {
       host.innerHTML = '';
@@ -847,7 +842,7 @@ function renderBylawsScreen() {
   const cur = state.bylaws.selectedOrg;
   sel.innerHTML = '<option value="">— select —</option>';
   for (const n of state.data.orgNodes) {
-    const opt = el('option', { value: n.id }, `${n.payload?.name || n.id} (${n.payload?.kind || '?'})`);
+    const opt = el('option', { value: n.id }, `${n.name || n.id} (${n.kind || '?'})`);
     if (n.id === cur) opt.selected = true;
     sel.appendChild(opt);
   }
@@ -867,11 +862,11 @@ function renderBylawsTable() {
   const tbody = $('#bl-tbody');
   tbody.innerHTML = '';
   const orgId = state.bylaws.selectedOrg;
-  const items = state.data.bylaws.filter(b => !orgId || b.payload?.org_node_id === orgId);
+  const items = state.data.bylaws.filter(b => !orgId || b.org_node_id === orgId);
   const dir = state.bylaws.sortDir === 'asc' ? 1 : -1;
   items.sort((a, b) => {
-    const pa = parseInt(a.payload?.priority ?? '0', 10) || 0;
-    const pb = parseInt(b.payload?.priority ?? '0', 10) || 0;
+    const pa = parseInt(a.priority ?? '0', 10) || 0;
+    const pb = parseInt(b.priority ?? '0', 10) || 0;
     return (pa - pb) * dir;
   });
   if (!items.length) {
@@ -886,16 +881,15 @@ function renderBylawsTable() {
     return;
   }
   for (const b of items) {
-    const p = b.payload || {};
     const detailParts = [];
-    if (p.window) detailParts.push(`window: ${p.window}`);
-    if (p.quiesce_for) detailParts.push(`quiesce ${p.quiesce_for}`);
-    if (p.approvers) detailParts.push(`approvers: ${p.approvers}`);
-    if (p.conditions) detailParts.push(`cond: ${p.conditions}`);
+    if (b.window) detailParts.push(`window: ${b.window}`);
+    if (b.quiesce_for) detailParts.push(`quiesce ${b.quiesce_for}`);
+    if (b.approvers) detailParts.push(`approvers: ${b.approvers}`);
+    if (b.conditions) detailParts.push(`cond: ${b.conditions}`);
     tbody.appendChild(el('tr', {}, [
-      el('td', { class: 'priority-cell' }, String(p.priority ?? '—')),
-      el('td', {}, el('span', { class: 'pill primary' }, p.gate_type || '?')),
-      el('td', {}, p.description || el('span', { class: 'muted' }, '—')),
+      el('td', { class: 'priority-cell' }, String(b.priority ?? '—')),
+      el('td', {}, el('span', { class: 'pill primary' }, b.gate_type || '?')),
+      el('td', {}, b.description || el('span', { class: 'muted' }, '—')),
       el('td', { class: 'mono' }, detailParts.join(' · ') || '—'),
       el('td', { style: 'text-align: right;' }, el('button', {
         class: 'btn sm danger',

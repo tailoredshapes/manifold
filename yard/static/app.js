@@ -94,10 +94,10 @@ const ENTITIES = {
       { name: 'notes',             label: 'Notes',             type: 'textarea', full: true },
     ],
     rowLabel: (p, data) => {
-      const t = data.testEnvironments.find(e => e.id === p.target_env_id)?.payload?.name || p.target_env_id || '?';
+      const t = data.testEnvironments.find(e => e.id === p.target_env_id)?.name || p.target_env_id || '?';
       const s = p.source_env_id
-        ? data.testEnvironments.find(e => e.id === p.source_env_id)?.payload?.name
-        : data.dataSources.find(d => d.id === p.source_data_id)?.payload?.name;
+        ? data.testEnvironments.find(e => e.id === p.source_env_id)?.name
+        : data.dataSources.find(d => d.id === p.source_data_id)?.name;
       return `${s || '?'} → ${t}`;
     },
     rowMeta: p => p.kind || '',
@@ -354,7 +354,7 @@ function fieldInput(field, value) {
     input = el('select', { id, name: field.name });
     input.appendChild(el('option', { value: '' }, '— none —'));
     for (const item of state.data[field.refKey] || []) {
-      const lbl = item.payload?.name || item.payload?.target_env_id || item.id;
+      const lbl = item.name || item.target_env_id || item.id;
       const o = el('option', { value: item.id }, lbl);
       if (item.id === value) o.selected = true;
       input.appendChild(o);
@@ -454,8 +454,8 @@ function renderEnvironments(root) {
   const envs = state.data.testEnvironments;
   const needle = state.search.trim().toLowerCase();
   const visible = needle
-    ? envs.filter(e => (e.payload?.name || '').toLowerCase().includes(needle)
-                    || (e.payload?.kind || '').toLowerCase().includes(needle))
+    ? envs.filter(e => (e.name || '').toLowerCase().includes(needle)
+                    || (e.kind || '').toLowerCase().includes(needle))
     : envs;
 
   updateFooterMeta(
@@ -498,7 +498,6 @@ function pillKindClass(kind) {
 
 function buildEnvCard(item) {
   const id = item.id;
-  const p = item.payload || {};
   const expanded = state.expandedEnvId === id;
 
   const card = el('div', {
@@ -508,23 +507,23 @@ function buildEnvCard(item) {
 
   // Head
   card.appendChild(el('div', { class: 'head' },
-    el('div', { class: 'name' }, p.name || '(unnamed)'),
-    el('span', { class: pillKindClass(p.kind) }, p.kind || 'unknown'),
+    el('div', { class: 'name' }, item.name || '(unnamed)'),
+    el('span', { class: pillKindClass(item.kind) }, item.kind || 'unknown'),
   ));
 
   // Stats
   card.appendChild(el('div', { class: 'stat-grid' },
-    statBlock('Cost / hour',  fmtCost(p.cost_per_hour)),
-    statBlock('Spinup',       fmtMinutes(p.spinup_minutes)),
-    statBlock('Max duration', fmtMinutes(p.max_duration_minutes)),
-    statBlock('Teardown',     p.teardown_policy || '—'),
+    statBlock('Cost / hour',  fmtCost(item.cost_per_hour)),
+    statBlock('Spinup',       fmtMinutes(item.spinup_minutes)),
+    statBlock('Max duration', fmtMinutes(item.max_duration_minutes)),
+    statBlock('Teardown',     item.teardown_policy || '—'),
   ));
 
   // Constraints summary
   const cParts = [];
-  if (p.rate_limit)        cParts.push(`rate ≤ ${p.rate_limit}`);
-  if (p.concurrency_limit) cParts.push(`concurrency ≤ ${p.concurrency_limit}`);
-  if (p.contractual_limit) cParts.push(`contractual ≤ ${p.contractual_limit}`);
+  if (item.rate_limit)        cParts.push(`rate ≤ ${item.rate_limit}`);
+  if (item.concurrency_limit) cParts.push(`concurrency ≤ ${item.concurrency_limit}`);
+  if (item.contractual_limit) cParts.push(`contractual ≤ ${item.contractual_limit}`);
   if (cParts.length) {
     card.appendChild(el('div', { class: 'constraints' }, cParts.join(' · ')));
   }
@@ -561,7 +560,6 @@ function statBlock(label, value) {
 
 function buildEnvDetail(item) {
   const id = item.id;
-  const p = item.payload || {};
   const cfg = ENTITIES.testEnvironments;
   const detail = el('div', { class: 'env-detail' });
 
@@ -573,7 +571,7 @@ function buildEnvDetail(item) {
   for (const fname of editable) {
     const f = cfg.fields.find(x => x.name === fname);
     if (!f) continue;
-    form.appendChild(fieldInput(f, p[fname]));
+    form.appendChild(fieldInput(f, item[fname]));
   }
   detail.appendChild(form);
 
@@ -592,7 +590,7 @@ function buildEnvDetail(item) {
     el('button', { class: 'primary',
       onClick: async () => {
         const payload = readForm(form);
-        if (p.name) payload.name = p.name;
+        if (item.name) payload.name = item.name;
         try {
           const updated = await updateRecord('testEnvironments', id, payload);
           const idx = state.data.testEnvironments.findIndex(x => x.id === id);
@@ -617,7 +615,7 @@ function buildEnvDetail(item) {
     }, 'Run history'),
     el('button', { class: 'danger',
       onClick: async () => {
-        if (!confirm(`Delete environment "${p.name || id}"?`)) return;
+        if (!confirm(`Delete environment "${item.name || id}"?`)) return;
         try {
           await deleteRecord('testEnvironments', id);
           state.data.testEnvironments = state.data.testEnvironments.filter(x => x.id !== id);
@@ -673,20 +671,20 @@ async function loadAvailabilityForVisible(envs) {
 
 function renderRuns(root) {
   const runs = state.data.testRuns.slice().sort((a, b) => {
-    const ax = a.payload?.started_at || '';
-    const bx = b.payload?.started_at || '';
+    const ax = a.started_at || '';
+    const bx = b.started_at || '';
     return bx.localeCompare(ax);
   });
 
   const filterKey = state.runFilter;
   const needle = state.search.trim().toLowerCase();
   const visible = runs.filter(r => {
-    if (filterKey !== 'all' && (r.payload?.status || 'pending') !== filterKey) return false;
+    if (filterKey !== 'all' && (r.status || 'pending') !== filterKey) return false;
     if (!needle) return true;
-    const env = state.data.testEnvironments.find(e => e.id === r.payload?.test_environment_id);
-    const envName = env?.payload?.name || '';
+    const env = state.data.testEnvironments.find(e => e.id === r.test_environment_id);
+    const envName = env?.name || '';
     return envName.toLowerCase().includes(needle)
-        || (r.payload?.change_request_id || '').toLowerCase().includes(needle)
+        || (r.change_request_id || '').toLowerCase().includes(needle)
         || (r.id || '').toLowerCase().includes(needle);
   });
 
@@ -727,7 +725,7 @@ function renderRuns(root) {
   // Pre-compute syncs by target env, by source env
   const syncByTargetEnv = new Map();
   for (const s of state.data.dataSyncs) {
-    const t = s.payload?.target_env_id;
+    const t = s.target_env_id;
     if (!t) continue;
     if (!syncByTargetEnv.has(t)) syncByTargetEnv.set(t, []);
     syncByTargetEnv.get(t).push(s);
@@ -745,10 +743,9 @@ function renderRuns(root) {
   )));
   const tbody = el('tbody', {});
   for (const r of visible) {
-    const p = r.payload || {};
-    const env = state.data.testEnvironments.find(e => e.id === p.test_environment_id);
-    const envName = env?.payload?.name || '(unset)';
-    const status = p.status || 'pending';
+    const env = state.data.testEnvironments.find(e => e.id === r.test_environment_id);
+    const envName = env?.name || '(unset)';
+    const status = r.status || 'pending';
     const expanded = state.expandedRunId === r.id;
 
     const row = el('tr', {
@@ -757,10 +754,10 @@ function renderRuns(root) {
     },
       el('td', {}, envName),
       el('td', {}, el('span', { class: 'badge s-' + status }, status)),
-      el('td', {}, p.started_at || '—'),
-      el('td', {}, fmtMinutes(p.duration_minutes)),
-      el('td', {}, fmtCost(p.cost_actual).replace('/h','')),
-      el('td', { class: 'muted' }, p.change_request_id || '—'),
+      el('td', {}, r.started_at || '—'),
+      el('td', {}, fmtMinutes(r.duration_minutes)),
+      el('td', {}, fmtCost(r.cost_actual).replace('/h','')),
+      el('td', { class: 'muted' }, r.change_request_id || '—'),
     );
     tbody.appendChild(row);
 
@@ -773,7 +770,7 @@ function renderRuns(root) {
       const cfg = ENTITIES.testRuns;
       for (const fname of ['status', 'started_at', 'finished_at', 'duration_minutes', 'cost_actual']) {
         const f = cfg.fields.find(x => x.name === fname);
-        if (f) form.appendChild(fieldInput(f, p[fname]));
+        if (f) form.appendChild(fieldInput(f, r[fname]));
       }
       detailCell.appendChild(form);
 
@@ -782,12 +779,11 @@ function renderRuns(root) {
         const callout = el('div', { class: 'callout' });
         callout.appendChild(el('span', {}, 'Data sync events: '));
         for (const s of syncs) {
-          const sp = s.payload || {};
-          const srcEnv = sp.source_env_id
-            ? state.data.testEnvironments.find(e => e.id === sp.source_env_id)?.payload?.name
-            : state.data.dataSources.find(d => d.id === sp.source_data_id)?.payload?.name;
-          const verb = sp.kind === 'pull' ? 'pull from' : sp.kind === 'push' ? 'push to' : 'shared with';
-          callout.appendChild(el('span', { class: 'chip k-' + (sp.kind || '') },
+          const srcEnv = s.source_env_id
+            ? state.data.testEnvironments.find(e => e.id === s.source_env_id)?.name
+            : state.data.dataSources.find(d => d.id === s.source_data_id)?.name;
+          const verb = s.kind === 'pull' ? 'pull from' : s.kind === 'push' ? 'push to' : 'shared with';
+          callout.appendChild(el('span', { class: 'chip k-' + (s.kind || '') },
             `${verb} ${srcEnv || '?'}`,
           ));
         }
@@ -798,7 +794,7 @@ function renderRuns(root) {
         el('button', { class: 'primary',
           onClick: async () => {
             const payload = readForm(form);
-            if (p.test_environment_id) payload.test_environment_id = p.test_environment_id;
+            if (r.test_environment_id) payload.test_environment_id = r.test_environment_id;
             try {
               const updated = await updateRecord('testRuns', r.id, payload);
               const idx = state.data.testRuns.findIndex(x => x.id === r.id);
@@ -861,7 +857,7 @@ function renderSync(root) {
   const leftCard  = el('div', { class: 'card sync-panel' });
   const envSelect = el('select', { onChange: e => { state.syncEnvId = e.target.value; render(); } });
   for (const e of state.data.testEnvironments) {
-    const o = el('option', { value: e.id }, e.payload?.name || e.id);
+    const o = el('option', { value: e.id }, e.name || e.id);
     if (e.id === state.syncEnvId) o.selected = true;
     envSelect.appendChild(o);
   }
@@ -872,13 +868,13 @@ function renderSync(root) {
 
   const envId = state.syncEnvId;
   const runs = state.data.testRuns
-    .filter(r => r.payload?.test_environment_id === envId)
+    .filter(r => r.test_environment_id === envId)
     .slice()
-    .sort((a, b) => (a.payload?.started_at || '').localeCompare(b.payload?.started_at || ''));
+    .sort((a, b) => (a.started_at || '').localeCompare(b.started_at || ''));
 
   const estTotalForEnv = state.data.dataSyncs
-    .filter(s => s.payload?.target_env_id === envId)
-    .reduce((acc, s) => acc + (parseFloat(s.payload?.estimated_minutes) || 0), 0);
+    .filter(s => s.target_env_id === envId)
+    .reduce((acc, s) => acc + (parseFloat(s.estimated_minutes) || 0), 0);
 
   if (!envId || runs.length < 2) {
     leftCard.appendChild(el('div', { class: 'chart-empty' },
@@ -899,18 +895,18 @@ function renderSync(root) {
   const avgDurByEnv = new Map();
   for (const env of state.data.testEnvironments) {
     const envRuns = state.data.testRuns.filter(r =>
-      r.payload?.test_environment_id === env.id && r.payload?.duration_minutes);
+      r.test_environment_id === env.id && r.duration_minutes);
     if (!envRuns.length) continue;
-    const sum = envRuns.reduce((a, r) => a + (parseFloat(r.payload.duration_minutes) || 0), 0);
+    const sum = envRuns.reduce((a, r) => a + (parseFloat(r.duration_minutes) || 0), 0);
     avgDurByEnv.set(env.id, sum / envRuns.length);
   }
 
   const slow = state.data.dataSyncs.filter(s => {
-    const est = parseFloat(s.payload?.estimated_minutes) || 0;
+    const est = parseFloat(s.estimated_minutes) || 0;
     if (est > 60) return true;
-    const target = state.data.testEnvironments.find(e => e.id === s.payload?.target_env_id);
+    const target = state.data.testEnvironments.find(e => e.id === s.target_env_id);
     if (!target) return false;
-    const spin = parseFloat(target.payload?.spinup_minutes) || 0;
+    const spin = parseFloat(target.spinup_minutes) || 0;
     const avg  = avgDurByEnv.get(target.id) || 0;
     if (spin > 0 && avg > spin * 2) return true;
     return false;
@@ -928,15 +924,14 @@ function renderSync(root) {
     )));
     const tbody = el('tbody', {});
     for (const s of slow) {
-      const sp = s.payload || {};
-      const target = state.data.testEnvironments.find(e => e.id === sp.target_env_id);
-      const targetName = target?.payload?.name || sp.target_env_id || '?';
-      const srcName = sp.source_env_id
-        ? state.data.testEnvironments.find(e => e.id === sp.source_env_id)?.payload?.name
-        : state.data.dataSources.find(d => d.id === sp.source_data_id)?.payload?.name;
+      const target = state.data.testEnvironments.find(e => e.id === s.target_env_id);
+      const targetName = target?.name || s.target_env_id || '?';
+      const srcName = s.source_env_id
+        ? state.data.testEnvironments.find(e => e.id === s.source_env_id)?.name
+        : state.data.dataSources.find(d => d.id === s.source_data_id)?.name;
 
-      const est = parseFloat(sp.estimated_minutes) || 0;
-      const spin = parseFloat(target?.payload?.spinup_minutes) || 0;
+      const est = parseFloat(s.estimated_minutes) || 0;
+      const spin = parseFloat(target?.spinup_minutes) || 0;
       const avg = avgDurByEnv.get(target?.id) || 0;
       const reasons = [];
       if (est > 60)                             reasons.push(`est ${est}m > 60m`);
@@ -946,7 +941,7 @@ function renderSync(root) {
         style: 'background: var(--warn-soft);',
       },
         el('td', {}, `${srcName || '?'} → ${targetName}`),
-        el('td', {}, el('span', { class: 'chip k-' + (sp.kind || '') }, sp.kind || '—')),
+        el('td', {}, el('span', { class: 'chip k-' + (s.kind || '') }, s.kind || '—')),
         el('td', {}, est ? est.toString() : '—'),
         el('td', { class: 'muted' }, reasons.join(' · ')),
       ));
@@ -968,7 +963,7 @@ function buildSvgChart(runs, estimatedSum) {
   const innerW = W - M.left - M.right;
   const innerH = H - M.top  - M.bottom;
 
-  const durations = runs.map(r => parseFloat(r.payload?.duration_minutes) || 0);
+  const durations = runs.map(r => parseFloat(r.duration_minutes) || 0);
   const xs = runs.map((_, i) => i);
   const yMaxRaw = Math.max(...durations, estimatedSum, 1);
   const yMax = niceCeil(yMaxRaw);
@@ -1027,7 +1022,7 @@ function buildSvgChart(runs, estimatedSum) {
       stroke: '#9ca3af', 'stroke-width': 1,
     }));
     if (i % stride === 0 || i === runs.length - 1) {
-      const lbl = (runs[i].payload?.started_at || '').slice(0, 10) || `#${i + 1}`;
+      const lbl = (runs[i].started_at || '').slice(0, 10) || `#${i + 1}`;
       svg.appendChild(make('text', {
         x: x, y: M.top + innerH + 16,
         'text-anchor': 'middle',
@@ -1108,7 +1103,7 @@ function renderSettings(root, entityKey) {
   const items = state.data[entityKey] || [];
   const needle = state.search.trim().toLowerCase();
   const visible = needle
-    ? items.filter(i => JSON.stringify(i.payload || {}).toLowerCase().includes(needle))
+    ? items.filter(i => JSON.stringify(i).toLowerCase().includes(needle))
     : items;
 
   const labelPlural = cfg.label.toLowerCase() + 's';
@@ -1139,7 +1134,6 @@ function renderSettings(root, entityKey) {
   const list = el('div', { class: 'settings-list' });
   for (const item of visible) {
     const id = item.id;
-    const p = item.payload || {};
     const expanded = state.expandedSettingId === id;
 
     if (!expanded) {
@@ -1148,18 +1142,18 @@ function renderSettings(root, entityKey) {
         onClick: () => { state.expandedSettingId = id; render(); },
       },
         el('div', {},
-          el('div', {}, cfg.rowLabel(p, state.data)),
-          el('div', { class: 'meta' }, cfg.rowMeta(p, state.data)),
+          el('div', {}, cfg.rowLabel(item, state.data)),
+          el('div', { class: 'meta' }, cfg.rowMeta(item, state.data)),
         ),
         el('button', { class: 'ghost' }, 'Edit'),
       ));
     } else {
       const form = el('div', { class: 'form-grid' });
-      for (const f of cfg.fields) form.appendChild(fieldInput(f, p[f.name]));
+      for (const f of cfg.fields) form.appendChild(fieldInput(f, item[f.name]));
 
       const wrap = el('div', { class: 'row expanded' },
         el('div', {},
-          el('div', { style: 'font-weight:600; margin-bottom: 8px;' }, cfg.rowLabel(p, state.data)),
+          el('div', { style: 'font-weight:600; margin-bottom: 8px;' }, cfg.rowLabel(item, state.data)),
           form,
           el('div', { class: 'row-actions', style: 'margin-top:12px;' },
             el('button', { class: 'primary',
