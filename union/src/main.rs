@@ -31,7 +31,10 @@ async fn serve_index() -> Html<&'static str> {
 
 async fn serve_app_js() -> Response {
     (
-        [(header::CONTENT_TYPE, "application/javascript; charset=utf-8")],
+        [
+            (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+            (header::CACHE_CONTROL, "no-cache, must-revalidate"),
+        ],
         APP_JS,
     )
         .into_response()
