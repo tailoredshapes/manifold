@@ -248,14 +248,8 @@ async function gqlQuery(path, query, variables = {}) {
 
 async function loadEntity(entityKey) {
   const cfg = ENTITIES[entityKey];
-  let items;
-  if (cfg.graph?.list) {
-    const data = await gqlQuery(cfg.graph.path, cfg.graph.list);
-    items = data.getAll;
-  } else {
-    items = await apiFetch(cfg.api);
-  }
-  state.data[entityKey] = Array.isArray(items) ? items : [];
+  const data = await gqlQuery(cfg.graph.path, cfg.graph.list);
+  state.data[entityKey] = Array.isArray(data.getAll) ? data.getAll : [];
   updateBadge(entityKey);
 }
 
