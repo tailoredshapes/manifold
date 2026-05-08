@@ -463,6 +463,26 @@ function setActiveEntity(entityKey) {
 
   hideNewForm();
   renderList();
+
+  if (location.hash.slice(1) !== entityKey) {
+    location.hash = entityKey;
+  }
+}
+
+function initHashRouting() {
+  const fromHash = () => {
+    const key = location.hash.slice(1);
+    if (key && ENTITIES[key] && key !== state.activeEntity) {
+      setActiveEntity(key);
+    }
+  };
+  window.addEventListener('hashchange', fromHash);
+  const initial = location.hash.slice(1);
+  if (initial && ENTITIES[initial]) {
+    state.activeEntity = initial;
+  } else {
+    location.replace('#' + state.activeEntity);
+  }
 }
 
 // ── Status bar ────────────────────────────────────────────────────────────────
@@ -649,6 +669,11 @@ function initSidebar() {
 async function init() {
   initKeyboard();
   initSidebar();
+  initHashRouting();
+
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.entity === state.activeEntity);
+  });
 
   try {
     await loadAll();

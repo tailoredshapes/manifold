@@ -755,6 +755,25 @@ function setScreen(name) {
   });
   document.getElementById('screen-title').textContent = SCREEN_TITLES[name] || name;
   rerender();
+
+  if (location.hash.slice(1) !== name) {
+    location.hash = name;
+  }
+}
+
+function initHashRouting() {
+  window.addEventListener('hashchange', () => {
+    const key = location.hash.slice(1);
+    if (SCREENS.includes(key) && key !== state.screen) {
+      setScreen(key);
+    }
+  });
+  const initial = location.hash.slice(1);
+  if (SCREENS.includes(initial)) {
+    state.screen = initial;
+  } else {
+    location.replace('#' + state.screen);
+  }
 }
 
 function rerender() {
@@ -834,6 +853,7 @@ async function init() {
   initTabs();
   initModal();
   initKeyboard();
+  initHashRouting();
 
   try {
     await loadAll();
@@ -842,7 +862,7 @@ async function init() {
     setError(err.message);
   }
 
-  rerender();
+  setScreen(state.screen);
   updateFooterMeta();
 }
 

@@ -140,6 +140,8 @@ function clearFlash() {
 
 // ── Screen routing ────────────────────────────────────────────────────────────
 
+const SCREENS = ['org', 'changes', 'plans', 'bylaws'];
+
 function setScreen(name) {
   state.screen = name;
   $$('.screen').forEach(s => s.classList.toggle('active', s.id === `screen-${name}`));
@@ -151,6 +153,25 @@ function setScreen(name) {
     case 'bylaws':  renderBylawsScreen(); break;
   }
   updateFooterMeta();
+
+  if (location.hash.slice(1) !== name) {
+    location.hash = name;
+  }
+}
+
+function initHashRouting() {
+  window.addEventListener('hashchange', () => {
+    const key = location.hash.slice(1);
+    if (SCREENS.includes(key) && key !== state.screen) {
+      setScreen(key);
+    }
+  });
+  const initial = location.hash.slice(1);
+  if (SCREENS.includes(initial)) {
+    state.screen = initial;
+  } else {
+    location.replace('#' + state.screen);
+  }
 }
 
 // ── Footer meta ───────────────────────────────────────────────────────────────
@@ -1027,13 +1048,14 @@ async function init() {
   initPlans();
   initBylaws();
   initKeyboard();
+  initHashRouting();
 
   try {
     await loadAll();
   } catch (err) {
     flash(err.message, 'error', 6000);
   }
-  setScreen('org');
+  setScreen(state.screen);
   updateFooterMeta();
 }
 

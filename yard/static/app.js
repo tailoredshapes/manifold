@@ -1205,6 +1205,12 @@ function newEntityKeyForCurrentScreen() {
 
 // ── Wire-up ──────────────────────────────────────────────────────────────────
 
+function isValidScreen(name) {
+  if (!name) return false;
+  return Array.from(document.querySelectorAll('[data-screen]'))
+    .some(el => el.dataset.screen === name);
+}
+
 function setScreen(screen) {
   state.screen = screen;
   state.search = '';
@@ -1214,6 +1220,25 @@ function setScreen(screen) {
   state.expandedSettingId = null;
   closeMenu();
   render();
+
+  if (location.hash.slice(1) !== screen) {
+    location.hash = screen;
+  }
+}
+
+function initHashRouting() {
+  window.addEventListener('hashchange', () => {
+    const key = location.hash.slice(1);
+    if (isValidScreen(key) && key !== state.screen) {
+      setScreen(key);
+    }
+  });
+  const initial = location.hash.slice(1);
+  if (isValidScreen(initial)) {
+    state.screen = initial;
+  } else {
+    location.replace('#' + state.screen);
+  }
 }
 
 function openMenu()  { $('#settings-menu').classList.add('open'); }
@@ -1289,6 +1314,7 @@ function bindUI() {
 
 async function init() {
   bindUI();
+  initHashRouting();
   state.loading = true;
   setStatus('Loading…', 'info', { sticky: true });
   try {
