@@ -238,7 +238,10 @@ async function gqlQuery(path, query, variables = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, variables }),
   });
-  if (!res.ok) throw new Error(`graph ${path} ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`graph ${path} ${res.status}${body ? ': ' + body : ''}`);
+  }
   const body = await res.json();
   if (body.errors && body.errors.length) {
     throw new Error(body.errors.map(e => e.message).join('; '));
