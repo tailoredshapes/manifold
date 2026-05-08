@@ -88,6 +88,10 @@ const ENTITIES = {
 
   dependencies: {
     api: '/dependency/api',
+    graph: {
+      path: '/dependency/graph',
+      list: '{ getAll { id deployable_id service_id protocol auth_method criticality } }',
+    },
     label: 'dependency',
     newFields: [
       { name: 'deployable_id', label: 'deployable', type: 'dynamic-select', required: true,
