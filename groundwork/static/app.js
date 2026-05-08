@@ -168,6 +168,10 @@ const ENTITIES = {
 
   slas: {
     api: '/sla/api',
+    graph: {
+      path: '/sla/graph',
+      list: '{ getAll { id contract_id metric target window } }',
+    },
     label: 'sla',
     newFields: [
       { name: 'contract_id', label: 'contract', type: 'dynamic-select', required: true,
