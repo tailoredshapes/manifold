@@ -29,6 +29,10 @@ const ENTITIES = {
 
   services: {
     api: '/service/api',
+    graph: {
+      path: '/service/graph',
+      list: '{ getAll { id name type description endpoint } }',
+    },
     label: 'service',
     newFields: [
       { name: 'name', label: 'name', type: 'text', required: true },
