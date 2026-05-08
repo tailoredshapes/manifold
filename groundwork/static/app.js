@@ -132,6 +132,10 @@ const ENTITIES = {
 
   contracts: {
     api: '/contract/api',
+    graph: {
+      path: '/contract/graph',
+      list: '{ getAll { id service_id spec_url version format } }',
+    },
     label: 'contract',
     newFields: [
       { name: 'service_id', label: 'service', type: 'dynamic-select', required: true,
