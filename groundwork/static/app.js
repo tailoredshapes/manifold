@@ -6,6 +6,10 @@
 const ENTITIES = {
   deployables: {
     api: '/deployable/api',
+    graph: {
+      path: '/deployable/graph',
+      list: '{ getAll { id name description repo_url team_id team { id name } } }',
+    },
     label: 'deployable',
     newFields: [
       { name: 'name', label: 'name', type: 'text', required: true },
@@ -20,7 +24,7 @@ const ENTITIES = {
     ],
     primaryField: 'name',
     getRowLabel: (payload) => payload.name || 'unnamed',
-    getRowBadge: null,
+    getRowBadge: (payload) => payload.team?.name || null,
   },
 
   services: {
@@ -224,7 +228,13 @@ async function gqlQuery(path, query, variables = {}) {
 
 async function loadEntity(entityKey) {
   const cfg = ENTITIES[entityKey];
-  const items = await apiFetch(cfg.api);
+  let items;
+  if (cfg.graph?.list) {
+    const data = await gqlQuery(cfg.graph.path, cfg.graph.list);
+    items = data.getAll;
+  } else {
+    items = await apiFetch(cfg.api);
+  }
   state.data[entityKey] = Array.isArray(items) ? items : [];
   updateBadge(entityKey);
 }
