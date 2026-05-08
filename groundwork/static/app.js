@@ -54,6 +54,10 @@ const ENTITIES = {
 
   exposes: {
     api: '/exposes/api',
+    graph: {
+      path: '/exposes/graph',
+      list: '{ getAll { id deployable_id service_id port protocol } }',
+    },
     label: 'exposes',
     newFields: [
       { name: 'deployable_id', label: 'deployable', type: 'dynamic-select', required: true,
