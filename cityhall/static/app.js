@@ -111,7 +111,6 @@ async function gqlQuery(path, query, variables = {}) {
   return body.data;
 }
 
-const apiList   = (key)            => api(ENDPOINTS[key]);
 const apiCreate = (key, body)      => api(ENDPOINTS[key], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const apiUpdate = (key, id, body)  => api(`${ENDPOINTS[key]}/${id}`, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const apiDelete = (key, id)        => api(`${ENDPOINTS[key]}/${id}`, { method: 'DELETE' });
@@ -430,7 +429,7 @@ async function saveOrgForm() {
   for (const k of Object.keys(fields)) if (fields[k] === undefined) delete fields[k];
   try {
     const created = await apiCreate('orgNodes', fields);
-    state.data.orgNodes.push(created);
+    await loadAll();
     hideOrgForm();
     renderOrgTree();
     flash(`Created ${created.name}`, 'success');
@@ -605,13 +604,12 @@ async function persistDraft() {
     const original = state.data.changeRequests.find(c => c.id === state.cr.draftId);
     if (original?.status) body.status = original.status;
     const updated = await apiUpdate('changeRequests', state.cr.draftId, body);
-    const idx = state.data.changeRequests.findIndex(c => c.id === state.cr.draftId);
-    if (idx >= 0) state.data.changeRequests[idx] = updated;
+    await loadAll();
     return updated;
   } else {
     const created = await apiCreate('changeRequests', body);
     state.cr.draftId = created.id;
-    state.data.changeRequests.unshift(created);
+    await loadAll();
     return created;
   }
 }
@@ -635,16 +633,10 @@ async function nextStep() {
       const original = state.data.changeRequests.find(c => c.id === state.cr.draftId);
       const { id: _id, ...rest } = original || {};
       const body = { ...rest, status: 'submitted' };
-      const updated = await apiUpdate('changeRequests', state.cr.draftId, body);
-      const idx = state.data.changeRequests.findIndex(c => c.id === state.cr.draftId);
-      if (idx >= 0) state.data.changeRequests[idx] = updated;
+      await apiUpdate('changeRequests', state.cr.draftId, body);
+      await loadAll();
       flash('Change request submitted', 'success');
       hideWizard();
-      // refresh plans data and switch to plans view
-      try {
-        const plans = await apiList('plans');
-        state.data.plans = Array.isArray(plans) ? plans : [];
-      } catch { /* ignore */ }
       setScreen('plans');
     } catch (err) { flash(err.message, 'error'); }
   }
@@ -667,8 +659,9 @@ async function refreshPlanPane() {
   try {
     const planEnvelope = await apiComputePlan(state.cr.draftId, state.cr.fields.tier || 'dev');
     state.cr.plan = planEnvelope;
-    // also stash in plans list (latest)
-    state.data.plans.unshift(planEnvelope);
+    // Refetch plans via /graph so the plans screen reflects the new envelope.
+    // Errors here are non-fatal — the wizard already has the envelope to render.
+    loadAll().catch(() => {});
     host.innerHTML = '';
     host.appendChild(renderPlanDetail(planEnvelope));
   } catch (err) {
@@ -963,7 +956,10 @@ async function deleteBylaw(id) {
   if (!confirm('Delete this bylaw?')) return;
   try {
     await apiDelete('bylaws', id);
-    state.data.bylaws = state.data.bylaws.filter(b => b.id !== id);
+    // Bust effective-bylaws cache for the affected node before refetching.
+    const removed = state.data.bylaws.find(b => b.id === id);
+    if (removed?.org_node_id) state.org.effective.delete(removed.org_node_id);
+    await loadAll();
     renderBylawsTable();
     flash('Bylaw deleted', 'success');
   } catch (err) { flash(err.message, 'error'); }
@@ -1000,10 +996,10 @@ async function saveBylaw() {
   for (const k of Object.keys(body)) if (body[k] === undefined) delete body[k];
 
   try {
-    const created = await apiCreate('bylaws', body);
-    state.data.bylaws.unshift(created);
+    await apiCreate('bylaws', body);
     // Bust effective cache for affected node
     state.org.effective.delete(orgId);
+    await loadAll();
     flash('Bylaw saved', 'success');
     resetBylawForm();
     renderBylawsTable();
