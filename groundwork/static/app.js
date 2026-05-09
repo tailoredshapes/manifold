@@ -465,9 +465,10 @@ async function saveRow(entityKey, id, li) {
   }
 
   try {
-    const updated = await updateRecord(entityKey, id, fields);
-    const idx = state.data[entityKey].findIndex(a => a.id === id);
-    if (idx !== -1) state.data[entityKey][idx] = updated;
+    await updateRecord(entityKey, id, fields);
+    // REST writes return only local fields; re-read via /graph so federated
+    // fields (e.g. Deployable.team) stay accurate in the rendered row.
+    await loadEntity(entityKey);
     setError('');
     renderList();
   } catch (err) {
@@ -480,9 +481,10 @@ async function confirmDelete(entityKey, id) {
   if (!confirm(`Delete this ${cfg.label}?`)) return;
   try {
     await deleteRecord(entityKey, id);
-    state.data[entityKey] = state.data[entityKey].filter(a => a.id !== id);
     if (state.expandedId === id) state.expandedId = null;
-    updateBadge(entityKey);
+    // Re-read via /graph for consistency with create/update paths and to pick
+    // up any concurrent changes.
+    await loadEntity(entityKey);
     setError('');
     renderList();
   } catch (err) {
@@ -641,8 +643,9 @@ async function submitNewForm() {
 
   try {
     const created = await createRecord(entityKey, fields);
-    state.data[entityKey].unshift(created);
-    updateBadge(entityKey);
+    // REST writes return only local fields; re-read via /graph so federated
+    // fields (e.g. Deployable.team) are present on the new row.
+    await loadEntity(entityKey);
     hideNewForm();
     state.expandedId = created.id;
     setError('');
