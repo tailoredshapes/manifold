@@ -252,7 +252,10 @@ async function loadAll() {
       '/data_source/graph',
       '{ getAll { id name kind location refresh_policy notes } }'
     ).then(d => d.getAll).catch(() => []),
-    apiFetch(ENTITIES.dataSyncs.api).catch(() => []),
+    gqlQuery(
+      '/data_sync/graph',
+      '{ getAll { id kind target_env_id source_env_id source_data_id refresh_policy estimated_minutes notes } }'
+    ).then(d => d.getAll).catch(() => []),
     apiFetch(ENTITIES.testRuns.api).catch(() => []),
     apiFetch(ENTITIES.testSuites.api).catch(() => []),
   ]);
