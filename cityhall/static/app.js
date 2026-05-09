@@ -125,7 +125,10 @@ async function loadAll() {
   const [orgNodes, bylaws, changeRequests, plans, gantts] = await Promise.all([
     gqlQuery('/org_node/graph', '{ getAll { id name kind parent_id team_id } }')
       .then(d => d.getAll).catch(() => []),
-    apiList('bylaws').catch(() => []),
+    gqlQuery(
+      '/bylaw/graph',
+      '{ getAll { id org_node_id gate_type priority description conditions window quiesce_for approvers } }'
+    ).then(d => d.getAll).catch(() => []),
     apiList('changeRequests').catch(() => []),
     apiList('plans').catch(() => []),
     apiList('gantts').catch(() => []),
