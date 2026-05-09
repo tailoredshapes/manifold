@@ -79,7 +79,7 @@ async function loadAll() {
     gqlQuery('/team_member/graph', '{ getAll { id person_id team_id role } }').then(d => d.getAll),
     gqlQuery(
       '/work_order/graph',
-      '{ getAll { id team_id summary deployable_id deployable { id name } change_request_id change_request { id summary } status priority } }'
+      '{ getAll { id team_id summary deployable_id deployable { id name } change_request_id status priority } }'
     ).then(d => d.getAll),
   ]);
   state.data.people     = Array.isArray(people)     ? people     : [];
