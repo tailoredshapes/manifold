@@ -240,7 +240,10 @@ async function loadAll() {
       '/test_environment/graph',
       '{ getAll { id name kind deployable_id service_id infrastructure_id mock_source_id cost_per_hour spinup_minutes teardown_policy max_duration_minutes concurrency_limit rate_limit contractual_limit notes } }'
     ).then(d => d.getAll).catch(() => []),
-    apiFetch(ENTITIES.testInfrastructures.api).catch(() => []),
+    gqlQuery(
+      '/test_infrastructure/graph',
+      '{ getAll { id name provider region instance_type cost_per_hour notes } }'
+    ).then(d => d.getAll).catch(() => []),
     apiFetch(ENTITIES.mockSources.api).catch(() => []),
     apiFetch(ENTITIES.dataSources.api).catch(() => []),
     apiFetch(ENTITIES.dataSyncs.api).catch(() => []),
