@@ -260,7 +260,10 @@ async function loadAll() {
       '/test_run/graph',
       '{ getAll { id test_environment_id change_request_id test_suite_id team_id started_at finished_at status duration_minutes cost_actual } }'
     ).then(d => d.getAll).catch(() => []),
-    apiFetch(ENTITIES.testSuites.api).catch(() => []),
+    gqlQuery(
+      '/test_suite/graph',
+      '{ getAll { id name deployable_id runner command description } }'
+    ).then(d => d.getAll).catch(() => []),
   ]);
   state.data.testEnvironments    = Array.isArray(testEnvironments) ? testEnvironments : [];
   state.data.testInfrastructures = Array.isArray(testInfrastructures) ? testInfrastructures : [];
