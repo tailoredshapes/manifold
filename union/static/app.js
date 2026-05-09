@@ -48,6 +48,23 @@ async function apiFetch(url, opts) {
   return res.json();
 }
 
+async function gqlQuery(path, query, variables = {}) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`graph ${path} ${res.status}${body ? ': ' + body : ''}`);
+  }
+  const body = await res.json();
+  if (body.errors && body.errors.length) {
+    throw new Error(body.errors.map(e => e.message).join('; '));
+  }
+  return body.data;
+}
+
 const ENDPOINTS = {
   people:     '/person/api',
   teams:      '/team/api',
