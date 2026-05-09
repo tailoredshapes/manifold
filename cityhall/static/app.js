@@ -129,7 +129,10 @@ async function loadAll() {
       '/bylaw/graph',
       '{ getAll { id org_node_id gate_type priority description conditions window quiesce_for approvers } }'
     ).then(d => d.getAll).catch(() => []),
-    apiList('changeRequests').catch(() => []),
+    gqlQuery(
+      '/change_request/graph',
+      '{ getAll { id summary description tier status target_deployables target_versions requested_by } }'
+    ).then(d => d.getAll).catch(() => []),
     apiList('plans').catch(() => []),
     apiList('gantts').catch(() => []),
   ]);
