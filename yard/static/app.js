@@ -227,7 +227,33 @@ async function loadEntity(key) {
 }
 
 async function loadAll() {
-  await Promise.all(Object.keys(ENTITIES).map(loadEntity));
+  const [
+    testEnvironments,
+    testInfrastructures,
+    mockSources,
+    dataSources,
+    dataSyncs,
+    testRuns,
+    testSuites,
+  ] = await Promise.all([
+    gqlQuery(
+      '/test_environment/graph',
+      '{ getAll { id name kind deployable_id service_id infrastructure_id mock_source_id cost_per_hour spinup_minutes teardown_policy max_duration_minutes concurrency_limit rate_limit contractual_limit notes } }'
+    ).then(d => d.getAll).catch(() => []),
+    apiFetch(ENTITIES.testInfrastructures.api).catch(() => []),
+    apiFetch(ENTITIES.mockSources.api).catch(() => []),
+    apiFetch(ENTITIES.dataSources.api).catch(() => []),
+    apiFetch(ENTITIES.dataSyncs.api).catch(() => []),
+    apiFetch(ENTITIES.testRuns.api).catch(() => []),
+    apiFetch(ENTITIES.testSuites.api).catch(() => []),
+  ]);
+  state.data.testEnvironments    = Array.isArray(testEnvironments) ? testEnvironments : [];
+  state.data.testInfrastructures = Array.isArray(testInfrastructures) ? testInfrastructures : [];
+  state.data.mockSources         = Array.isArray(mockSources) ? mockSources : [];
+  state.data.dataSources         = Array.isArray(dataSources) ? dataSources : [];
+  state.data.dataSyncs           = Array.isArray(dataSyncs) ? dataSyncs : [];
+  state.data.testRuns            = Array.isArray(testRuns) ? testRuns : [];
+  state.data.testSuites          = Array.isArray(testSuites) ? testSuites : [];
 }
 
 async function createRecord(key, payload) {
