@@ -584,6 +584,10 @@ async function moveWorkOrder(id, newStatus) {
   if (wo.status === newStatus) return;
 
   const payload = { ...wo, status: newStatus };
+  // Drop federated read-side fields — they're hydrated by /graph and must not
+  // be written back into the REST record.
+  delete payload.deployable;
+  delete payload.change_request;
   // Drop empty optional strings to avoid stomping enums.
   for (const k of Object.keys(payload)) {
     if (payload[k] === '' || payload[k] == null) delete payload[k];
@@ -592,12 +596,10 @@ async function moveWorkOrder(id, newStatus) {
   payload.status = newStatus;
 
   try {
-    const updated = await updateRecord(ENDPOINTS.workOrders, id, payload);
-    if (updated && updated.id) {
-      state.data.workOrders[idx] = updated;
-    } else {
-      state.data.workOrders[idx] = { ...wo, status: newStatus };
-    }
+    await updateRecord(ENDPOINTS.workOrders, id, payload);
+    // Refetch via /graph so federated fields (deployable, change_request)
+    // stay accurate; in-place state mutation would silently lose them.
+    await loadAll();
     setError('');
     setInfo(`Moved to ${newStatus}`);
     renderKanban();
@@ -618,7 +620,6 @@ const MODAL_FORMS = {
       { name: 'kind', label: 'Kind', type: 'select', required: true, options: TEAM_KINDS },
       { name: 'description', label: 'Description', type: 'textarea' },
     ],
-    afterCreate(envelope) { state.data.teams.unshift(envelope); },
   },
   person: {
     title: 'New person',
@@ -628,7 +629,6 @@ const MODAL_FORMS = {
       { name: 'contact', label: 'Contact', type: 'text' },
       { name: 'role', label: 'Role', type: 'text' },
     ],
-    afterCreate(envelope) { state.data.people.unshift(envelope); },
   },
   member: {
     title: 'New team member',
@@ -638,7 +638,6 @@ const MODAL_FORMS = {
       { name: 'team_id', label: 'Team', type: 'ref', required: true, source: () => state.data.teams, labelOf: t => t.name || t.id },
       { name: 'role', label: 'Role on team', type: 'text' },
     ],
-    afterCreate(envelope) { state.data.members.unshift(envelope); },
   },
   work_order: {
     title: 'New work order',
@@ -651,7 +650,6 @@ const MODAL_FORMS = {
       { name: 'deployable_id', label: 'Deployable id', type: 'text' },
       { name: 'change_request_id', label: 'Change request id', type: 'text' },
     ],
-    afterCreate(envelope) { state.data.workOrders.unshift(envelope); },
   },
 };
 
@@ -747,8 +745,11 @@ async function submitModal(e) {
   }
 
   try {
-    const created = await createRecord(cfg.endpoint, payload);
-    if (created) cfg.afterCreate(created);
+    await createRecord(cfg.endpoint, payload);
+    // Refetch via /graph so federated fields (e.g. work_order.deployable)
+    // are populated; in-place state mutation can only carry what REST
+    // returned, which omits federated reads.
+    await loadAll();
     setError('');
     setInfo('Saved');
     closeModal();
