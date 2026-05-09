@@ -2,6 +2,7 @@ type DeploymentPlan {
     id: ID
     change_request_id: String!
     tier: String
+    summary: String
     steps: String
     blockers: String
     computed_at: String

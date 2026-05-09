@@ -133,7 +133,10 @@ async function loadAll() {
       '/change_request/graph',
       '{ getAll { id summary description tier status target_deployables target_versions requested_by } }'
     ).then(d => d.getAll).catch(() => []),
-    apiList('plans').catch(() => []),
+    gqlQuery(
+      '/deployment_plan/graph',
+      '{ getAll { id change_request_id tier summary steps blockers computed_at } }'
+    ).then(d => d.getAll).catch(() => []),
     apiList('gantts').catch(() => []),
   ]);
   state.data.orgNodes       = Array.isArray(orgNodes) ? orgNodes : [];
