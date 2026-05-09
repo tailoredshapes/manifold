@@ -244,7 +244,10 @@ async function loadAll() {
       '/test_infrastructure/graph',
       '{ getAll { id name provider region instance_type cost_per_hour notes } }'
     ).then(d => d.getAll).catch(() => []),
-    apiFetch(ENTITIES.mockSources.api).catch(() => []),
+    gqlQuery(
+      '/mock_source/graph',
+      '{ getAll { id name repo_url path language notes } }'
+    ).then(d => d.getAll).catch(() => []),
     apiFetch(ENTITIES.dataSources.api).catch(() => []),
     apiFetch(ENTITIES.dataSyncs.api).catch(() => []),
     apiFetch(ENTITIES.testRuns.api).catch(() => []),
