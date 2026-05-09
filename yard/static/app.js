@@ -221,11 +221,6 @@ async function gqlQuery(path, query, variables = {}) {
   return body.data;
 }
 
-async function loadEntity(key) {
-  const items = await apiFetch(ENTITIES[key].api);
-  state.data[key] = Array.isArray(items) ? items : [];
-}
-
 async function loadAll() {
   const [
     testEnvironments,
@@ -481,8 +476,10 @@ async function saveNewModal() {
     }
   }
   try {
-    const created = await createRecord(key, payload);
-    state.data[key].unshift(created);
+    await createRecord(key, payload);
+    // REST writes return only local fields; re-read via /graph so the new
+    // row reflects the same shape the rest of the app already uses.
+    await loadAll();
     closeModal();
     setStatus(`${cfg.label} created`);
     render();
@@ -653,9 +650,8 @@ function buildEnvDetail(item) {
         const payload = readForm(form);
         if (item.name) payload.name = item.name;
         try {
-          const updated = await updateRecord('testEnvironments', id, payload);
-          const idx = state.data.testEnvironments.findIndex(x => x.id === id);
-          if (idx !== -1) state.data.testEnvironments[idx] = updated;
+          await updateRecord('testEnvironments', id, payload);
+          await loadAll();
           setStatus('Saved');
           render();
         } catch (err) { setError(err); }
@@ -679,7 +675,7 @@ function buildEnvDetail(item) {
         if (!confirm(`Delete environment "${item.name || id}"?`)) return;
         try {
           await deleteRecord('testEnvironments', id);
-          state.data.testEnvironments = state.data.testEnvironments.filter(x => x.id !== id);
+          await loadAll();
           state.expandedEnvId = null;
           setStatus('Deleted');
           render();
@@ -857,9 +853,8 @@ function renderRuns(root) {
             const payload = readForm(form);
             if (r.test_environment_id) payload.test_environment_id = r.test_environment_id;
             try {
-              const updated = await updateRecord('testRuns', r.id, payload);
-              const idx = state.data.testRuns.findIndex(x => x.id === r.id);
-              if (idx !== -1) state.data.testRuns[idx] = updated;
+              await updateRecord('testRuns', r.id, payload);
+              await loadAll();
               setStatus('Saved');
               render();
             } catch (err) { setError(err); }
@@ -870,7 +865,7 @@ function renderRuns(root) {
             if (!confirm('Delete this run?')) return;
             try {
               await deleteRecord('testRuns', r.id);
-              state.data.testRuns = state.data.testRuns.filter(x => x.id !== r.id);
+              await loadAll();
               state.expandedRunId = null;
               render();
             } catch (err) { setError(err); }
@@ -1221,9 +1216,8 @@ function renderSettings(root, entityKey) {
               onClick: async () => {
                 const payload = readForm(form);
                 try {
-                  const updated = await updateRecord(entityKey, id, payload);
-                  const idx = state.data[entityKey].findIndex(x => x.id === id);
-                  if (idx !== -1) state.data[entityKey][idx] = updated;
+                  await updateRecord(entityKey, id, payload);
+                  await loadAll();
                   state.expandedSettingId = null;
                   setStatus('Saved');
                   render();
@@ -1238,7 +1232,7 @@ function renderSettings(root, entityKey) {
                 if (!confirm(`Delete this ${cfg.label.toLowerCase()}?`)) return;
                 try {
                   await deleteRecord(entityKey, id);
-                  state.data[entityKey] = state.data[entityKey].filter(x => x.id !== id);
+                  await loadAll();
                   state.expandedSettingId = null;
                   render();
                 } catch (err) { setError(err); }
