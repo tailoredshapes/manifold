@@ -248,7 +248,10 @@ async function loadAll() {
       '/mock_source/graph',
       '{ getAll { id name repo_url path language notes } }'
     ).then(d => d.getAll).catch(() => []),
-    apiFetch(ENTITIES.dataSources.api).catch(() => []),
+    gqlQuery(
+      '/data_source/graph',
+      '{ getAll { id name kind location refresh_policy notes } }'
+    ).then(d => d.getAll).catch(() => []),
     apiFetch(ENTITIES.dataSyncs.api).catch(() => []),
     apiFetch(ENTITIES.testRuns.api).catch(() => []),
     apiFetch(ENTITIES.testSuites.api).catch(() => []),
