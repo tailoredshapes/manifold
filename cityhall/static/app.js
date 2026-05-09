@@ -137,7 +137,10 @@ async function loadAll() {
       '/deployment_plan/graph',
       '{ getAll { id change_request_id tier summary steps blockers computed_at } }'
     ).then(d => d.getAll).catch(() => []),
-    apiList('gantts').catch(() => []),
+    gqlQuery(
+      '/gantt_output/graph',
+      '{ getAll { id deployment_plan_id tier mermaid } }'
+    ).then(d => d.getAll).catch(() => []),
   ]);
   state.data.orgNodes       = Array.isArray(orgNodes) ? orgNodes : [];
   state.data.bylaws         = Array.isArray(bylaws) ? bylaws : [];
