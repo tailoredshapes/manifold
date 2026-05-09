@@ -76,7 +76,7 @@ async function loadAll() {
   const [people, teams, members, workOrders] = await Promise.all([
     gqlQuery('/person/graph', '{ getAll { id name contact role } }').then(d => d.getAll),
     gqlQuery('/team/graph', '{ getAll { id name kind description } }').then(d => d.getAll),
-    apiFetch(ENDPOINTS.members),
+    gqlQuery('/team_member/graph', '{ getAll { id person_id team_id role } }').then(d => d.getAll),
     apiFetch(ENDPOINTS.workOrders),
   ]);
   state.data.people     = Array.isArray(people)     ? people     : [];
