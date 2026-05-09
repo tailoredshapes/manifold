@@ -256,7 +256,10 @@ async function loadAll() {
       '/data_sync/graph',
       '{ getAll { id kind target_env_id source_env_id source_data_id refresh_policy estimated_minutes notes } }'
     ).then(d => d.getAll).catch(() => []),
-    apiFetch(ENTITIES.testRuns.api).catch(() => []),
+    gqlQuery(
+      '/test_run/graph',
+      '{ getAll { id test_environment_id change_request_id test_suite_id team_id started_at finished_at status duration_minutes cost_actual } }'
+    ).then(d => d.getAll).catch(() => []),
     apiFetch(ENTITIES.testSuites.api).catch(() => []),
   ]);
   state.data.testEnvironments    = Array.isArray(testEnvironments) ? testEnvironments : [];
