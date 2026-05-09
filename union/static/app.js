@@ -74,7 +74,7 @@ const ENDPOINTS = {
 
 async function loadAll() {
   const [people, teams, members, workOrders] = await Promise.all([
-    apiFetch(ENDPOINTS.people),
+    gqlQuery('/person/graph', '{ getAll { id name contact role } }').then(d => d.getAll),
     apiFetch(ENDPOINTS.teams),
     apiFetch(ENDPOINTS.members),
     apiFetch(ENDPOINTS.workOrders),
