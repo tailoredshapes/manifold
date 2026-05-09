@@ -77,7 +77,10 @@ async function loadAll() {
     gqlQuery('/person/graph', '{ getAll { id name contact role } }').then(d => d.getAll),
     gqlQuery('/team/graph', '{ getAll { id name kind description } }').then(d => d.getAll),
     gqlQuery('/team_member/graph', '{ getAll { id person_id team_id role } }').then(d => d.getAll),
-    apiFetch(ENDPOINTS.workOrders),
+    gqlQuery(
+      '/work_order/graph',
+      '{ getAll { id team_id summary deployable_id deployable { id name } change_request_id change_request { id summary } status priority } }'
+    ).then(d => d.getAll),
   ]);
   state.data.people     = Array.isArray(people)     ? people     : [];
   state.data.teams      = Array.isArray(teams)      ? teams      : [];
@@ -521,7 +524,8 @@ function renderKanban() {
 function woCardHtml(wo) {
   const pr = wo.priority || '';
   const cls = pr === 'urgent' ? 'danger' : pr === 'high' ? 'warn' : pr === 'medium' ? 'primary' : '';
-  const dep = wo.deployable_id ? `<div class="wo-deployable">deployable: ${esc(wo.deployable_id)}</div>` : '';
+  const depLabel = wo.deployable?.name || wo.deployable_id;
+  const dep = depLabel ? `<div class="wo-deployable">deployable: ${esc(depLabel)}</div>` : '';
   return `
     <div class="wo-card" draggable="true" data-id="${esc(wo.id)}">
       <div class="wo-summary">${esc(wo.summary || '(no summary)')}</div>
