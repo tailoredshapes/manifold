@@ -94,6 +94,23 @@ async function api(url, opts) {
   return ct.includes('application/json') ? res.json() : res.text();
 }
 
+async function gqlQuery(path, query, variables = {}) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, variables }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`graph ${path} ${res.status}${body ? ': ' + body : ''}`);
+  }
+  const body = await res.json();
+  if (body.errors && body.errors.length) {
+    throw new Error(body.errors.map(e => e.message).join('; '));
+  }
+  return body.data;
+}
+
 const apiList   = (key)            => api(ENDPOINTS[key]);
 const apiCreate = (key, body)      => api(ENDPOINTS[key], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const apiUpdate = (key, id, body)  => api(`${ENDPOINTS[key]}/${id}`, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
