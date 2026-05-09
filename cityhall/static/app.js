@@ -123,7 +123,8 @@ const apiRenderGantt = (planId) =>
 
 async function loadAll() {
   const [orgNodes, bylaws, changeRequests, plans, gantts] = await Promise.all([
-    apiList('orgNodes').catch(() => []),
+    gqlQuery('/org_node/graph', '{ getAll { id name kind parent_id team_id } }')
+      .then(d => d.getAll).catch(() => []),
     apiList('bylaws').catch(() => []),
     apiList('changeRequests').catch(() => []),
     apiList('plans').catch(() => []),
