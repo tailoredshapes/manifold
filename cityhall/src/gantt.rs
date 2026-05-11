@@ -46,7 +46,7 @@ pub fn render_gantt(plan: &ComputedPlan) -> String {
             let mut gate_ids: Vec<String> = Vec::with_capacity(step.gates.len());
             for (gi, gate) in step.gates.iter().enumerate() {
                 let gate_id = format!("gate_{}_{}", step.order, gi);
-                let after = format_predecessors(&step.predecessor_orders);
+                let after = format_predecessors(step.order, &step.predecessor_orders);
                 let _ = writeln!(
                     out,
                     "    {gt} ({src}) :crit, milestone, {gate_id}, {after}, 0min",
@@ -61,7 +61,7 @@ pub fn render_gantt(plan: &ComputedPlan) -> String {
             let after = if !gate_ids.is_empty() {
                 format!("after {}", gate_ids.join(" "))
             } else {
-                format_predecessors(&step.predecessor_orders)
+                format_predecessors(step.order, &step.predecessor_orders)
             };
             let _ = writeln!(
                 out,
@@ -77,12 +77,26 @@ pub fn render_gantt(plan: &ComputedPlan) -> String {
     out
 }
 
-fn format_predecessors(orders: &[usize]) -> String {
-    if orders.is_empty() {
+fn format_predecessors(current_order: usize, orders: &[usize]) -> String {
+    // Filter out forward references. The planner emits the underlying deployable
+    // graph faithfully, including cycles, and surfaces those cycles in
+    // `ComputedPlan::blockers`. But a Mermaid Gantt cannot resolve a task that
+    // depends on another task defined later — it computes NaN coordinates and
+    // the chart fails to render. Predecessors with `order >= current_order` are
+    // necessarily forward refs (the planner topo-sorts what it can; the residue
+    // is the cycle), and are dropped here. The dependency relationship still
+    // exists in the data model and in the blocker list; it just doesn't
+    // contribute an edge to the Gantt.
+    let preds: Vec<String> = orders
+        .iter()
+        .copied()
+        .filter(|&o| o < current_order)
+        .map(|o| format!("step_{o}"))
+        .collect();
+    if preds.is_empty() {
         // Mermaid task lines need a start anchor; use a fixed origin.
         "after start".to_string()
     } else {
-        let preds: Vec<String> = orders.iter().map(|o| format!("step_{o}")).collect();
         format!("after {}", preds.join(" "))
     }
 }
@@ -183,6 +197,30 @@ mod tests {
         assert!(g.contains("WindowGate (Payments-Domain) :crit, milestone, gate_0_1,"));
         // Step depends on both gates.
         assert!(g.contains("deploy billing :step_0, after gate_0_0 gate_0_1, 10min"), "got: {g}");
+    }
+
+    #[test]
+    fn forward_refs_from_cycles_are_dropped() {
+        // Simulate a step that the planner couldn't fully topo-sort: it has a
+        // predecessor with a higher order than itself (a cycle). The Gantt
+        // should drop the forward ref to keep Mermaid happy; the cycle is
+        // still reported via ComputedPlan::blockers elsewhere.
+        let p = plan_with(vec![
+            step(0, "auth", vec![5], vec![]),       // forward ref to step_5
+            step(1, "checkout", vec![0, 3], vec![]), // step_3 is forward
+            step(2, "billing", vec![1], vec![]),    // backward, fine
+            step(3, "ledger", vec![2], vec![]),     // backward, fine
+            step(5, "audit", vec![0], vec![]),      // backward, fine
+        ]);
+        let g = render_gantt(&p);
+        // step_0 had only forward refs → falls back to `after start`
+        assert!(g.contains("deploy auth :step_0, after start, 10min"), "got: {g}");
+        // step_1 had one forward (3) and one backward (0) → backward kept
+        assert!(g.contains("deploy checkout :step_1, after step_0, 10min"), "got: {g}");
+        // step_5's only predecessor (0) is backward → kept as-is
+        assert!(g.contains("deploy audit :step_5, after step_0, 10min"), "got: {g}");
+        // No literal "after step_5" anywhere — that was the forward ref
+        assert!(!g.contains("after step_5"), "forward ref leaked: {g}");
     }
 
     #[test]
