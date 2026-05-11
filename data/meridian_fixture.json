@@ -1,7 +1,7 @@
 {
   "_meta": {
     "narrative_change_request": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
-    "narrative_summary": "Auth Service \u2014 MFA enforcement rollout (phase 2)",
+    "narrative_summary": "Auth Service — MFA enforcement rollout (phase 2)",
     "narrative_trail": [
       "Groundwork: targets Auth Service, Customer Portal, Admin Panel",
       "Union: Team Anvil + Apex Digital own related work orders",
@@ -39,7 +39,7 @@
         "priority": "2"
       },
       {
-        "description": "Q4 peak-season deployment freeze \u2014 no prod changes Nov 15 through Jan 5",
+        "description": "Q4 peak-season deployment freeze — no prod changes Nov 15 through Jan 5",
         "gate_type": "FreezePeriod",
         "id": "aefdabe0-a83f-425a-b6ee-1aabf8182b33",
         "org_node_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
@@ -67,11 +67,11 @@
     ],
     "change_requests": [
       {
-        "description": "First phase of CRM sunset: export all customer and contact records from legacy-crm to Hubspot. DevStar leading. No downtime required \u2014 read-only migration script.",
+        "description": "First phase of CRM sunset: export all customer and contact records from legacy-crm to Hubspot. DevStar leading. No downtime required — read-only migration script.",
         "id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
         "requested_by": "d0b7960c-9755-4842-84ae-26f725a697d1",
         "status": "approved",
-        "summary": "Legacy CRM \u2192 Hubspot migration (phase 1: data export)",
+        "summary": "Legacy CRM → Hubspot migration (phase 1: data export)",
         "target_deployables": "15fd43a7-d38c-4308-a0b4-46f701669588",
         "target_versions": "legacy-crm:0.9.1-export-patch",
         "tier": "prod"
@@ -81,7 +81,7 @@
         "id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
         "requested_by": "5d7acb9b-5fd9-4424-917a-2711caebd9bc",
         "status": "draft",
-        "summary": "Auth Service \u2014 MFA enforcement rollout (phase 2)",
+        "summary": "Auth Service — MFA enforcement rollout (phase 2)",
         "target_deployables": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3,ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9,5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
         "target_versions": "auth-service:2.1.0,customer-portal:4.2.0,admin-panel:1.8.0",
         "tier": "dev"
@@ -91,17 +91,17 @@
         "id": "55586510-e6a8-4be1-911c-b61311fb9e05",
         "requested_by": "a3e3fae9-2885-41e3-a953-7a94fa2bfa94",
         "status": "approved",
-        "summary": "Route Optimizer v2.4 \u2014 dynamic re-routing on traffic events",
+        "summary": "Route Optimizer v2.4 — dynamic re-routing on traffic events",
         "target_deployables": "9bb28e8c-5a35-48df-8276-2ac0c86fe188,6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
         "target_versions": "route-optimizer:2.4.0,geocoding-service:1.6.2",
         "tier": "uat"
       },
       {
-        "description": "Stripe v2 API deprecated Q3. Migrating order-management to Stripe v3 SDK. Breaking change in webhook payload shape \u2014 notification-service and invoice-engine need coordinated update.",
+        "description": "Stripe v2 API deprecated Q3. Migrating order-management to Stripe v3 SDK. Breaking change in webhook payload shape — notification-service and invoice-engine need coordinated update.",
         "id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
         "requested_by": "0b3ded84-f023-4244-848a-03f2b7f6ff89",
         "status": "submitted",
-        "summary": "OMS \u2014 migrate payment gateway from Stripe v2 to v3",
+        "summary": "OMS — migrate payment gateway from Stripe v2 to v3",
         "target_deployables": "211a2a9d-3d61-41f1-be49-9bbe775e8b86,760922f7-529d-4cb4-9876-422b83732463,cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
         "target_versions": "order-management:1.9.0,notification-service:2.3.1,invoice-engine:3.1.0",
         "tier": "dev"
@@ -111,7 +111,7 @@
         "id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
         "requested_by": "ab31829f-4aa5-4cd9-b8ef-f208cdbd1b53",
         "status": "draft",
-        "summary": "ETL Pipeline \u2014 add carrier telemetry source",
+        "summary": "ETL Pipeline — add carrier telemetry source",
         "target_deployables": "93418a84-de18-4beb-b1de-95a155497944,7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1,938019f8-2db2-4f61-9b4d-34c187f760a6",
         "target_versions": "etl-pipeline:2.2.0,analytics-platform:1.3.0,carrier-integration:2.2.0",
         "tier": "dev"
@@ -1016,214 +1016,244 @@
     ],
     "deployables": [
       {
-        "description": "Append-only compliance audit trail. On-demand releases. No test env \u2014 append-only, production-validated.",
+        "description": "Append-only compliance audit trail. On-demand releases. No test env — append-only, production-validated.",
         "id": "04dc842c-fe15-452b-accc-2fc27707b439",
         "name": "Audit Log",
         "repo_url": "https://github.com/meridian-internal/audit-log",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "operational"
       },
       {
         "description": "Kafka-backed async messaging backbone. Monthly releases. Dev sandbox env only.",
         "id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
         "name": "Event Bus",
         "repo_url": "https://github.com/meridian-internal/event-bus",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "operational"
       },
       {
         "description": "Feature flags and runtime configuration. On-demand releases. Dev isolated env.",
         "id": "116ef77b-1304-4666-b680-50a744319368",
         "name": "Config Service",
         "repo_url": "https://github.com/meridian-internal/config-service",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "operational"
       },
       {
-        "description": "Old customer relationship management system (being replaced by new CRM). On-demand patches only. No test env \u2014 too risky to replicate.",
+        "description": "Old customer relationship management system (being replaced by new CRM). On-demand patches only. No test env — too risky to replicate.",
         "id": "15fd43a7-d38c-4308-a0b4-46f701669588",
         "name": "Legacy CRM",
         "repo_url": "https://github.com/meridian-internal/legacy-crm",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b",
+        "deployment_status": "down"
       },
       {
         "description": "Rate-limited API gateway for third-party integrators. Bi-weekly releases. Dev + staging envs.",
         "id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
         "name": "Customer API Gateway",
         "repo_url": "https://github.com/meridian-internal/customer-api-gateway",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
-        "description": "Snowflake loader \u2014 transforms and loads from ETL. Quarterly releases. No dedicated test env.",
+        "description": "Snowflake loader — transforms and loads from ETL. Quarterly releases. No dedicated test env.",
         "id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
         "name": "Data Warehouse Loader",
         "repo_url": "https://github.com/meridian-internal/data-warehouse",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "degraded"
       },
       {
         "description": "Central OMS handling order intake, status, and fulfilment workflow. Bi-weekly releases. Dev + UAT envs.",
         "id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
         "name": "Order Management System",
         "repo_url": "https://github.com/meridian-internal/order-management",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
         "description": "External customs API for cross-border shipments. Quarterly releases. External vendor sandbox only.",
         "id": "21d5312e-de38-47a3-98ba-4346caab9920",
         "name": "Customs Clearance Integration",
         "repo_url": "https://github.com/meridian-internal/customs-clearance",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "unknown"
       },
       {
         "description": "SMS and WhatsApp delivery via Twilio. Continuous CD. Mock-only env (Twilio test mode).",
         "id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
         "name": "SMS Gateway",
         "repo_url": "https://github.com/meridian-internal/sms-gateway",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "degraded"
       },
       {
-        "description": "Internal dispatcher UI \u2014 assign jobs, monitor drivers, handle exceptions. Monthly releases. Dev stub only.",
+        "description": "Internal dispatcher UI — assign jobs, monitor drivers, handle exceptions. Monthly releases. Dev stub only.",
         "id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
         "name": "Dispatch Console",
         "repo_url": "https://github.com/meridian-internal/dispatch-console",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
         "description": "Android driver application. Bi-weekly Play Store releases. Test via AWS Device Farm only.",
         "id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
         "name": "Driver App Android",
         "repo_url": "https://github.com/meridian-internal/driver-app-android",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
-        "description": "Fleet tracker \u2014 vehicle assignments, maintenance schedules, fuel logs. Monthly releases. Shared UAT.",
+        "description": "Fleet tracker — vehicle assignments, maintenance schedules, fuel logs. Monthly releases. Shared UAT.",
         "id": "48bfbc55-a08e-404b-8bb7-556b2fd68882",
         "name": "Fleet Management",
         "repo_url": "https://github.com/meridian-internal/fleet-management",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "operational"
       },
       {
-        "description": "Internal admin for ops team \u2014 user management, config, manual overrides. Quarterly releases. No test env; feature-flagged in prod.",
+        "description": "Internal admin for ops team — user management, config, manual overrides. Quarterly releases. No test env; feature-flagged in prod.",
         "id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
         "name": "Admin Panel",
         "repo_url": "https://github.com/meridian-internal/admin-panel",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
-        "description": "S3-backed object storage API \u2014 POD photos, documents. On-demand releases. No dedicated test env; mock via stub.",
+        "description": "S3-backed object storage API — POD photos, documents. On-demand releases. No dedicated test env; mock via stub.",
         "id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
         "name": "File Storage",
         "repo_url": "https://github.com/meridian-internal/file-storage",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "operational"
       },
       {
-        "description": "Google Maps wrapper \u2014 address validation, lat/lng lookup. On-demand releases. No test env; uses Google Maps test API key.",
+        "description": "Google Maps wrapper — address validation, lat/lng lookup. On-demand releases. No test env; uses Google Maps test API key.",
         "id": "6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
         "name": "Geocoding Service",
         "repo_url": "https://github.com/meridian-internal/geocoding-service",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
-        "description": "BI dashboard \u2014 KPIs, SLA breach reports, driver performance. Quarterly releases. No test env; uses prod snapshots.",
+        "description": "BI dashboard — KPIs, SLA breach reports, driver performance. Quarterly releases. No test env; uses prod snapshots.",
         "id": "7398af23-f605-4e2d-a092-adfadb636c1a",
         "name": "Reporting Dashboard",
         "repo_url": "https://github.com/meridian-internal/reporting-dashboard",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "degraded"
       },
       {
         "description": "Fan-out push notifications, email, and SMS alerts. Bi-weekly releases. Dev stub env only.",
         "id": "760922f7-529d-4cb4-9876-422b83732463",
         "name": "Notification Service",
         "repo_url": "https://github.com/meridian-internal/notification-service",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
-        "description": "ClickHouse-backed analytics for ops and executive dashboards. Quarterly releases. No test env \u2014 cost prohibitive.",
+        "description": "ClickHouse-backed analytics for ops and executive dashboards. Quarterly releases. No test env — cost prohibitive.",
         "id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
         "name": "Analytics Platform",
         "repo_url": "https://github.com/meridian-internal/analytics-platform",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "degraded"
       },
       {
         "description": "Nightly ETL from operational DBs to data warehouse. Monthly releases. Dev isolated env only.",
         "id": "93418a84-de18-4beb-b1de-95a155497944",
         "name": "ETL Pipeline",
         "repo_url": "https://github.com/meridian-internal/etl-pipeline",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "degraded"
       },
       {
-        "description": "Third-party carrier APIs \u2014 FedEx, UPS, USPS rate shopping and tracking. Monthly releases. External sandbox envs.",
+        "description": "Third-party carrier APIs — FedEx, UPS, USPS rate shopping and tracking. Monthly releases. External sandbox envs.",
         "id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
         "name": "Carrier Integration",
         "repo_url": "https://github.com/meridian-internal/carrier-integration",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
         "description": "iOS driver application. Bi-weekly App Store releases. Test via AWS Device Farm only.",
         "id": "975e9d50-641d-4010-b42f-326327fd6bc3",
         "name": "Driver App iOS",
         "repo_url": "https://github.com/meridian-internal/driver-app-ios",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
-        "description": "Core routing engine \u2014 optimises last-mile delivery paths in real time. Weekly releases. Full test env stack.",
+        "description": "Core routing engine — optimises last-mile delivery paths in real time. Weekly releases. Full test env stack.",
         "id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
         "name": "Route Optimizer",
         "repo_url": "https://github.com/meridian-internal/route-optimizer",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
-        "description": "AuthN/AuthZ \u2014 JWT issuance, RBAC, MFA. Bi-weekly releases. Full test env stack; changes require security sign-off.",
+        "description": "AuthN/AuthZ — JWT issuance, RBAC, MFA. Bi-weekly releases. Full test env stack; changes require security sign-off.",
         "id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
         "name": "Auth Service",
         "repo_url": "https://github.com/meridian-internal/auth-service",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "operational"
       },
       {
-        "description": "Public shipment tracking page (no auth). Weekly releases. No dedicated test env \u2014 tests against staging OMS.",
+        "description": "Public shipment tracking page (no auth). Weekly releases. No dedicated test env — tests against staging OMS.",
         "id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
         "name": "Tracking Page",
         "repo_url": "https://github.com/meridian-internal/tracking-page",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
-        "description": "Mobile backend for driver apps \u2014 job assignment, proof of delivery, GPS telemetry. Weekly releases.",
+        "description": "Mobile backend for driver apps — job assignment, proof of delivery, GPS telemetry. Weekly releases.",
         "id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
         "name": "Driver Service",
         "repo_url": "https://github.com/meridian-internal/driver-api",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       },
       {
         "description": "Billing and invoice generation from completed orders. Monthly releases. UAT sandbox only.",
         "id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
         "name": "Invoice Engine",
         "repo_url": "https://github.com/meridian-internal/invoice-engine",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "operational"
       },
       {
         "description": "Transactional email via SendGrid. Continuous CD. Mock-only env (Mailtrap).",
         "id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
         "name": "Email Service",
         "repo_url": "https://github.com/meridian-internal/email-service",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "operational"
       },
       {
-        "description": "WMS \u2014 inbound receiving, pick/pack, outbound manifests. Quarterly releases. Shared UAT with fleet.",
+        "description": "WMS — inbound receiving, pick/pack, outbound manifests. Quarterly releases. Shared UAT with fleet.",
         "id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
         "name": "Warehouse Management",
         "repo_url": "https://github.com/meridian-internal/warehouse-mgmt",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "deployment_status": "operational"
       },
       {
-        "description": "Deprecated driver app \u2014 sunset in progress, migrating users to v2. No new releases. No test env.",
+        "description": "Deprecated driver app — sunset in progress, migrating users to v2. No new releases. No test env.",
         "id": "e255adea-15d0-420e-9247-b435a2e78a14",
         "name": "Old Driver App (v1)",
         "repo_url": "https://github.com/meridian-internal/driver-app-v1",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b",
+        "deployment_status": "down"
       },
       {
-        "description": "Web portal for shippers \u2014 booking, tracking, invoices. Weekly releases. Dev + staging envs.",
+        "description": "Web portal for shippers — booking, tracking, invoices. Weekly releases. Dev + staging envs.",
         "id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
         "name": "Customer Portal",
         "repo_url": "https://github.com/meridian-internal/customer-portal",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "deployment_status": "operational"
       }
     ],
     "exposes": [
@@ -1486,7 +1516,7 @@
         "type": "event"
       },
       {
-        "description": "Optimisation endpoint \u2014 POST a delivery batch, get back ordered stops",
+        "description": "Optimisation endpoint — POST a delivery batch, get back ordered stops",
         "endpoint": "https://groundwork.meridianfreight.internal/route-optimizer",
         "id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c",
         "name": "Route Optimizer API",
@@ -1562,7 +1592,7 @@
         "type": "rest"
       },
       {
-        "description": "Public shipment tracking \u2014 no auth required",
+        "description": "Public shipment tracking — no auth required",
         "endpoint": "https://groundwork.meridianfreight.internal/tracking-page",
         "id": "e9c978d1-2890-4f1e-8a65-27d6d9eb62ae",
         "name": "Tracking API",
@@ -1583,7 +1613,7 @@
         "type": "rest"
       },
       {
-        "description": "Legacy customer record API. Read-only since Q1 \u2014 Hubspot is the new system of record. Maintained for historical reads.",
+        "description": "Legacy customer record API. Read-only since Q1 — Hubspot is the new system of record. Maintained for historical reads.",
         "endpoint": "https://groundwork.meridianfreight.internal/legacy-crm",
         "id": "c8aab52a-3438-442f-b872-88f556518dcd",
         "name": "Legacy CRM API",
@@ -1944,31 +1974,31 @@
     ],
     "teams": [
       {
-        "description": "Agency \u2014 staff aug on analytics, ETL, and data platform",
+        "description": "Agency — staff aug on analytics, ETL, and data platform",
         "id": "6f099b92-535e-4a24-b186-d1e28506e4ba",
         "kind": "support",
         "name": "NorthBridge Tech"
       },
       {
-        "description": "Product engineering \u2014 customer-facing apps, routing, driver experience",
+        "description": "Product engineering — customer-facing apps, routing, driver experience",
         "id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
         "kind": "product",
         "name": "Team Orion"
       },
       {
-        "description": "Agency \u2014 staff aug on OMS, customer portal, and tracking",
+        "description": "Agency — staff aug on OMS, customer portal, and tracking",
         "id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d",
         "kind": "support",
         "name": "Apex Digital"
       },
       {
-        "description": "Platform engineering \u2014 shared services, data, infrastructure",
+        "description": "Platform engineering — shared services, data, infrastructure",
         "id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
         "kind": "platform",
         "name": "Team Anvil"
       },
       {
-        "description": "Agency \u2014 legacy CRM modernisation and old driver app sunset",
+        "description": "Agency — legacy CRM modernisation and old driver app sunset",
         "id": "e9a581ef-b83b-434d-9afb-becf75669d9b",
         "kind": "support",
         "name": "DevStar"
@@ -1988,7 +2018,7 @@
         "id": "d9c7fcd5-c794-5e43-ace0-80db640d5953",
         "priority": "low",
         "status": "proposed",
-        "summary": "Upgrade Kafka from 3.4 to 3.8 \u2014 rolling restart plan",
+        "summary": "Upgrade Kafka from 3.4 to 3.8 — rolling restart plan",
         "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       },
       {
@@ -2015,7 +2045,7 @@
         "id": "86f452a9-f1a0-5dd4-8c69-1524b4ef6c37",
         "priority": "high",
         "status": "in_progress",
-        "summary": "MFA enforcement rollout \u2014 TOTP for internal users (CR-003)",
+        "summary": "MFA enforcement rollout — TOTP for internal users (CR-003)",
         "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       },
       {
@@ -2042,7 +2072,7 @@
         "id": "60592a07-31d4-585e-a7ab-8dd9061c8179",
         "priority": "high",
         "status": "in_progress",
-        "summary": "Stripe v3 migration \u2014 webhook payload adapter (CR-002)",
+        "summary": "Stripe v3 migration — webhook payload adapter (CR-002)",
         "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
       },
       {
@@ -2068,7 +2098,7 @@
         "id": "7fd5201b-95f7-5844-83be-7cdad773dd36",
         "priority": "high",
         "status": "blocked",
-        "summary": "Sunset old driver app \u2014 push final users to v2 app",
+        "summary": "Sunset old driver app — push final users to v2 app",
         "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
       },
       {
@@ -2331,7 +2361,7 @@
         "max_duration_minutes": "30",
         "mock_source_id": "1b24f363-b533-429c-968f-85f387cd8e44",
         "name": "notification-service / dev (stub)",
-        "notes": "Stub env with Mailtrap + Twilio test mode. No staging \u2014 relies on staging OMS events.",
+        "notes": "Stub env with Mailtrap + Twilio test mode. No staging — relies on staging OMS events.",
         "spinup_minutes": "4",
         "teardown_policy": "on_finish"
       },
@@ -2353,7 +2383,7 @@
         "infrastructure_id": "ea437c9f-2322-42ae-b053-57e520ee347b",
         "kind": "sandbox",
         "name": "invoice-engine / UAT (sandbox)",
-        "notes": "UAT-only sandbox. Seeded with synthetic order data. No dev env \u2014 tested via OMS dev.",
+        "notes": "UAT-only sandbox. Seeded with synthetic order data. No dev env — tested via OMS dev.",
         "spinup_minutes": "5",
         "teardown_policy": "manual"
       },
@@ -2416,7 +2446,7 @@
         "teardown_policy": "on_finish"
       },
       {
-        "contractual_limit": "FedEx/UPS/USPS sandbox ToS \u2014 no production data, rate limited",
+        "contractual_limit": "FedEx/UPS/USPS sandbox ToS — no production data, rate limited",
         "cost_per_hour": "0.00",
         "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
         "id": "aec0dc7f-c731-4f83-b6a1-c54596f04108",
@@ -2550,7 +2580,7 @@
         "id": "96e8142d-26ba-48ba-82fa-79728b1d75f1",
         "instance_type": "device-farm",
         "name": "AWS Device Farm",
-        "notes": "Mobile device testing \u2014 iOS + Android physical device pool",
+        "notes": "Mobile device testing — iOS + Android physical device pool",
         "provider": "external_saas",
         "region": "us-east-1"
       },
