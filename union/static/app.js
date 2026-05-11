@@ -429,9 +429,13 @@ function renderStaffing() {
       const dots = (woByTeamBucket.get(`${t.id}::${i}`) || []).map(wo => {
         const pr = wo.priority || 'low';
         const summary = wo.summary || '(no summary)';
-        const ariaLabel =
+        const dep = wo.deployable?.name || wo.deployable_id;
+        const cr  = wo.change_request_id;
+        let ariaLabel =
           `Open work order: ${summary}. Team ${teamName}. ` +
           `${wo.status || 'proposed'}, ${pr} priority.`;
+        if (dep) ariaLabel += ` Deployable ${dep}.`;
+        if (cr)  ariaLabel += ` Change request ${cr}.`;
         return (
           `<button type="button" class="dot ${esc(pr)}"` +
           ` data-wo-id="${esc(wo.id || '')}"` +
@@ -492,10 +496,11 @@ function renderStaffing() {
     btn.addEventListener('blur', hideTip);
     btn.addEventListener('click', () => {
       hideTip();
-      // Selection-level routing on the Work tab is deferred — just land
-      // on the screen; #work/<id> deeplinking becomes functional when
-      // the receiving end honours the id segment.
-      setScreen('work');
+      // Match the intraLink convention (#<screen>/<id>) — the hash router
+      // resolves the screen prefix today, and selection-level routing on
+      // the Work tab will pick up the id segment when it lands. Bonus:
+      // shareable URLs and clean back/forward stack entries.
+      location.hash = '#work/' + encodeURIComponent(btn.dataset.woId);
     });
   });
 }
@@ -912,19 +917,27 @@ function setScreen(name) {
   document.getElementById('screen-title').textContent = SCREEN_TITLES[name] || name;
   rerender();
 
-  if (location.hash.slice(1) !== name) {
+  // Preserve any #<screen>/<id> suffix when the screen prefix already matches —
+  // setScreen is called from the hashchange handler when navigating to
+  // #work/<id>, and we don't want to clobber the id segment back to bare #work.
+  const currentPrefix = location.hash.slice(1).split('/')[0];
+  if (currentPrefix !== name) {
     location.hash = name;
   }
 }
 
 function initHashRouting() {
+  // Routing convention: #<screen> and #<screen>/<id> both land on the screen.
+  // The id segment is reserved for selection-level routing per screen (not
+  // wired everywhere yet) — for now we just resolve the screen prefix.
+  const screenFromHash = () => location.hash.slice(1).split('/')[0];
   window.addEventListener('hashchange', () => {
-    const key = location.hash.slice(1);
+    const key = screenFromHash();
     if (SCREENS.includes(key) && key !== state.screen) {
       setScreen(key);
     }
   });
-  const initial = location.hash.slice(1);
+  const initial = screenFromHash();
   if (SCREENS.includes(initial)) {
     state.screen = initial;
   } else {
