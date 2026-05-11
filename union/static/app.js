@@ -7,6 +7,7 @@
 const TEAM_KINDS = ['product', 'platform', 'security', 'domain', 'enterprise', 'infrastructure', 'support'];
 const WORK_ORDER_STATUSES = ['proposed', 'in_progress', 'blocked', 'done', 'cancelled'];
 const WORK_ORDER_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+const WORK_ORDER_POINTS = [1, 2, 3, 5, 8];
 const OPEN_STATUSES = new Set(['proposed', 'in_progress', 'blocked']);
 
 const KANBAN_COLUMNS = [
@@ -107,7 +108,7 @@ async function loadAll() {
     gqlQuery('/team_member/graph', '{ getAll { id person_id team_id role } }').then(d => d.getAll),
     gqlQuery(
       '/work_order/graph',
-      '{ getAll { id team_id summary deployable_id deployable { id name } change_request_id status priority } }'
+      '{ getAll { id team_id summary deployable_id deployable { id name } change_request_id status priority story_points } }'
     ).then(d => d.getAll),
   ]);
   state.data.people     = Array.isArray(people)     ? people     : [];
@@ -173,6 +174,10 @@ function openWorkOrdersForTeam(teamId) {
     wo.team_id === teamId &&
     OPEN_STATUSES.has(wo.status)
   );
+}
+
+function sumStoryPoints(workOrders) {
+  return workOrders.reduce((s, wo) => s + (Number.isFinite(wo.story_points) ? wo.story_points : 0), 0);
 }
 
 // ── Status strip ──────────────────────────────────────────────────────────────
@@ -279,6 +284,7 @@ function renderTeams() {
 function renderTeamCard(t) {
   const members = membersForTeam(t.id);
   const open = openWorkOrdersForTeam(t.id);
+  const pointsInFlight = sumStoryPoints(open);
   const cap = capacityState(members.length, open.length);
   const expanded = state.expandedTeamId === t.id;
 
@@ -322,6 +328,7 @@ function renderTeamCard(t) {
       <div class="team-card-foot">
         <span class="stat"><strong>${members.length}</strong> ${members.length === 1 ? 'member' : 'members'}</span>
         <span class="stat"><strong>${open.length}</strong> open</span>
+        <span class="stat"><strong>${pointsInFlight}</strong> pts in flight</span>
       </div>
       ${detail}
     </div>
@@ -535,12 +542,13 @@ function renderKanban() {
 
   root.innerHTML = KANBAN_COLUMNS.map(col => {
     const list = byStatus[col.status];
+    const points = sumStoryPoints(list);
     const cards = list.map(woCardHtml).join('') ||
       '<div class="kanban-empty">— nothing here —</div>';
     return `
       <div class="kanban-col" data-status="${esc(col.status)}">
         <div class="kanban-col-header">
-          <h3>${esc(col.label)}</h3>
+          <h3>${esc(col.label)} <span class="kanban-col-points">· ${points} pts</span></h3>
           <span class="kanban-col-count">${list.length}</span>
         </div>
         <div class="kanban-list" data-status="${esc(col.status)}">
@@ -565,12 +573,16 @@ function woCardHtml(wo) {
   const crHtml = wo.change_request_id
     ? `<div class="wo-deployable">change: ${crossLink('cityhall', 'changes', wo.change_request_id, wo.change_request_id.slice(0, 8))}</div>`
     : '';
+  const pts = Number.isFinite(wo.story_points)
+    ? `<span class="pill pts" title="story points">${wo.story_points} pts</span>`
+    : '';
   return `
     <div class="wo-card" draggable="true" data-id="${esc(wo.id)}">
       <div class="wo-summary">${esc(wo.summary || '(no summary)')}</div>
       <div class="wo-meta">
         <span class="wo-team">${esc(teamName(wo.team_id))}</span>
         ${pr ? `<span class="pill ${cls}">${esc(pr)}</span>` : ''}
+        ${pts}
       </div>
       ${dep}
       ${crHtml}
@@ -689,6 +701,7 @@ const MODAL_FORMS = {
       { name: 'priority', label: 'Priority', type: 'select', options: WORK_ORDER_PRIORITIES, default: 'medium' },
       { name: 'deployable_id', label: 'Deployable id', type: 'text' },
       { name: 'change_request_id', label: 'Change request id', type: 'text' },
+      { name: 'story_points', label: 'Story points', type: 'select', options: WORK_ORDER_POINTS, cast: 'integer' },
     ],
   },
 };
@@ -769,10 +782,18 @@ async function submitModal(e) {
   const cfg = MODAL_FORMS[state.modalKind];
   if (!cfg) return;
   const fieldsEl = document.getElementById('modal-fields');
+  const fieldsByName = Object.fromEntries(cfg.fields.map(f => [f.name, f]));
   const payload = {};
   fieldsEl.querySelectorAll('[name]').forEach(el => {
     const v = el.value.trim();
-    if (v) payload[el.name] = v;
+    if (!v) return;
+    const f = fieldsByName[el.name];
+    if (f?.cast === 'integer') {
+      const n = parseInt(v, 10);
+      if (Number.isFinite(n)) payload[el.name] = n;
+    } else {
+      payload[el.name] = v;
+    }
   });
 
   for (const f of cfg.fields) {
