@@ -12,11 +12,16 @@ path = "src/lib.rs"
 name = "yard"
 path = "src/main.rs"
 
+[[bin]]
+name = "yard-mcp"
+path = "src/bin/yard-mcp.rs"
+
 [dependencies]
 meshql-core      = { path = "../../meshql-rs/meshql-core" }
 meshql-graphlette = { path = "../../meshql-rs/meshql-graphlette" }
 meshql-restlette = { path = "../../meshql-rs/meshql-restlette" }
 meshql-server    = { path = "../../meshql-rs/meshql-server" }
+meshql-mcp       = { path = "../../meshql-rs/meshql-mcp" }
 meshql-mongo     = { path = "../../meshql-rs/meshql-mongo", optional = true }
 meshql-merkql    = { path = "../../meshql-rs/meshql-merkql", optional = true }
 meshql-sqlite    = { path = "../../meshql-rs/meshql-sqlite", optional = true }

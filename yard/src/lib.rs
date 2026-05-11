@@ -7,5 +7,6 @@ pub mod cityhall_client;
 pub mod estimator;
 pub mod groundwork_client;
 pub mod history;
+pub mod mcp;
 pub mod sync;
 pub mod validators;
