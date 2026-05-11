@@ -149,6 +149,7 @@ const state = {
     testRuns: [],
     testSuites: [],
   },
+  config: {},                              // populated from /config.json: cross-app public URLs
   availability: new Map(),                 // env id → { status: 'available'|'cap'|'blocked'|'unknown', raw }
   history:      new Map(),                 // env id → history payload
   expandedEnvId: null,
@@ -160,6 +161,27 @@ const state = {
   loading: false,
   modal: { open: false, entityKey: null },
 };
+
+// ── Cross-app linking ────────────────────────────────────────────────────────
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/config.json');
+    if (res.ok) state.config = await res.json();
+  } catch {
+    state.config = {};
+  }
+}
+
+// Build a cross-app anchor pointing at <base>#<screen>[/<id>]. Falls back to
+// plain escaped text when the target app's public URL is unknown. Receiving
+// end may not yet focus the entity; the URL is still informative.
+function crossLink(appKey, screen, id, label) {
+  const base = state.config?.[`${appKey}_public_url`];
+  if (!base) return esc(label);
+  const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
+  return `<a href="${esc(base.replace(/\/$/, ''))}${hash}">${esc(label)}</a>`;
+}
 
 // ── DOM helpers ──────────────────────────────────────────────────────────────
 
@@ -586,6 +608,15 @@ function buildEnvCard(item) {
     card.appendChild(el('div', { class: 'constraints' }, cParts.join(' · ')));
   }
 
+  // Cross-app deeplink: associated deployable lives in Groundwork.
+  if (item.deployable_id) {
+    const depRow = el('div', { class: 'constraints' });
+    depRow.innerHTML = 'deployable: ' + crossLink('groundwork', 'deployables', item.deployable_id, item.deployable_id.slice(0, 8));
+    // Anchor inside card shouldn't toggle expansion.
+    depRow.addEventListener('click', e => e.stopPropagation());
+    card.appendChild(depRow);
+  }
+
   // Footer (status + id)
   const av  = state.availability.get(id) || 'unknown';
   card.appendChild(el('div', { class: 'status-foot' },
@@ -796,6 +827,7 @@ function renderRuns(root) {
     el('th', {}, 'Started'),
     el('th', {}, 'Duration'),
     el('th', {}, 'Cost'),
+    el('th', {}, 'Team'),
     el('th', {}, 'Change request'),
   )));
   const tbody = el('tbody', {});
@@ -804,6 +836,14 @@ function renderRuns(root) {
     const envName = env?.name || '(unset)';
     const status = r.status || 'pending';
     const expanded = state.expandedRunId === r.id;
+
+    // Cross-app deeplinks: change_request lives in Cityhall; team lives in Union.
+    const crCell = r.change_request_id
+      ? el('td', { class: 'muted mono', html: crossLink('cityhall', 'changes', r.change_request_id, r.change_request_id.slice(0, 8)) })
+      : el('td', { class: 'muted' }, '—');
+    const teamCell = r.team_id
+      ? el('td', { class: 'muted mono', html: crossLink('union', 'teams', r.team_id, r.team_id.slice(0, 8)) })
+      : el('td', { class: 'muted' }, '—');
 
     const row = el('tr', {
       class: expanded ? 'expanded' : '',
@@ -814,13 +854,14 @@ function renderRuns(root) {
       el('td', {}, r.started_at || '—'),
       el('td', {}, fmtMinutes(r.duration_minutes)),
       el('td', {}, fmtCost(r.cost_actual).replace('/h','')),
-      el('td', { class: 'muted' }, r.change_request_id || '—'),
+      teamCell,
+      crCell,
     );
     tbody.appendChild(row);
 
     if (expanded) {
       const syncs = syncByTargetEnv.get(p.test_environment_id) || [];
-      const detailCell = el('td', { colSpan: 6 });
+      const detailCell = el('td', { colSpan: 7 });
 
       // Editable run form
       const form = el('div', { class: 'form-grid' });
@@ -1193,13 +1234,31 @@ function renderSettings(root, entityKey) {
     const expanded = state.expandedSettingId === id;
 
     if (!expanded) {
+      // Cross-app deeplink for test suites: deployable lives in Groundwork.
+      const metaText = cfg.rowMeta(item, state.data);
+      const metaEl = el('div', { class: 'meta' }, metaText);
+      if (entityKey === 'testSuites' && item.deployable_id) {
+        const sep = metaText ? ' · ' : '';
+        const html = `${esc(metaText)}${esc(sep)}deployable: ${crossLink('groundwork', 'deployables', item.deployable_id, item.deployable_id.slice(0, 8))}`;
+        metaEl.innerHTML = html;
+      } else if (entityKey === 'testEnvironments' && item.deployable_id) {
+        // Same treatment for test environments: deployable lives in Groundwork.
+        const sep = metaText ? ' · ' : '';
+        const html = `${esc(metaText)}${esc(sep)}deployable: ${crossLink('groundwork', 'deployables', item.deployable_id, item.deployable_id.slice(0, 8))}`;
+        metaEl.innerHTML = html;
+      }
       list.appendChild(el('div', {
         class: 'row',
-        onClick: () => { state.expandedSettingId = id; render(); },
+        onClick: (e) => {
+          // Don't expand the row when the user is clicking a link inside it.
+          if (e.target.closest('a')) return;
+          state.expandedSettingId = id;
+          render();
+        },
       },
         el('div', {},
           el('div', {}, cfg.rowLabel(item, state.data)),
-          el('div', { class: 'meta' }, cfg.rowMeta(item, state.data)),
+          metaEl,
         ),
         el('button', { class: 'ghost' }, 'Edit'),
       ));
@@ -1372,6 +1431,9 @@ async function init() {
   initHashRouting();
   state.loading = true;
   setStatus('Loading…', 'info', { sticky: true });
+  // /config.json publishes cross-app public URLs; load before first render
+  // so cross-app anchors land with the right base.
+  await loadConfig();
   try {
     await loadAll();
     setStatus('');
