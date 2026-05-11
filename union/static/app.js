@@ -341,11 +341,15 @@ function nextSixMonths() {
   const now = new Date();
   const months = [];
   for (let i = 0; i < 6; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const start = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + i + 1, 0); // last day
     months.push({
-      year: d.getFullYear(),
-      month: d.getMonth(),
-      label: d.toLocaleString('en-US', { month: 'short' }),
+      year: start.getFullYear(),
+      month: start.getMonth(),
+      label: start.toLocaleString('en-US', { month: 'short' }),
+      // Compact date range — e.g. "1 → 31". Year is shown separately so
+      // we can collapse same-year repetition in the header strip.
+      range: `${start.getDate()}–${end.getDate()}`,
     });
   }
   return months;
@@ -374,6 +378,12 @@ function renderStaffing() {
     teams = teams.filter(t => (t.name || '').toLowerCase().includes(needle));
   }
 
+  // Team-id → team-name lookup for tooltips. Built from the full team set
+  // (not the filtered list) so dots referencing a hidden team still resolve.
+  const teamNameById = new Map(
+    state.data.teams.map(t => [t.id, t.name || 'Untitled team'])
+  );
+
   // Filter work orders to proposed/blocked.
   const woByTeamBucket = new Map();
   for (const wo of state.data.workOrders) {
@@ -399,19 +409,40 @@ function renderStaffing() {
     return;
   }
 
-  const headerCols = months.map(m => `<div>${esc(m.label)}</div>`).join('');
+  // Header strip — month name on top, year + day-range underneath. Year is
+  // only repeated on the first month of each calendar year so the strip
+  // stays uncluttered for a same-year run.
+  let lastYearShown = null;
+  const headerCols = months.map(m => {
+    const showYear = m.year !== lastYearShown;
+    lastYearShown = m.year;
+    const sub = showYear ? `${m.year} · ${m.range}` : m.range;
+    return `<div>
+        <span class="month-label">${esc(m.label)}</span>
+        <span class="month-range">${esc(sub)}</span>
+      </div>`;
+  }).join('');
+
   const lanes = teams.map(t => {
+    const teamName = t.name || 'Untitled team';
     const cells = months.map((_, i) => {
       const dots = (woByTeamBucket.get(`${t.id}::${i}`) || []).map(wo => {
         const pr = wo.priority || 'low';
-        const tip = `${esc(wo.summary || '(no summary)')} — ${esc(wo.status || '')} / ${esc(pr)}`;
-        return `<span class="dot ${esc(pr)}" data-tip="${tip}"></span>`;
+        const summary = wo.summary || '(no summary)';
+        const ariaLabel =
+          `Open work order: ${summary}. Team ${teamName}. ` +
+          `${wo.status || 'proposed'}, ${pr} priority.`;
+        return (
+          `<button type="button" class="dot ${esc(pr)}"` +
+          ` data-wo-id="${esc(wo.id || '')}"` +
+          ` aria-label="${esc(ariaLabel)}"></button>`
+        );
       }).join('');
       return `<div class="lane-cell">${dots}</div>`;
     }).join('');
     return `
       <div class="swimlane">
-        <div class="lane-label">${esc(t.name || 'Untitled team')}</div>
+        <div class="lane-label">${esc(teamName)}</div>
         ${cells}
       </div>`;
   }).join('');
@@ -425,19 +456,61 @@ function renderStaffing() {
     </div>
   `;
 
-  // Tooltips
+  // Tooltip + click wiring. The tooltip is a single shared #tooltip div
+  // (already in the DOM) — we just rewrite its innerHTML on enter/focus.
   const tt = document.getElementById('tooltip');
-  root.querySelectorAll('.dot').forEach(d => {
-    d.addEventListener('mouseenter', e => {
-      tt.textContent = d.dataset.tip;
-      tt.style.display = 'block';
+  const woById = new Map(state.data.workOrders.map(wo => [wo.id, wo]));
+
+  const showTipFor = (btn, anchorEvent) => {
+    const wo = woById.get(btn.dataset.woId);
+    if (!wo) return;
+    const teamName = teamNameById.get(wo.team_id) || '—';
+    const pr = wo.priority || 'low';
+    const status = wo.status || 'proposed';
+    const dep = wo.deployable?.name || wo.deployable_id;
+    const cr = wo.change_request_id;
+    const metas = [
+      `Team: ${teamName}`,
+      `${status} · ${pr} priority`,
+    ];
+    if (dep) metas.push(`Deployable: ${dep}`);
+    if (cr)  metas.push(`Change request: ${cr}`);
+    tt.innerHTML =
+      `<div class="tip-summary">${esc(wo.summary || '(no summary)')}</div>` +
+      metas.map(m => `<div class="tip-meta">${esc(m)}</div>`).join('');
+    tt.style.display = 'block';
+    positionTip(tt, btn, anchorEvent);
+  };
+  const hideTip = () => { tt.style.display = 'none'; };
+
+  root.querySelectorAll('button.dot').forEach(btn => {
+    btn.addEventListener('mouseenter', e => showTipFor(btn, e));
+    btn.addEventListener('mousemove', e => positionTip(tt, btn, e));
+    btn.addEventListener('mouseleave', hideTip);
+    // Keyboard parity — surface the tooltip on focus, hide on blur.
+    btn.addEventListener('focus', () => showTipFor(btn, null));
+    btn.addEventListener('blur', hideTip);
+    btn.addEventListener('click', () => {
+      hideTip();
+      // Selection-level routing on the Work tab is deferred — just land
+      // on the screen; #work/<id> deeplinking becomes functional when
+      // the receiving end honours the id segment.
+      setScreen('work');
     });
-    d.addEventListener('mousemove', e => {
-      tt.style.left = (e.clientX + 12) + 'px';
-      tt.style.top  = (e.clientY + 12) + 'px';
-    });
-    d.addEventListener('mouseleave', () => { tt.style.display = 'none'; });
   });
+}
+
+// Anchor the tooltip near the pointer (or, when invoked without a pointer
+// event — e.g. keyboard focus — near the element's bounding box).
+function positionTip(tt, anchorEl, ev) {
+  if (ev && typeof ev.clientX === 'number') {
+    tt.style.left = (ev.clientX + 12) + 'px';
+    tt.style.top  = (ev.clientY + 12) + 'px';
+    return;
+  }
+  const r = anchorEl.getBoundingClientRect();
+  tt.style.left = (r.right + 8) + 'px';
+  tt.style.top  = (r.top) + 'px';
 }
 
 // ── Rendering: People ─────────────────────────────────────────────────────────

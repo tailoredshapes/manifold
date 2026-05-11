@@ -425,9 +425,21 @@
       text-transform: uppercase;
       color: var(--muted);
       border-right: 1px solid var(--border-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
     }
 
     .timeline-header > div:last-child { border-right: none; }
+
+    .month-label { color: var(--text); }
+    .month-range {
+      font-size: 10px;
+      font-weight: 400;
+      letter-spacing: 0.04em;
+      text-transform: none;
+      color: var(--text-soft);
+    }
 
     .swimlane {
       display: grid;
@@ -465,21 +477,41 @@
     .lane-cell:last-child { border-right: none; }
 
     .dot {
-      width: 12px;
-      height: 12px;
+      width: 14px;
+      height: 14px;
       border-radius: 999px;
       cursor: help;
       transition: transform var(--t);
       border: 2px solid var(--surface);
       box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+      display: inline-block;
+      box-sizing: border-box;
     }
 
-    .dot:hover { transform: scale(1.3); }
+    .dot:hover { transform: scale(1.25); }
 
     .dot.urgent { background: var(--danger); }
     .dot.high { background: var(--warn); }
     .dot.medium { background: var(--ink); }
     .dot.low { background: var(--muted); }
+
+    /* Interactive dot in the staffing matrix — keyboard-focusable button
+       rendered as a coloured pip. Strips button chrome and reuses .dot. */
+    button.dot {
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button.dot:hover { transform: scale(1.25); }
+
+    button.dot:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,0.08),
+        0 0 0 3px rgba(17, 24, 39, 0.25);
+    }
 
     .legend {
       display: flex;
@@ -704,13 +736,26 @@
       background: var(--text);
       color: #fff;
       font-size: 12px;
-      padding: 6px 10px;
+      line-height: 1.45;
+      padding: 8px 12px;
       border-radius: var(--radius-sm);
       pointer-events: none;
       z-index: 100;
-      max-width: 260px;
+      max-width: 320px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
+
+    #tooltip .tip-summary {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    #tooltip .tip-meta {
+      font-size: 11px;
+      color: rgba(255,255,255,0.78);
+    }
+
+    #tooltip .tip-meta + .tip-meta { margin-top: 2px; }
 
     /* ── Empty state ──────────────────────────────────────────────────────── */
     .empty {
