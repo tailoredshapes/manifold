@@ -421,6 +421,10 @@ function buildRow(entityKey, item) {
   header.setAttribute('tabindex', '0');
   header.setAttribute('role', 'button');
   header.setAttribute('aria-expanded', String(state.expandedId === id));
+  // The chevron hints expand/collapse; this title makes the "editable" semantic
+  // explicit on hover. (Reviewer feedback: rows look interactive but not
+  // obviously edit-the-payload editable.)
+  header.setAttribute('title', 'Click to view and edit');
 
   const icon = document.createElement('span');
   icon.className = 'expand-icon';

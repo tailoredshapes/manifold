@@ -94,6 +94,15 @@
       align-items: baseline;
       gap: 12px;
     }
+    .brand .hub-link {
+      font-size: 12px;
+      color: var(--muted, #6b7280);
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      transition: color 120ms;
+    }
+    .brand .hub-link:hover { color: var(--ink, #111827); }
+    .brand .hub-sep { color: var(--border, #e5e7eb); user-select: none; }
 
     .brand h1 {
       font-size: 20px;
@@ -697,6 +706,8 @@
 <header class="topbar">
   <div class="topbar-inner">
     <div class="brand">
+      <a class="hub-link" href="https://manifold.tildarc.com">Manifold</a>
+      <span class="hub-sep" aria-hidden="true">·</span>
       <h1>Cityhall</h1>
       <span class="subtitle">planner</span>
     </div>

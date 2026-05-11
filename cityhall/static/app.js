@@ -1314,6 +1314,12 @@ async function init() {
     flash(err.message, 'error', 6000);
   }
 
+  // Default-expand the Org tree on first load so the cascade structure is
+  // visible without per-node clicking. A fully-collapsed tree of 15+ nodes
+  // reads as "empty" to first-time visitors. Every node that has children
+  // starts expanded; leaves stay un-expanded (they have nothing to hide).
+  defaultExpandOrgTree();
+
   // Cross-app id→name lookups (Groundwork deployables, Union people) are
   // best-effort and run alongside the first render — if they're slow the UI
   // still works (names show as id prefixes until the lookup resolves).
@@ -1323,6 +1329,14 @@ async function init() {
 
   setScreen(state.screen);
   updateFooterMeta();
+}
+
+function defaultExpandOrgTree() {
+  const parents = new Set();
+  for (const node of state.data.orgNodes) {
+    if (node.parent_id) parents.add(node.parent_id);
+  }
+  for (const id of parents) state.org.expanded.add(id);
 }
 
 init();
