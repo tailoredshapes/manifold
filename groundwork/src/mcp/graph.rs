@@ -51,36 +51,46 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
-    /// Pull the full catalogue in parallel and build the indices.
+    /// Pull the full catalogue in parallel via GraphQL `getAll` queries and
+    /// build the indices. Each query selects only the fields the snapshot
+    /// needs (`id` + `name` for deployable/service, `id` + the two FK ids
+    /// for exposes/dependency); the responses are flat GraphQL rows under
+    /// `data.getAll`, not REST envelopes.
     pub async fn build(client: &GroundworkClient) -> anyhow::Result<Self> {
         let (deps_v, svcs_v, exp_v, dep_edges_v) = tokio::try_join!(
-            client.list("deployable"),
-            client.list("service"),
-            client.list("exposes"),
-            client.list("dependency"),
+            client.gql("/deployable/graph", "{ getAll { id name } }"),
+            client.gql("/service/graph", "{ getAll { id name } }"),
+            client.gql(
+                "/exposes/graph",
+                "{ getAll { id deployable_id service_id } }"
+            ),
+            client.gql(
+                "/dependency/graph",
+                "{ getAll { id deployable_id service_id } }"
+            ),
         )
         .context("snapshot fetch")?;
 
         let mut snap = Snapshot::default();
 
-        for env in deps_v.as_array().cloned().unwrap_or_default() {
-            let id = string_field(&env, "id");
-            let name = payload_string(&env, "name");
+        for row in get_all_rows(&deps_v) {
+            let id = string_field(row, "id");
+            let name = string_field(row, "name");
             if !id.is_empty() {
                 snap.deployables_by_id
                     .insert(id.clone(), Deployable { id, name });
             }
         }
-        for env in svcs_v.as_array().cloned().unwrap_or_default() {
-            let id = string_field(&env, "id");
-            let name = payload_string(&env, "name");
+        for row in get_all_rows(&svcs_v) {
+            let id = string_field(row, "id");
+            let name = string_field(row, "name");
             if !id.is_empty() {
                 snap.services_by_id.insert(id.clone(), Service { id, name });
             }
         }
-        for env in exp_v.as_array().cloned().unwrap_or_default() {
-            let d = payload_string(&env, "deployable_id");
-            let s = payload_string(&env, "service_id");
+        for row in get_all_rows(&exp_v) {
+            let d = string_field(row, "deployable_id");
+            let s = string_field(row, "service_id");
             if d.is_empty() || s.is_empty() {
                 continue;
             }
@@ -93,9 +103,9 @@ impl Snapshot {
                 .or_default()
                 .push(d);
         }
-        for env in dep_edges_v.as_array().cloned().unwrap_or_default() {
-            let d = payload_string(&env, "deployable_id");
-            let s = payload_string(&env, "service_id");
+        for row in get_all_rows(&dep_edges_v) {
+            let d = string_field(row, "deployable_id");
+            let s = string_field(row, "service_id");
             if d.is_empty() || s.is_empty() {
                 continue;
             }
@@ -453,15 +463,14 @@ fn string_field(env: &Value, key: &str) -> String {
     env.get(key).and_then(|v| v.as_str()).unwrap_or("").to_string()
 }
 
-/// Read either `env.payload.<key>` (nested) or `env.<key>` (flat) — the
-/// meshql-restlette flattens by default but older endpoints nest.
-fn payload_string(env: &Value, key: &str) -> String {
-    if let Some(p) = env.get("payload").and_then(|p| p.as_object()) {
-        if let Some(v) = p.get(key).and_then(|v| v.as_str()) {
-            return v.to_string();
-        }
-    }
-    env.get(key).and_then(|v| v.as_str()).unwrap_or("").to_string()
+/// Extract the rows under `data.getAll` from a `MeshqlClient::gql` response.
+/// `gql` already unwrapped the outer `{ data: ... }`, so we just look up
+/// the `getAll` key on the returned JSON value. Empty / missing → no rows.
+fn get_all_rows(data: &Value) -> Vec<&Value> {
+    data.get("getAll")
+        .and_then(|v| v.as_array())
+        .map(|arr| arr.iter().collect())
+        .unwrap_or_default()
 }
 
 #[cfg(test)]
