@@ -4,7 +4,7 @@
 //! A snapshot is rebuilt per tool call (small data, simple semantics). If
 //! profiling later shows it's a hot path we can wrap it in a TTL cache.
 
-use crate::mcp::client::GroundworkClient;
+use meshql_mcp::MeshqlClient as GroundworkClient;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};

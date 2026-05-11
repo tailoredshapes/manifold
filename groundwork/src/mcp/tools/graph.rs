@@ -2,8 +2,8 @@
 //! each builds a fresh `Snapshot` from the live catalogue and dispatches.
 
 use super::{Tool, ToolFuture};
-use crate::mcp::client::GroundworkClient;
 use crate::mcp::graph::Snapshot;
+use meshql_mcp::MeshqlClient as GroundworkClient;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
