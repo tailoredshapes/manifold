@@ -2,11 +2,13 @@
 //!
 //! Spawns the binary as a subprocess (built via `CARGO_BIN_EXE_cityhall-mcp`)
 //! and exchanges line-delimited JSON-RPC frames over its stdin/stdout. The
-//! `CITYHALL_URL` env var points the MCP child at an in-process Cityhall REST
-//! server bound to a random port. The in-process server registers REST routes
-//! plus the four custom endpoints (`/org_node/:id/ancestors`,
-//! `/org_node/:id/effective_bylaws`, `/change_request/:id/plan`,
-//! `/deployment_plan/:id/gantt`) that the MCP custom tools wrap.
+//! `CITYHALL_URL` env var points the MCP child at an in-process Cityhall
+//! HTTP server (REST + GraphQL) bound to a random port. The in-process
+//! server registers REST routes plus the four custom endpoints
+//! (`/org_node/:id/ancestors`, `/org_node/:id/effective_bylaws`,
+//! `/change_request/:id/plan`, `/deployment_plan/:id/gantt`) that the MCP
+//! custom capabilities wrap, plus graphlettes for the five entities so the
+//! auto-derived catalog capabilities can resolve via /graph.
 
 use axum::{
     extract::{Path, State},
@@ -16,7 +18,7 @@ use axum::{
     Json, Router,
 };
 use cucumber::{given, then, when, World};
-use meshql_core::{NoAuth, Repository, ServerConfig, Stash};
+use meshql_core::{GraphletteConfig, NoAuth, Repository, RootConfig, ServerConfig, Stash};
 use meshql_server::{ValidatorContext, ValidatorFn};
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
 use reqwest::Client;
@@ -28,6 +30,12 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+
+const ORG_NODE_GRAPHQL: &str = include_str!("../config/graph/org_node.graphql");
+const BYLAW_GRAPHQL: &str = include_str!("../config/graph/bylaw.graphql");
+const CHANGE_REQUEST_GRAPHQL: &str = include_str!("../config/graph/change_request.graphql");
+const DEPLOYMENT_PLAN_GRAPHQL: &str = include_str!("../config/graph/deployment_plan.graphql");
+const GANTT_OUTPUT_GRAPHQL: &str = include_str!("../config/graph/gantt_output.graphql");
 
 // ── Stub Groundwork ──────────────────────────────────────────────────────────
 
@@ -90,14 +98,15 @@ async fn make_pool() -> sqlx::SqlitePool {
 #[derive(Clone)]
 struct TestEntity {
     repo: Arc<dyn Repository>,
+    searcher: Arc<dyn meshql_core::Searcher>,
 }
 
 async fn make_entity() -> TestEntity {
     let pool = make_pool().await;
     let repo = Arc::new(SqliteRepository::new_with_pool(pool.clone()).await.unwrap());
-    let _searcher: Arc<dyn meshql_core::Searcher> =
+    let searcher: Arc<dyn meshql_core::Searcher> =
         Arc::new(SqliteSearcher::new_with_pool(pool).await.unwrap());
-    TestEntity { repo }
+    TestEntity { repo, searcher }
 }
 
 fn validator_for(schema_str: &str) -> ValidatorFn {
@@ -442,9 +451,76 @@ async fn build_server() -> String {
         .merge(gantt_output_restlette)
         .merge(custom_routes);
 
+    let org_node_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByKind", r#"{"payload.kind": "{{kind}}"}"#)
+        .vector("getByParentId", r#"{"payload.parent_id": "{{parent_id}}"}"#)
+        .vector("getByTeamId", r#"{"payload.team_id": "{{team_id}}"}"#)
+        .build();
+    let bylaw_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByOrgNodeId", r#"{"payload.org_node_id": "{{org_node_id}}"}"#)
+        .vector("getByGateType", r#"{"payload.gate_type": "{{gate_type}}"}"#)
+        .build();
+    let change_request_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByStatus", r#"{"payload.status": "{{status}}"}"#)
+        .vector("getByTier", r#"{"payload.tier": "{{tier}}"}"#)
+        .build();
+    let deployment_plan_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector(
+            "getByChangeRequestId",
+            r#"{"payload.change_request_id": "{{change_request_id}}"}"#,
+        )
+        .build();
+    let gantt_output_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector(
+            "getByDeploymentPlanId",
+            r#"{"payload.deployment_plan_id": "{{deployment_plan_id}}"}"#,
+        )
+        .build();
+
     let server_config = ServerConfig {
         port: 0,
-        graphlettes: vec![],
+        graphlettes: vec![
+            GraphletteConfig {
+                path: "/org_node/graph".into(),
+                schema_text: ORG_NODE_GRAPHQL.into(),
+                root_config: org_node_gql,
+                searcher: org_node.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/bylaw/graph".into(),
+                schema_text: BYLAW_GRAPHQL.into(),
+                root_config: bylaw_gql,
+                searcher: bylaw_e.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/change_request/graph".into(),
+                schema_text: CHANGE_REQUEST_GRAPHQL.into(),
+                root_config: change_request_gql,
+                searcher: change_request.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/deployment_plan/graph".into(),
+                schema_text: DEPLOYMENT_PLAN_GRAPHQL.into(),
+                root_config: deployment_plan_gql,
+                searcher: deployment_plan.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/gantt_output/graph".into(),
+                schema_text: GANTT_OUTPUT_GRAPHQL.into(),
+                root_config: gantt_output_gql,
+                searcher: gantt_output.searcher.clone(),
+            },
+        ],
         restlettes: vec![],
     };
 
@@ -571,13 +647,26 @@ impl McpWorld {
 
     fn structured_array(&self) -> Vec<Value> {
         let r = self.structured_result();
+        for key in [
+            "getAll",
+            "getByName",
+            "getByKind",
+            "getByOrgNodeId",
+            "getByGateType",
+            "getByStatus",
+            "getByTier",
+        ] {
+            if let Some(arr) = r.get(key).and_then(|v| v.as_array()) {
+                return arr.clone();
+            }
+        }
         if let Some(arr) = r.as_array() {
             return arr.clone();
         }
         if let Some(arr) = r.get("result").and_then(|v| v.as_array()) {
             return arr.clone();
         }
-        panic!("expected array (raw or wrapped under 'result'), got: {r}");
+        panic!("expected array (raw or GraphQL-wrapped under getAll/etc), got: {r}");
     }
 }
 

@@ -12,24 +12,24 @@ Feature: Cityhall MCP server
     And I have registered team bylaw "team-approve" of type "ApprovalGate" with approvers "tl"
     And I have submitted change request "ship-checkout" targeting "dep-checkout"
 
-  Scenario: tools/list returns the catalogue + custom tools
+  Scenario: tools/list returns the auto-derived catalogue + custom capabilities
     When I send MCP request "tools/list"
-    Then the response should include tool "catalog.list"
-    And the response should include tool "catalog.get"
-    And the response should include tool "catalog.search"
-    And the response should include tool "org.ancestors"
-    And the response should include tool "org.effective_bylaws"
-    And the response should include tool "change_request.plan"
-    And the response should include tool "deployment_plan.gantt"
+    Then the response should include tool "list_org_nodes"
+    And the response should include tool "list_bylaws"
+    And the response should include tool "get_change_request_by_id"
+    And the response should include tool "ancestors_of_org_node"
+    And the response should include tool "effective_bylaws_for_org_node"
+    And the response should include tool "compute_plan_for_change_request"
+    And the response should include tool "render_gantt_for_plan"
 
-  Scenario: catalog.list returns bylaws
-    When I call MCP tool "catalog.list" with arguments {"entity": "bylaw"}
+  Scenario: list_bylaws returns seeded bylaws
+    When I call MCP tool "list_bylaws" with arguments {}
     Then the tool result should be a JSON array of at least 6 records
 
-  Scenario: org.ancestors returns the chain to a leaf node
-    When I call MCP tool "org.ancestors" with arguments {"org_node_id": "<ids.checkout>"}
+  Scenario: ancestors_of_org_node returns the chain to a leaf node
+    When I call MCP tool "ancestors_of_org_node" with arguments {"org_node_id": "<ids.checkout>"}
     Then the tool result names should be in order "Acme,Engineering,Payments,Checkout Team"
 
-  Scenario: change_request.plan returns a populated plan envelope
-    When I call MCP tool "change_request.plan" with arguments {"change_request_id": "<ids.ship-checkout>", "tier": "prod"}
+  Scenario: compute_plan_for_change_request returns a populated plan envelope
+    When I call MCP tool "compute_plan_for_change_request" with arguments {"change_request_id": "<ids.ship-checkout>", "tier": "prod"}
     Then the tool result should have plan steps and blockers populated
