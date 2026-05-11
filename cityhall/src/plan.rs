@@ -257,6 +257,15 @@ fn topo_sort(
 /// Render the cycle subgraph as a small Mermaid `graph LR`. Only edges where
 /// both endpoints are in the cycle's node set are emitted — edges to nodes
 /// outside the cycle aren't part of the cycle itself.
+///
+/// Nodes and edges that participate in an actual cycle (vs. dependents that
+/// were merely dragged into the leftover set) are decorated:
+///   - cycle nodes get class `cyclic` (red stroke + light red fill)
+///   - cycle edges get a `linkStyle` directive (red, thicker)
+///
+/// Cycle membership is computed by reachability: a node is in a cycle if it
+/// can reach itself via at least one edge; an edge (u, v) is on a cycle if v
+/// can reach u.
 fn render_cycle_mermaid(
     cycle_ids: &[String],
     summaries: &BTreeMap<String, DeployableSummary>,
@@ -268,27 +277,101 @@ fn render_cycle_mermaid(
         .map(|(i, id)| (id.as_str(), i))
         .collect();
 
+    // Build the adjacency list restricted to the cycle node set so the
+    // reachability checks below stay inside the subgraph we're rendering.
+    let mut adj: HashMap<&str, Vec<&str>> = HashMap::new();
+    for id in cycle_ids {
+        let entry = adj.entry(id.as_str()).or_default();
+        let Some(s) = summaries.get(id) else { continue };
+        for dep_id in &s.depends_on {
+            if id_to_idx.contains_key(dep_id.as_str()) {
+                entry.push(dep_id.as_str());
+            }
+        }
+    }
+
+    let on_cycle_node: HashMap<&str, bool> = cycle_ids
+        .iter()
+        .map(|id| (id.as_str(), reachable_nontrivial(id, id, &adj)))
+        .collect();
+
     let mut out = String::from("graph LR\n");
-    // Nodes with their deployable names (escape double quotes defensively).
+
+    // Nodes. Cycle-participating nodes get the `:::cyclic` class suffix.
     for (i, id) in cycle_ids.iter().enumerate() {
         let name = summaries
             .get(id)
             .map(|s| s.name.as_str())
             .unwrap_or(id.as_str());
         let safe = name.replace('"', r#"\""#);
-        out.push_str(&format!("    n{i}[\"{safe}\"]\n"));
+        let suffix = if *on_cycle_node.get(id.as_str()).unwrap_or(&false) {
+            ":::cyclic"
+        } else {
+            ""
+        };
+        out.push_str(&format!("    n{i}[\"{safe}\"]{suffix}\n"));
     }
-    // Intra-cycle edges only.
+
+    // Intra-cycle-set edges. Track which ones are on a cycle so we can emit
+    // matching linkStyle directives by their 0-based emission index.
+    let mut edge_idx: usize = 0;
+    let mut cyclic_edge_indices: Vec<usize> = Vec::new();
     for id in cycle_ids {
-        let Some(s) = summaries.get(id) else { continue };
         let Some(&from) = id_to_idx.get(id.as_str()) else { continue };
+        let Some(s) = summaries.get(id) else { continue };
         for dep_id in &s.depends_on {
             if let Some(&to) = id_to_idx.get(dep_id.as_str()) {
                 out.push_str(&format!("    n{from} --> n{to}\n"));
+                if reachable_nontrivial(dep_id, id, &adj) {
+                    cyclic_edge_indices.push(edge_idx);
+                }
+                edge_idx += 1;
             }
         }
     }
+
+    // Style decorations. Mermaid applies classDef + linkStyle after all
+    // node/edge declarations.
+    if on_cycle_node.values().any(|&v| v) {
+        out.push_str(
+            "    classDef cyclic stroke:#dc2626,stroke-width:2px,fill:#fef2f2,color:#7f1d1d\n",
+        );
+    }
+    for idx in cyclic_edge_indices {
+        out.push_str(&format!(
+            "    linkStyle {idx} stroke:#dc2626,stroke-width:2.5px\n"
+        ));
+    }
+
     out
+}
+
+/// Returns true iff there's a path of length ≥ 1 from `src` to `dst` in `adj`.
+/// Used by `render_cycle_mermaid` to classify nodes (self-reachable = on a
+/// cycle) and edges (target reaches source = edge is on a cycle).
+fn reachable_nontrivial(
+    src: &str,
+    dst: &str,
+    adj: &std::collections::HashMap<&str, Vec<&str>>,
+) -> bool {
+    use std::collections::HashSet;
+    let Some(start) = adj.get(src) else { return false };
+    let mut stack: Vec<&str> = start.iter().copied().collect();
+    let mut visited: HashSet<&str> = HashSet::new();
+    while let Some(node) = stack.pop() {
+        if node == dst {
+            return true;
+        }
+        if !visited.insert(node) {
+            continue;
+        }
+        if let Some(neighbours) = adj.get(node) {
+            for n in neighbours {
+                stack.push(n);
+            }
+        }
+    }
+    false
 }
 
 /// Fetch effective bylaws for a Union Team id by finding the OrgNode that
@@ -317,5 +400,81 @@ fn plan_gate_from_bylaw(b: EffectiveBylaw) -> PlanGate {
         window: b.window,
         approvers: b.approvers,
         quiesce_for: b.quiesce_for,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn summary(id: &str, name: &str, depends_on: &[&str]) -> (String, DeployableSummary) {
+        (
+            id.to_string(),
+            DeployableSummary {
+                id: id.to_string(),
+                name: name.to_string(),
+                team_id: Some("t".into()),
+                depends_on: depends_on.iter().map(|s| s.to_string()).collect(),
+            },
+        )
+    }
+
+    #[test]
+    fn cycle_mermaid_highlights_only_real_cyclic_nodes_and_edges() {
+        // Three nodes in the leftover set:
+        //   a (dragged-in dependent) depends_on b
+        //   b ↔ c (the actual cycle)
+        // Expected: b and c get classed `cyclic`; the b↔c edges get linkStyle;
+        // a stays unstyled and the a→b edge stays default.
+        let mut summaries: BTreeMap<String, DeployableSummary> = BTreeMap::new();
+        let (k, v) = summary("a", "A", &["b"]);
+        summaries.insert(k, v);
+        let (k, v) = summary("b", "B", &["c"]);
+        summaries.insert(k, v);
+        let (k, v) = summary("c", "C", &["b"]);
+        summaries.insert(k, v);
+
+        let cycle_ids = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        let out = render_cycle_mermaid(&cycle_ids, &summaries);
+
+        // Mermaid graph header
+        assert!(out.starts_with("graph LR\n"), "got: {out}");
+        // a is dragged-in: NO cyclic class
+        assert!(out.contains("n0[\"A\"]\n"), "a should be unclassed: {out}");
+        // b and c are on the cycle: classed cyclic
+        assert!(out.contains("n1[\"B\"]:::cyclic\n"), "b should be cyclic: {out}");
+        assert!(out.contains("n2[\"C\"]:::cyclic\n"), "c should be cyclic: {out}");
+        // Edges emitted in order: a→b (idx 0, NOT cyclic), b→c (idx 1, cyclic), c→b (idx 2, cyclic)
+        assert!(out.contains("n0 --> n1\n"), "a→b edge missing: {out}");
+        assert!(out.contains("n1 --> n2\n"), "b→c edge missing: {out}");
+        assert!(out.contains("n2 --> n1\n"), "c→b edge missing: {out}");
+        // linkStyle: idx 1 and idx 2 are cyclic; idx 0 (a→b) is not
+        assert!(out.contains("linkStyle 1 stroke:#dc2626"), "b→c edge should be styled: {out}");
+        assert!(out.contains("linkStyle 2 stroke:#dc2626"), "c→b edge should be styled: {out}");
+        assert!(!out.contains("linkStyle 0"), "a→b edge must not be styled: {out}");
+        // classDef appears once
+        assert_eq!(
+            out.matches("classDef cyclic").count(),
+            1,
+            "classDef must appear once: {out}"
+        );
+    }
+
+    #[test]
+    fn cycle_mermaid_with_no_actual_cycle_emits_no_classdef() {
+        // Pathological "leftover" where there's no actual cycle (e.g., if the
+        // caller passed a chain that topo-sort already handled). Defensive:
+        // no classDef, no linkStyle.
+        let mut summaries: BTreeMap<String, DeployableSummary> = BTreeMap::new();
+        let (k, v) = summary("a", "A", &["b"]);
+        summaries.insert(k, v);
+        let (k, v) = summary("b", "B", &[]);
+        summaries.insert(k, v);
+        let out = render_cycle_mermaid(&["a".to_string(), "b".to_string()], &summaries);
+        assert!(out.contains("n0[\"A\"]\n"));
+        assert!(out.contains("n1[\"B\"]\n"));
+        assert!(out.contains("n0 --> n1\n"));
+        assert!(!out.contains("classDef cyclic"), "no classDef expected: {out}");
+        assert!(!out.contains("linkStyle"), "no linkStyle expected: {out}");
     }
 }
