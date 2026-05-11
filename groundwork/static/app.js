@@ -25,6 +25,12 @@ const ENTITIES = {
     primaryField: 'name',
     getRowLabel: (payload) => payload.name || 'unnamed',
     getRowBadge: (payload) => payload.team?.name || null,
+    getRowBadgeHtml: (payload) => {
+      const label = payload.team?.name;
+      if (!label) return null;
+      // Cross-app deeplink: team detail lives in Union under the Teams screen.
+      return { html: crossLink('union', 'teams', payload.team_id, label) };
+    },
   },
 
   services: {
@@ -84,9 +90,19 @@ const ENTITIES = {
     getRowBadge: (payload) => payload.protocol || null,
     readonlyInDetail: [
       { name: 'deployable_id', label: 'deployable',
-        resolve: (payload, data) => data.deployables.find(d => d.id === payload.deployable_id)?.name || payload.deployable_id || '—' },
+        resolve: (payload, data) => data.deployables.find(d => d.id === payload.deployable_id)?.name || payload.deployable_id || '—',
+        htmlResolve: (payload, data) => {
+          const name = data.deployables.find(d => d.id === payload.deployable_id)?.name || payload.deployable_id;
+          if (!name) return esc('—');
+          return intraLink('deployables', payload.deployable_id, name);
+        } },
       { name: 'service_id', label: 'service',
-        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.name || payload.service_id || '—' },
+        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.name || payload.service_id || '—',
+        htmlResolve: (payload, data) => {
+          const name = data.services.find(s => s.id === payload.service_id)?.name || payload.service_id;
+          if (!name) return esc('—');
+          return intraLink('services', payload.service_id, name);
+        } },
     ],
   },
 
@@ -124,9 +140,19 @@ const ENTITIES = {
     getRowBadge: (payload) => payload.criticality || null,
     readonlyInDetail: [
       { name: 'deployable_id', label: 'deployable',
-        resolve: (payload, data) => data.deployables.find(a => a.id === payload.deployable_id)?.name || payload.deployable_id || '—' },
+        resolve: (payload, data) => data.deployables.find(a => a.id === payload.deployable_id)?.name || payload.deployable_id || '—',
+        htmlResolve: (payload, data) => {
+          const name = data.deployables.find(a => a.id === payload.deployable_id)?.name || payload.deployable_id;
+          if (!name) return esc('—');
+          return intraLink('deployables', payload.deployable_id, name);
+        } },
       { name: 'service_id', label: 'service',
-        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.name || payload.service_id || '—' },
+        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.name || payload.service_id || '—',
+        htmlResolve: (payload, data) => {
+          const name = data.services.find(s => s.id === payload.service_id)?.name || payload.service_id;
+          if (!name) return esc('—');
+          return intraLink('services', payload.service_id, name);
+        } },
     ],
   },
 
@@ -162,7 +188,12 @@ const ENTITIES = {
     getRowBadge: (payload) => payload.format || null,
     readonlyInDetail: [
       { name: 'service_id', label: 'service',
-        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.name || payload.service_id || '—' },
+        resolve: (payload, data) => data.services.find(s => s.id === payload.service_id)?.name || payload.service_id || '—',
+        htmlResolve: (payload, data) => {
+          const name = data.services.find(s => s.id === payload.service_id)?.name || payload.service_id;
+          if (!name) return esc('—');
+          return intraLink('services', payload.service_id, name);
+        } },
     ],
   },
 
@@ -205,6 +236,13 @@ const ENTITIES = {
           if (!c) return payload.contract_id || '—';
           const svcName = data.services.find(s => s.id === c.service_id)?.name || '?';
           return `${c.version || c.id.slice(0, 8)} (${svcName})`;
+        },
+        htmlResolve: (payload, data) => {
+          const c = data.contracts.find(x => x.id === payload.contract_id);
+          if (!c) return esc(payload.contract_id || '—');
+          const svcName = data.services.find(s => s.id === c.service_id)?.name || '?';
+          const label = `${c.version || c.id.slice(0, 8)} (${svcName})`;
+          return intraLink('contracts', payload.contract_id, label);
         } },
     ],
   },
@@ -218,7 +256,35 @@ const state = {
   expandedId: null,
   filter: '',
   newFormOpen: false,
+  config: {},  // populated from /config.json: cross-app public URLs
 };
+
+// ── Cross-app linking ─────────────────────────────────────────────────────────
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/config.json');
+    if (res.ok) state.config = await res.json();
+  } catch {
+    state.config = {};
+  }
+}
+
+// Build a cross-app anchor pointing at <base>#<screen>[/<id>], or fall back to
+// plain escaped text when the target app's public URL is unknown. Receiving
+// end may not yet honour the id segment — that's deferred.
+function crossLink(appKey, screen, id, label) {
+  const base = state.config?.[`${appKey}_public_url`];
+  if (!base) return esc(label);
+  const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
+  return `<a href="${esc(base.replace(/\/$/, ''))}${hash}">${esc(label)}</a>`;
+}
+
+// Build an intra-app anchor pointing at #<screen>[/<id>].
+function intraLink(screen, id, label) {
+  const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
+  return `<a href="${hash}">${esc(label)}</a>`;
+}
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
@@ -327,6 +393,7 @@ function buildRow(entityKey, item) {
   const payload = item;
   const label = cfg.getRowLabel(payload, state.data);
   const badge = cfg.getRowBadge ? cfg.getRowBadge(payload) : null;
+  const badgeHtml = cfg.getRowBadgeHtml ? cfg.getRowBadgeHtml(payload, state.data) : null;
 
   const li = document.createElement('li');
   li.className = 'entity-row' + (state.expandedId === id ? ' expanded' : '');
@@ -347,7 +414,14 @@ function buildRow(entityKey, item) {
 
   header.append(icon, labelEl);
 
-  if (badge) {
+  if (badgeHtml) {
+    const badgeEl = document.createElement('span');
+    badgeEl.className = 'badge';
+    badgeEl.innerHTML = badgeHtml.html;
+    // Anchor inside badge should not toggle the row.
+    badgeEl.addEventListener('click', e => e.stopPropagation());
+    header.appendChild(badgeEl);
+  } else if (badge) {
     const badgeEl = document.createElement('span');
     badgeEl.className = `badge ${badge}`;
     badgeEl.textContent = badge;
@@ -384,11 +458,15 @@ function buildDetailHTML(entityKey, id, payload) {
   // Readonly FK fields shown at top
   if (cfg.readonlyInDetail) {
     for (const rf of cfg.readonlyInDetail) {
-      const val = rf.resolve(payload, state.data);
+      // htmlResolve is the new opt-in path for cross/intra-app linking.
+      // It MUST return safe pre-escaped HTML (callers use esc() / intraLink()).
+      const valHtml = rf.htmlResolve
+        ? rf.htmlResolve(payload, state.data)
+        : esc(rf.resolve(payload, state.data));
       html += `
         <div class="field-row">
           <label>${esc(rf.label)}</label>
-          <span class="readonly-val">${esc(val)}</span>
+          <span class="readonly-val">${valHtml}</span>
         </div>`;
     }
   }
@@ -718,6 +796,10 @@ async function init() {
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.entity === state.activeEntity);
   });
+
+  // /config.json publishes cross-app public URLs; needed before first render
+  // so that cross-app anchors land with the right base.
+  await loadConfig();
 
   try {
     await loadAll();
