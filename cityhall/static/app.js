@@ -29,6 +29,7 @@ const ENDPOINTS = {
 const state = {
   screen: 'org',
   data: { orgNodes: [], bylaws: [], changeRequests: [], plans: [], gantts: [] },
+  config: {},     // populated from /config.json: cross-app public URLs
   org: {
     expanded: new Set(),     // node ids expanded in tree
     effective: new Map(),    // node id -> array of effective bylaws
@@ -54,6 +55,33 @@ const state = {
     sortDir: 'asc',
   },
 };
+
+// ── Cross-app linking ────────────────────────────────────────────────────────
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/config.json');
+    if (res.ok) state.config = await res.json();
+  } catch {
+    state.config = {};
+  }
+}
+
+// Build a cross-app anchor pointing at <base>#<screen>[/<id>]. Falls back to
+// plain escaped text when the target app's public URL is unknown. Receiving
+// end may not yet focus the entity; the URL is still informative.
+function crossLink(appKey, screen, id, label) {
+  const base = state.config?.[`${appKey}_public_url`];
+  if (!base) return esc(label);
+  const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
+  return `<a href="${esc(base.replace(/\/$/, ''))}${hash}">${esc(label)}</a>`;
+}
+
+// UUID-ish detector: cheap heuristic so requested_by stored as a free-text
+// email/handle doesn't get wrapped in a broken people-screen link.
+function looksLikeId(s) {
+  return typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
 
 // ── Tiny DOM helpers ──────────────────────────────────────────────────────────
 
@@ -327,7 +355,12 @@ function buildTreeNode(node, byParent, needle) {
   row.append(toggle, name, kindPill);
 
   if (isLeaf && node.team_id) {
-    row.append(el('span', { class: 'tree-team' }, [`team: `, el('span', { class: 'mono' }, node.team_id)]));
+    // Cross-app deeplink to the Union team. Stop propagation so clicking the
+    // link doesn't also toggle the tree node.
+    const teamSpan = el('span', { class: 'mono' });
+    teamSpan.innerHTML = crossLink('union', 'teams', node.team_id, node.team_id);
+    teamSpan.addEventListener('click', e => e.stopPropagation());
+    row.append(el('span', { class: 'tree-team' }, [`team: `, teamSpan]));
   } else if (isLeaf) {
     row.append(el('span', { class: 'tree-team muted' }, 'no team'));
   }
@@ -469,14 +502,42 @@ function renderChangeRequests() {
 
   for (const cr of items) {
     const targets = parseTargets(cr.target_deployables);
+    const targetsCell = el('td', { class: 'mono' });
+    if (!targets.length) {
+      targetsCell.appendChild(el('span', {}, '—'));
+    } else {
+      // Cross-app deeplinks to Groundwork's Deployables screen. Cap at 3 to
+      // keep the row from sprawling; surplus collapses to "+N more".
+      const shown = targets.slice(0, 3);
+      const html = shown
+        .map(t => crossLink('groundwork', 'deployables', t, t.slice(0, 8)))
+        .join(', ');
+      const extra = targets.length > 3 ? ` +${targets.length - 3} more` : '';
+      targetsCell.innerHTML = html + esc(extra);
+    }
+
+    // Optional requested_by link (only when it looks like a UUID — free-text
+    // emails/handles stay as plain text since /people doesn't accept them).
+    const requestedByHtml = cr.requested_by
+      ? (looksLikeId(cr.requested_by)
+          ? crossLink('union', 'people', cr.requested_by, cr.requested_by.slice(0, 8))
+          : esc(cr.requested_by))
+      : '';
+
+    const summaryCell = el('td', {});
+    summaryCell.appendChild(el('div', {}, cr.summary || '(no summary)'));
+    summaryCell.appendChild(el('div', { class: 'mono' }, cr.id?.slice(0, 8) || ''));
+    if (requestedByHtml) {
+      const r = el('div', { class: 'mono muted', style: 'font-size: 11px;' });
+      r.innerHTML = `by ${requestedByHtml}`;
+      summaryCell.appendChild(r);
+    }
+
     tbody.appendChild(el('tr', {}, [
-      el('td', {}, [
-        el('div', {}, cr.summary || '(no summary)'),
-        el('div', { class: 'mono' }, cr.id?.slice(0, 8) || ''),
-      ]),
+      summaryCell,
       el('td', {}, cr.tier ? el('span', { class: 'pill' }, cr.tier) : el('span', { class: 'muted' }, '—')),
       el('td', {}, statusPill(cr.status)),
-      el('td', {}, el('span', { class: 'mono' }, targets.length ? `${targets.length} targets` : '—')),
+      targetsCell,
       el('td', { style: 'text-align: right;' }, el('button', {
         class: 'btn sm',
         onclick: () => editChangeRequest(cr),
@@ -694,7 +755,15 @@ function renderPlanDetail(envelope) {
   }
   for (const [deployable, list] of groups) {
     const group = el('div', { class: 'plan-group' });
-    group.appendChild(el('h4', {}, deployable));
+    // Cross-app deeplink to the Deployable in Groundwork — the "general"
+    // synthetic bucket has no id, so leave it as plain text.
+    const heading = el('h4', {});
+    if (deployable && deployable !== 'general') {
+      heading.innerHTML = crossLink('groundwork', 'deployables', deployable, deployable);
+    } else {
+      heading.textContent = deployable;
+    }
+    group.appendChild(heading);
     const stepsList = el('div', { class: 'plan-steps' });
     for (const s of list) {
       stepsList.appendChild(el('div', { class: 'plan-step-item' }, [
@@ -724,11 +793,38 @@ function renderReviewPane() {
   const host = $('#cr-summary-review');
   host.innerHTML = '';
   const f = state.cr.fields;
+
+  // Targets: cross-app links to Groundwork.
+  const targetsRow = el('div', { style: 'margin-top: 6px;' });
+  targetsRow.appendChild(el('strong', {}, 'Targets: '));
+  if (!state.cr.targets.length) {
+    targetsRow.appendChild(document.createTextNode('(none)'));
+  } else {
+    const span = el('span', {});
+    span.innerHTML = state.cr.targets
+      .map(t => crossLink('groundwork', 'deployables', t, t))
+      .join(', ');
+    targetsRow.appendChild(span);
+  }
+
+  // Requested by: only link if it looks like an id.
+  const requestedRow = el('div', { style: 'margin-top: 6px;' });
+  requestedRow.appendChild(el('strong', {}, 'Requested by: '));
+  if (!f.requested_by) {
+    requestedRow.appendChild(document.createTextNode('(unspecified)'));
+  } else if (looksLikeId(f.requested_by)) {
+    const span = el('span', {});
+    span.innerHTML = crossLink('union', 'people', f.requested_by, f.requested_by);
+    requestedRow.appendChild(span);
+  } else {
+    requestedRow.appendChild(document.createTextNode(f.requested_by));
+  }
+
   host.append(
     el('div', {}, [el('strong', {}, 'Summary: '), f.summary || '(none)']),
     el('div', { style: 'margin-top: 6px;' }, [el('strong', {}, 'Tier: '), f.tier]),
-    el('div', { style: 'margin-top: 6px;' }, [el('strong', {}, 'Targets: '), state.cr.targets.join(', ') || '(none)']),
-    el('div', { style: 'margin-top: 6px;' }, [el('strong', {}, 'Requested by: '), f.requested_by || '(unspecified)']),
+    targetsRow,
+    requestedRow,
   );
 }
 
@@ -1075,6 +1171,10 @@ async function init() {
   initBylaws();
   initKeyboard();
   initHashRouting();
+
+  // /config.json publishes cross-app public URLs; needed before first render
+  // so cross-app anchors land with the right base.
+  await loadConfig();
 
   try {
     await loadAll();
