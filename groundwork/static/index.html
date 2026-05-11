@@ -440,6 +440,164 @@
     }
 
     select option { background: var(--bg3); }
+
+    /* ── Graph view (Cytoscape) ──
+       The graph tab is a separate "screen" inside #content. When active, the
+       entity list area + new-record form are hidden and #screen-graph fills
+       the available space. #cy is the Cytoscape canvas; the side panel
+       slides in when a node is focused. */
+    #screen-graph {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+    #screen-graph.visible { display: flex; }
+
+    .graph-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    .graph-toolbar .filter-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+    .graph-toolbar .filter-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .graph-toolbar select,
+    .graph-toolbar input[type="checkbox"] {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      outline: none;
+    }
+    .graph-toolbar select {
+      padding: 4px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    .graph-toolbar select:focus { border-color: var(--accent-dim); }
+
+    .graph-canvas-wrap {
+      flex: 1;
+      position: relative;
+      display: flex;
+      overflow: hidden;
+    }
+    #cy {
+      flex: 1;
+      background: var(--bg);
+      min-height: 0;
+      min-width: 0;
+    }
+    #cy[hidden] { display: none; }
+
+    /* Table-view fallback — keyboard-accessible alternative to the canvas.
+       Same data, different surface. Hidden when the canvas is showing. */
+    #graph-table-wrap {
+      flex: 1;
+      overflow: auto;
+      padding: 12px 20px;
+    }
+    #graph-table-wrap[hidden] { display: none; }
+    #graph-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    #graph-table th, #graph-table td {
+      text-align: left;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    #graph-table th {
+      color: var(--text-dim);
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      background: var(--bg2);
+      position: sticky;
+      top: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    #graph-table tbody tr:hover { background: var(--bg2); }
+    #graph-table td.numeric { text-align: right; font-variant-numeric: tabular-nums; }
+
+    .graph-detail {
+      width: 280px;
+      flex-shrink: 0;
+      border-left: 1px solid var(--border);
+      background: var(--bg2);
+      padding: 14px 16px;
+      overflow-y: auto;
+      font-size: 12px;
+    }
+    .graph-detail[hidden] { display: none; }
+    .graph-detail h2 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+    .graph-detail dl {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 4px 10px;
+      margin-bottom: 12px;
+    }
+    .graph-detail dt {
+      color: var(--text-dim);
+      font-size: 11px;
+    }
+    .graph-detail dd {
+      color: var(--text);
+      font-size: 11px;
+      word-break: break-word;
+    }
+    .graph-detail h3 {
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 10px 0 4px;
+    }
+    .graph-detail ul {
+      list-style: none;
+      padding-left: 0;
+      margin: 0;
+    }
+    .graph-detail li {
+      padding: 3px 0;
+      color: var(--text);
+      border-bottom: 1px dotted var(--border);
+    }
+    .graph-detail li:last-child { border-bottom: 0; }
+    .graph-detail .empty-list {
+      color: var(--text-dim);
+      font-style: italic;
+      font-size: 11px;
+    }
   </style>
 </head>
 <body>
@@ -485,6 +643,9 @@
       <span>slas</span>
       <span class="nav-badge" id="badge-slas">0</span>
     </div>
+    <div class="nav-item" data-entity="graph" role="link" tabindex="0">
+      <span>graph</span>
+    </div>
   </nav>
 
   <div id="content">
@@ -496,6 +657,43 @@
     <div id="entity-list-area">
       <ul id="entity-list"></ul>
     </div>
+    <section id="screen-graph" aria-label="dependency graph">
+      <div class="graph-toolbar" role="toolbar" aria-label="graph filters">
+        <span class="filter-group" role="group" aria-label="filter by criticality">
+          <span>criticality:</span>
+          <label><input type="checkbox" data-filter-crit="high" checked> high</label>
+          <label><input type="checkbox" data-filter-crit="medium" checked> medium</label>
+          <label><input type="checkbox" data-filter-crit="low" checked> low</label>
+        </span>
+        <span class="filter-group">
+          <label for="filter-team">team:</label>
+          <select id="filter-team" aria-label="filter by team">
+            <option value="">all teams</option>
+          </select>
+        </span>
+        <button id="reset-graph" type="button">reset view</button>
+        <button id="toggle-graph-view" type="button" aria-pressed="false">view as table</button>
+      </div>
+      <div class="graph-canvas-wrap">
+        <div id="cy" role="img" aria-label="dependency graph canvas"></div>
+        <div id="graph-table-wrap" hidden>
+          <table id="graph-table" aria-label="deployables with dependency counts">
+            <thead>
+              <tr>
+                <th data-sort="name" scope="col">deployable</th>
+                <th data-sort="status" scope="col">status</th>
+                <th data-sort="team" scope="col">team</th>
+                <th data-sort="outgoing" scope="col" class="numeric">depends on</th>
+                <th data-sort="incoming" scope="col" class="numeric">depended on by</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <aside id="graph-detail" class="graph-detail" hidden aria-live="polite">
+        </aside>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -510,6 +708,7 @@
   </span>
 </div>
 
+<script src="/static/vendor/cytoscape.min.js"></script>
 <script type="module" src="/static/app.js"></script>
 </body>
 </html>

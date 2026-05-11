@@ -23,6 +23,9 @@ const CONTRACT_GRAPHQL: &str = include_str!("../config/graph/contract.graphql");
 const SLA_GRAPHQL: &str = include_str!("../config/graph/sla.graphql");
 const INDEX_HTML: &str = include_str!("../static/index.html");
 const APP_JS: &str = include_str!("../static/app.js");
+// Vendored library, version-pinned at vendor time (cytoscape@3.30.2). Served
+// with immutable cache headers — the URL only changes when we bump the file.
+const CYTOSCAPE_JS: &str = include_str!("../static/vendor/cytoscape.min.js");
 
 // ── Static handlers ───────────────────────────────────────────────────────────
 
@@ -37,6 +40,17 @@ async fn serve_app_js() -> Response {
             (header::CACHE_CONTROL, "no-cache, must-revalidate"),
         ],
         APP_JS,
+    )
+        .into_response()
+}
+
+async fn serve_cytoscape_js() -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        CYTOSCAPE_JS,
     )
         .into_response()
 }
@@ -319,6 +333,7 @@ async fn main() -> anyhow::Result<()> {
     let extra = Router::new()
         .route("/", get(serve_index))
         .route("/static/app.js", get(serve_app_js))
+        .route("/static/vendor/cytoscape.min.js", get(serve_cytoscape_js))
         .route("/health", get(health_check))
         .merge(config_route)
         .merge(deployable_restlette)

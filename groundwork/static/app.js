@@ -261,6 +261,7 @@ const state = {
   columnFilter: { deployables: { deployment_status: '' } },
   newFormOpen: false,
   config: {},  // populated from /config.json: cross-app public URLs
+  graph: { cy: null, tableMode: false },  // cytoscape instance + table-view toggle
 };
 
 // ── Cross-app linking ─────────────────────────────────────────────────────────
@@ -601,7 +602,27 @@ async function confirmDelete(entityKey, id) {
   }
 }
 
+// ── Graph view (Cytoscape) ────────────────────────────────────────────────────
+
+// Stub. The real visualization lands in the next commit. Keeping the
+// placeholder + the screen wiring decoupled lets the scaffolding ship first
+// and verifies routing + asset serving end-to-end before the viz code lands.
+function renderGraph() {
+  const cyEl = document.getElementById('cy');
+  if (cyEl) cyEl.textContent = 'graph viz coming in next commit';
+  const detail = document.getElementById('graph-detail');
+  if (detail) detail.hidden = true;
+}
+
 // ── Sidebar navigation ────────────────────────────────────────────────────────
+
+// "graph" is a special pseudo-entity — it has no /api or /graph endpoint
+// and no row in ENTITIES; it's a separate visualization screen. Recognising
+// it as a known key lets sidebar navigation, hash routing, and filter UI
+// reset all branch on it consistently.
+function isKnownEntity(key) {
+  return !!ENTITIES[key] || key === 'graph';
+}
 
 function setActiveEntity(entityKey) {
   state.activeEntity = entityKey;
@@ -623,7 +644,22 @@ function setActiveEntity(entityKey) {
   });
 
   hideNewForm();
-  renderList();
+
+  // Graph view is rendered into its own screen container; entity-list-area
+  // is hidden while the graph is active.
+  const listArea = document.getElementById('entity-list-area');
+  const graphScreen = document.getElementById('screen-graph');
+  if (entityKey === 'graph') {
+    if (listArea) listArea.hidden = true;
+    if (graphScreen) graphScreen.classList.add('visible');
+    document.title = 'groundwork — graph';
+    renderGraph();
+  } else {
+    if (listArea) listArea.hidden = false;
+    if (graphScreen) graphScreen.classList.remove('visible');
+    document.title = `groundwork — ${entityKey}`;
+    renderList();
+  }
 
   if (location.hash.slice(1) !== entityKey) {
     location.hash = entityKey;
@@ -633,13 +669,13 @@ function setActiveEntity(entityKey) {
 function initHashRouting() {
   const fromHash = () => {
     const key = location.hash.slice(1);
-    if (key && ENTITIES[key] && key !== state.activeEntity) {
+    if (key && isKnownEntity(key) && key !== state.activeEntity) {
       setActiveEntity(key);
     }
   };
   window.addEventListener('hashchange', fromHash);
   const initial = location.hash.slice(1);
-  if (initial && ENTITIES[initial]) {
+  if (initial && isKnownEntity(initial)) {
     state.activeEntity = initial;
   } else {
     location.replace('#' + state.activeEntity);
