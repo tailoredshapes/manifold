@@ -604,14 +604,428 @@ async function confirmDelete(entityKey, id) {
 
 // ── Graph view (Cytoscape) ────────────────────────────────────────────────────
 
-// Stub. The real visualization lands in the next commit. Keeping the
-// placeholder + the screen wiring decoupled lets the scaffolding ship first
-// and verifies routing + asset serving end-to-end before the viz code lands.
+// Compose Deployable→Deployable edges from Dependency + Exposes records.
+// A Dependency tells us "consumer Deployable depends on Service"; we need
+// to resolve the producer side via Exposes (which Deployables expose that
+// Service). Returns an array of cytoscape edge objects keyed unique on the
+// triple (dependency_id, producer_id). Self-loops are skipped.
+function composeGraphEdges(dependencies, exposes) {
+  const exposesByService = new Map();
+  for (const ex of exposes) {
+    if (!ex || !ex.service_id) continue;
+    if (!exposesByService.has(ex.service_id)) {
+      exposesByService.set(ex.service_id, []);
+    }
+    exposesByService.get(ex.service_id).push(ex.deployable_id);
+  }
+
+  const edges = [];
+  for (const dep of dependencies) {
+    if (!dep || !dep.service_id || !dep.deployable_id) continue;
+    const producers = exposesByService.get(dep.service_id) || [];
+    for (const producerId of producers) {
+      if (producerId === dep.deployable_id) continue; // skip self-loops
+      edges.push({
+        data: {
+          id: `${dep.id}-${producerId}`,
+          source: dep.deployable_id,
+          target: producerId,
+          criticality: dep.criticality || 'medium',
+        },
+      });
+    }
+  }
+  return edges;
+}
+
+// Build cytoscape node objects from deployables. `status` is bucketed to one
+// of the four known values so the data-driven CSS selectors below always
+// match — otherwise an unexpected status leaves nodes unstyled.
+function composeGraphNodes(deployables) {
+  const known = new Set(['operational', 'degraded', 'down', 'unknown']);
+  return deployables.map(d => {
+    const raw = d.deployment_status || 'unknown';
+    const status = known.has(raw) ? raw : 'unknown';
+    return {
+      data: {
+        id: d.id,
+        label: d.name || d.id,
+        status,
+        team: d.team?.name || '',
+        team_id: d.team_id || '',
+      },
+    };
+  });
+}
+
+// Cytoscape style spec. Uses data-driven selectors (e.g. node[status =
+// "operational"]) rather than function-mapper style — the latter exists in
+// the v3 API but is more brittle across versions; selectors are guaranteed.
+const GRAPH_STYLE = [
+  {
+    selector: 'node',
+    style: {
+      'label': 'data(label)',
+      'background-color': '#9ca3af',
+      'text-valign': 'center',
+      'text-halign': 'right',
+      'text-margin-x': 6,
+      'font-size': 10,
+      'font-family': 'Cascadia Code, Fira Code, monospace',
+      'width': 18,
+      'height': 18,
+      'color': '#e2e8f0',
+      'border-width': 1,
+      'border-color': '#0d0d0d',
+    },
+  },
+  { selector: 'node[status = "operational"]', style: { 'background-color': '#16a34a' } },
+  { selector: 'node[status = "degraded"]',    style: { 'background-color': '#d97706' } },
+  { selector: 'node[status = "down"]',        style: { 'background-color': '#dc2626' } },
+  { selector: 'node[status = "unknown"]',     style: { 'background-color': '#9ca3af' } },
+  {
+    selector: 'edge',
+    style: {
+      'width': 1.5,
+      'line-color': '#94a3b8',
+      'curve-style': 'bezier',
+      'target-arrow-shape': 'triangle',
+      'target-arrow-color': '#94a3b8',
+      'opacity': 0.75,
+    },
+  },
+  { selector: 'edge[criticality = "low"]',    style: { 'width': 1,   'line-color': '#475569', 'target-arrow-color': '#475569' } },
+  { selector: 'edge[criticality = "medium"]', style: { 'width': 2,   'line-color': '#94a3b8', 'target-arrow-color': '#94a3b8' } },
+  { selector: 'edge[criticality = "high"]',   style: { 'width': 3.5, 'line-color': '#dc2626', 'target-arrow-color': '#dc2626' } },
+  { selector: '.faded', style: { 'opacity': 0.12, 'text-opacity': 0.12 } },
+  { selector: ':selected', style: { 'border-width': 3, 'border-color': '#4ade80' } },
+];
+
+// Render the dependency graph from current state. Idempotent — destroys any
+// prior cytoscape instance before creating a new one so re-entering the tab
+// doesn't leak listeners.
 function renderGraph() {
   const cyEl = document.getElementById('cy');
-  if (cyEl) cyEl.textContent = 'graph viz coming in next commit';
-  const detail = document.getElementById('graph-detail');
-  if (detail) detail.hidden = true;
+  if (!cyEl) return;
+
+  if (typeof cytoscape !== 'function') {
+    cyEl.textContent = 'cytoscape failed to load';
+    return;
+  }
+
+  // Tear down any prior instance.
+  if (state.graph.cy) {
+    try { state.graph.cy.destroy(); } catch { /* no-op */ }
+    state.graph.cy = null;
+  }
+  cyEl.textContent = '';
+
+  const deployables = state.data.deployables || [];
+  const dependencies = state.data.dependencies || [];
+  const exposes = state.data.exposes || [];
+
+  const nodes = composeGraphNodes(deployables);
+  const edges = composeGraphEdges(dependencies, exposes);
+
+  // Build set of node ids so we don't add edges to/from missing nodes
+  // (would throw in cytoscape).
+  const nodeIds = new Set(nodes.map(n => n.data.id));
+  const safeEdges = edges.filter(e => nodeIds.has(e.data.source) && nodeIds.has(e.data.target));
+
+  const cy = cytoscape({
+    container: cyEl,
+    elements: [...nodes, ...safeEdges],
+    style: GRAPH_STYLE,
+    layout: {
+      name: 'cose',
+      animate: false,
+      idealEdgeLength: 100,
+      nodeOverlap: 20,
+      refresh: 20,
+      fit: true,
+      padding: 40,
+      randomize: false,
+      componentSpacing: 80,
+      nodeRepulsion: 400000,
+      edgeElasticity: 100,
+      nestingFactor: 5,
+      gravity: 80,
+      numIter: 1000,
+    },
+    wheelSensitivity: 0.2,
+    minZoom: 0.2,
+    maxZoom: 3,
+  });
+
+  state.graph.cy = cy;
+
+  // ── Interactions ──
+  cy.on('tap', 'node', evt => {
+    const node = evt.target;
+    cy.elements().addClass('faded');
+    node.removeClass('faded');
+    node.neighborhood().removeClass('faded');
+    showGraphDetail(node.data());
+  });
+
+  cy.on('tap', evt => {
+    if (evt.target === cy) {
+      cy.elements().removeClass('faded');
+      const d = document.getElementById('graph-detail');
+      if (d) d.hidden = true;
+    }
+  });
+
+  // ── Toolbar wiring ──
+  populateTeamFilter(deployables);
+  wireGraphToolbar();
+
+  // Switching back to canvas mode if previously left in table mode.
+  applyGraphViewMode(state.graph.tableMode);
+
+  // Build the table fallback up-front so toggling is instant.
+  renderGraphTable(deployables, safeEdges);
+}
+
+// Side-panel renderer. Looks up the focused Deployable's contracts (via
+// services it exposes) and SLAs (on those contracts) from in-memory state.
+// No extra round-trip — all six entities are already loaded by loadAll().
+function showGraphDetail(nodeData) {
+  const panel = document.getElementById('graph-detail');
+  if (!panel) return;
+
+  const deployableId = nodeData.id;
+  const services = state.data.services || [];
+  const exposes = state.data.exposes || [];
+  const contracts = state.data.contracts || [];
+  const slas = state.data.slas || [];
+
+  // Services this deployable exposes
+  const exposedServiceIds = exposes
+    .filter(e => e.deployable_id === deployableId)
+    .map(e => e.service_id);
+  const exposedServices = services.filter(s => exposedServiceIds.includes(s.id));
+
+  // Contracts on those services
+  const relevantContracts = contracts.filter(c => exposedServiceIds.includes(c.service_id));
+
+  // SLAs on those contracts
+  const relevantContractIds = new Set(relevantContracts.map(c => c.id));
+  const relevantSlas = slas.filter(s => relevantContractIds.has(s.contract_id));
+
+  const statusLabel = nodeData.status || 'unknown';
+  const team = nodeData.team || '';
+
+  const exposedHtml = exposedServices.length
+    ? `<ul>${exposedServices.map(s => `<li>${esc(s.name || s.id)}${s.type ? ' <span style="color: var(--text-dim)">[' + esc(s.type) + ']</span>' : ''}</li>`).join('')}</ul>`
+    : '<p class="empty-list">no exposed services</p>';
+
+  const contractsHtml = relevantContracts.length
+    ? `<ul>${relevantContracts.map(c => {
+        const svcName = services.find(s => s.id === c.service_id)?.name || c.service_id;
+        const ver = c.version ? `v${esc(c.version)}` : '';
+        const fmt = c.format ? esc(c.format) : '';
+        return `<li>${esc(svcName)}${ver ? ' · ' + ver : ''}${fmt ? ' · ' + fmt : ''}</li>`;
+      }).join('')}</ul>`
+    : '<p class="empty-list">no contracts</p>';
+
+  const slasHtml = relevantSlas.length
+    ? `<ul>${relevantSlas.map(s => `<li>${esc(s.metric || '?')}: ${esc(s.target || '?')}${s.window ? ' / ' + esc(s.window) : ''}</li>`).join('')}</ul>`
+    : '<p class="empty-list">no SLAs</p>';
+
+  panel.innerHTML = `
+    <h2>${esc(nodeData.label || deployableId)}</h2>
+    <dl>
+      <dt>status</dt><dd><span class="status-dot ${esc(statusLabel)}" aria-hidden="true"></span> ${esc(statusLabel)}</dd>
+      <dt>team</dt><dd>${team ? esc(team) : '<span style="color: var(--text-dim)">—</span>'}</dd>
+      <dt>id</dt><dd style="color: var(--text-dim)">${esc(deployableId.slice(0, 8))}</dd>
+    </dl>
+    <h3>exposes</h3>
+    ${exposedHtml}
+    <h3>contracts</h3>
+    ${contractsHtml}
+    <h3>SLAs</h3>
+    ${slasHtml}
+  `;
+  panel.hidden = false;
+}
+
+// Populate the team filter <select> from the unique teams on deployables.
+function populateTeamFilter(deployables) {
+  const sel = document.getElementById('filter-team');
+  if (!sel) return;
+  const teams = new Set();
+  for (const d of deployables) {
+    const name = d.team?.name;
+    if (name) teams.add(name);
+  }
+  const sorted = [...teams].sort();
+  // Preserve current selection across rebuilds.
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">all teams</option>' +
+    sorted.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  if (prev && sorted.includes(prev)) sel.value = prev;
+}
+
+// Wire the toolbar buttons + checkboxes. Idempotent — uses cloneNode to drop
+// stale listeners before re-attaching, since renderGraph() can be called
+// many times across a session.
+function wireGraphToolbar() {
+  const replaceWithClone = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return null;
+    const fresh = el.cloneNode(true);
+    el.parentNode.replaceChild(fresh, el);
+    return fresh;
+  };
+
+  // Criticality checkboxes
+  document.querySelectorAll('[data-filter-crit]').forEach(cb => {
+    const fresh = cb.cloneNode(true);
+    cb.parentNode.replaceChild(fresh, cb);
+  });
+  document.querySelectorAll('[data-filter-crit]').forEach(cb => {
+    cb.addEventListener('change', applyGraphFilters);
+  });
+
+  const teamSel = replaceWithClone('filter-team');
+  if (teamSel) teamSel.addEventListener('change', applyGraphFilters);
+
+  const reset = replaceWithClone('reset-graph');
+  if (reset) reset.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter-crit]').forEach(c => { c.checked = true; });
+    const ts = document.getElementById('filter-team');
+    if (ts) ts.value = '';
+    if (state.graph.cy) {
+      state.graph.cy.elements().removeClass('faded');
+      state.graph.cy.elements().style('display', 'element');
+      state.graph.cy.fit(undefined, 40);
+    }
+    const detail = document.getElementById('graph-detail');
+    if (detail) detail.hidden = true;
+  });
+
+  const toggle = replaceWithClone('toggle-graph-view');
+  if (toggle) toggle.addEventListener('click', () => {
+    state.graph.tableMode = !state.graph.tableMode;
+    applyGraphViewMode(state.graph.tableMode);
+  });
+}
+
+// Read the current filter UI and apply it to the cytoscape elements.
+function applyGraphFilters() {
+  const cy = state.graph.cy;
+  if (!cy) return;
+
+  const enabledCrit = new Set();
+  document.querySelectorAll('[data-filter-crit]').forEach(c => {
+    if (c.checked) enabledCrit.add(c.dataset.filterCrit);
+  });
+
+  const teamSel = document.getElementById('filter-team');
+  const team = teamSel ? teamSel.value : '';
+
+  cy.edges().forEach(e => {
+    const crit = e.data('criticality') || 'medium';
+    e.style('display', enabledCrit.has(crit) ? 'element' : 'none');
+  });
+  cy.nodes().forEach(n => {
+    n.style('display', !team || n.data('team') === team ? 'element' : 'none');
+  });
+}
+
+// Swap between canvas and table representations of the graph. The table is
+// the canonical interface for keyboard users — graph nodes aren't focusable
+// without bespoke aria-tree machinery we don't yet have.
+function applyGraphViewMode(tableMode) {
+  const cyEl = document.getElementById('cy');
+  const tableWrap = document.getElementById('graph-table-wrap');
+  const toggle = document.getElementById('toggle-graph-view');
+  if (cyEl) cyEl.hidden = tableMode;
+  if (tableWrap) tableWrap.hidden = !tableMode;
+  if (toggle) {
+    toggle.textContent = tableMode ? 'view as graph' : 'view as table';
+    toggle.setAttribute('aria-pressed', String(tableMode));
+  }
+  // Hide the side panel in table mode — it's specific to the canvas focus.
+  if (tableMode) {
+    const detail = document.getElementById('graph-detail');
+    if (detail) detail.hidden = true;
+  }
+  // Cytoscape needs a resize hint after the container un-hides, or it'll
+  // draw at zero-size and require a manual fit().
+  if (!tableMode && state.graph.cy) {
+    requestAnimationFrame(() => {
+      state.graph.cy.resize();
+      state.graph.cy.fit(undefined, 40);
+    });
+  }
+}
+
+// Build the keyboard-accessible table fallback. Columns: deployable name,
+// status, team, outgoing edge count, incoming edge count. Sortable by any
+// column via click on the <th>.
+function renderGraphTable(deployables, edges) {
+  const tbody = document.querySelector('#graph-table tbody');
+  if (!tbody) return;
+
+  const outgoing = new Map();
+  const incoming = new Map();
+  for (const e of edges) {
+    outgoing.set(e.data.source, (outgoing.get(e.data.source) || 0) + 1);
+    incoming.set(e.data.target, (incoming.get(e.data.target) || 0) + 1);
+  }
+
+  const rows = deployables.map(d => ({
+    id: d.id,
+    name: d.name || d.id,
+    status: d.deployment_status || 'unknown',
+    team: d.team?.name || '',
+    outgoing: outgoing.get(d.id) || 0,
+    incoming: incoming.get(d.id) || 0,
+  }));
+
+  // Default sort: by name asc.
+  rows.sort((a, b) => a.name.localeCompare(b.name));
+
+  const render = (data) => {
+    tbody.innerHTML = data.map(r => `
+      <tr data-id="${esc(r.id)}">
+        <td>${esc(r.name)}</td>
+        <td><span class="status-dot ${esc(r.status)}" aria-hidden="true"></span> ${esc(r.status)}</td>
+        <td>${r.team ? esc(r.team) : '<span style="color: var(--text-dim)">—</span>'}</td>
+        <td class="numeric">${r.outgoing}</td>
+        <td class="numeric">${r.incoming}</td>
+      </tr>
+    `).join('');
+  };
+
+  // Sort wiring — toggle asc/desc on repeated click.
+  const headers = document.querySelectorAll('#graph-table th[data-sort]');
+  let currentSort = { key: 'name', asc: true };
+  headers.forEach(th => {
+    // Clone to drop any prior listener
+    const fresh = th.cloneNode(true);
+    th.parentNode.replaceChild(fresh, th);
+  });
+  document.querySelectorAll('#graph-table th[data-sort]').forEach(th => {
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      const asc = currentSort.key === key ? !currentSort.asc : true;
+      currentSort = { key, asc };
+      const sorted = [...rows].sort((a, b) => {
+        const av = a[key];
+        const bv = b[key];
+        if (typeof av === 'number' && typeof bv === 'number') {
+          return asc ? av - bv : bv - av;
+        }
+        return asc ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+      });
+      render(sorted);
+    });
+  });
+
+  render(rows);
 }
 
 // ── Sidebar navigation ────────────────────────────────────────────────────────
