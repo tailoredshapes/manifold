@@ -8,7 +8,7 @@ const ENTITIES = {
     api: '/deployable/api',
     graph: {
       path: '/deployable/graph',
-      list: '{ getAll { id name description repo_url team_id team { id name } } }',
+      list: '{ getAll { id name description repo_url team_id deployment_status team { id name } } }',
     },
     label: 'deployable',
     newFields: [
@@ -255,6 +255,10 @@ const state = {
   data: { deployables: [], exposes: [], services: [], dependencies: [], contracts: [], slas: [] },
   expandedId: null,
   filter: '',
+  // Per-entity column filters keyed by entity → field → selected value.
+  // Currently only deployables.deployment_status is wired up; the shape
+  // generalises if more column filters are added later.
+  columnFilter: { deployables: { deployment_status: '' } },
   newFormOpen: false,
   config: {},  // populated from /config.json: cross-app public URLs
 };
@@ -365,19 +369,31 @@ function renderList() {
   const cfg = ENTITIES[entityKey];
   const items = state.data[entityKey] ?? [];
   const needle = state.filter.trim().toLowerCase();
+  const colFilters = state.columnFilter[entityKey] || {};
 
-  const visible = needle
-    ? items.filter(item => {
-        const label = cfg.getRowLabel(item, state.data).toLowerCase();
-        return label.includes(needle) || (item.id || '').toLowerCase().includes(needle);
-      })
-    : items;
+  let visible = items;
+
+  // Column filters (currently only deployment_status on deployables).
+  // Each filter narrows independently; composes with search below.
+  for (const [field, val] of Object.entries(colFilters)) {
+    if (!val) continue;
+    visible = visible.filter(item => (item[field] ?? null) === val);
+  }
+
+  if (needle) {
+    visible = visible.filter(item => {
+      const label = cfg.getRowLabel(item, state.data).toLowerCase();
+      return label.includes(needle) || (item.id || '').toLowerCase().includes(needle);
+    });
+  }
 
   const list = document.getElementById('entity-list');
   list.innerHTML = '';
 
+  const hasActiveColFilter = Object.values(colFilters).some(Boolean);
   if (visible.length === 0) {
-    list.innerHTML = `<li class="empty-state">${needle ? 'no matches' : `no ${entityKey} yet — press n to add one`}</li>`;
+    const isFiltering = needle || hasActiveColFilter;
+    list.innerHTML = `<li class="empty-state">${isFiltering ? 'no matches' : `no ${entityKey} yet — press n to add one`}</li>`;
   } else {
     for (const item of visible) {
       list.appendChild(buildRow(entityKey, item));
@@ -413,6 +429,21 @@ function buildRow(entityKey, item) {
   labelEl.textContent = label;
 
   header.append(icon, labelEl);
+
+  // Deployment-status dot — currently only deployables carry this field.
+  // Semantic CSS classes drive the colour; SR text comes from .sr-only span
+  // plus a title attribute for sighted hover.
+  if (entityKey === 'deployables') {
+    const status = payload.deployment_status || 'unknown';
+    const dot = document.createElement('span');
+    dot.className = `status-dot ${status}`;
+    dot.setAttribute('title', `deployment status: ${status}`);
+    const sr = document.createElement('span');
+    sr.className = 'sr-only';
+    sr.textContent = `deployment status ${status}`;
+    dot.appendChild(sr);
+    header.appendChild(dot);
+  }
 
   if (badgeHtml) {
     const badgeEl = document.createElement('span');
@@ -578,6 +609,15 @@ function setActiveEntity(entityKey) {
   state.filter = '';
   document.getElementById('search').value = '';
 
+  // Reset column filters for the entity being shown so a stale dropdown
+  // value doesn't silently hide rows on entity switch.
+  if (state.columnFilter[entityKey]) {
+    for (const k of Object.keys(state.columnFilter[entityKey])) {
+      state.columnFilter[entityKey][k] = '';
+    }
+  }
+  updateStatusFilterUI();
+
   document.querySelectorAll('.nav-item').forEach(el => {
     el.classList.toggle('active', el.dataset.entity === entityKey);
   });
@@ -612,7 +652,7 @@ function updateStatusCount(total, shown) {
   const el = document.getElementById('status-count');
   if (!el) return;
   const entityKey = state.activeEntity;
-  if (state.filter && shown !== total) {
+  if (shown !== total) {
     el.textContent = `${shown} of ${total} ${entityKey}`;
   } else {
     el.textContent = `${total} ${entityKey}`;
@@ -786,11 +826,35 @@ function initSidebar() {
   });
 }
 
+// Show/hide and reset the deployment-status filter based on active entity.
+// The <select> lives in the header but is only meaningful for deployables.
+function updateStatusFilterUI() {
+  const wrap = document.getElementById('status-filter-wrap');
+  const sel = document.getElementById('status-filter');
+  if (!wrap || !sel) return;
+  const isDeployables = state.activeEntity === 'deployables';
+  wrap.hidden = !isDeployables;
+  if (isDeployables) {
+    sel.value = state.columnFilter.deployables.deployment_status || '';
+  }
+}
+
+function initStatusFilter() {
+  const sel = document.getElementById('status-filter');
+  if (!sel) return;
+  sel.addEventListener('change', () => {
+    state.columnFilter.deployables.deployment_status = sel.value;
+    renderList();
+  });
+  updateStatusFilterUI();
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 
 async function init() {
   initKeyboard();
   initSidebar();
+  initStatusFilter();
   initHashRouting();
 
   document.querySelectorAll('.nav-item').forEach(el => {

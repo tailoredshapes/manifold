@@ -267,6 +267,64 @@
     .badge.medium { border-color: #f59e0b; color: #f59e0b; }
     .badge.low { border-color: var(--accent-dim); color: var(--accent-dim); }
 
+    /* Deployment-status dot — circular indicator next to row label.
+       Colour is carried entirely through the semantic modifier class
+       (.operational/.degraded/.down/.unknown) so callers never inline-style. */
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: var(--text-dim);
+      position: relative;
+    }
+    .status-dot.operational { background: #16a34a; box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.25); }
+    .status-dot.degraded    { background: #d97706; box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.25); }
+    .status-dot.down        { background: #dc2626; box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25); }
+    .status-dot.unknown     { background: #9ca3af; box-shadow: 0 0 0 1px rgba(156, 163, 175, 0.25); }
+
+    /* Visually hidden but exposed to assistive tech. Used inside status-dot
+       to announce the deployment state on screen readers. */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Header column-filter (deployment status). Sits next to the search
+       box, hidden when not viewing deployables. */
+    .header-filter {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .header-filter[hidden] { display: none; }
+    .header-filter-label {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+    }
+    #status-filter {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 12px;
+      padding: 4px 8px;
+      outline: none;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    #status-filter:focus { border-color: var(--accent-dim); }
+
     /* ── Detail panel ── */
     .entity-detail {
       display: none;
@@ -389,6 +447,16 @@
 <header>
   <h1>groundwork</h1>
   <input id="search" type="text" placeholder="/ to search..." autocomplete="off" spellcheck="false" />
+  <label id="status-filter-wrap" class="header-filter" hidden>
+    <span class="header-filter-label">status</span>
+    <select id="status-filter" aria-label="filter deployables by deployment status">
+      <option value="">all</option>
+      <option value="operational">operational</option>
+      <option value="degraded">degraded</option>
+      <option value="down">down</option>
+      <option value="unknown">unknown</option>
+    </select>
+  </label>
 </header>
 
 <div id="layout">
