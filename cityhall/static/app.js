@@ -887,11 +887,36 @@ function renderPlanDetail(envelope) {
   }
 
   if (blockers.length) {
-    const block = el('div', { class: 'plan-blockers' }, [
-      el('h4', {}, `${blockers.length} blocker${blockers.length === 1 ? '' : 's'}`),
-      el('ul', { html: blockers.map(b => `<li>${esc(typeof b === 'string' ? b : JSON.stringify(b))}</li>`).join('') }),
-    ]);
+    const block = el('div', { class: 'plan-blockers' });
+    block.appendChild(el('h4', {}, `${blockers.length} blocker${blockers.length === 1 ? '' : 's'}`));
+    const list = el('ul', { class: 'plan-blocker-list' });
+    const mermaidPres = [];
+    for (const b of blockers) {
+      // Tolerate both shapes: structured { kind, message, mermaid? } from the
+      // current server, and legacy plain strings from older plan envelopes.
+      const message = typeof b === 'string' ? b : (b?.message || JSON.stringify(b));
+      const mermaidSrc = typeof b === 'object' && b?.mermaid ? b.mermaid : null;
+      const item = el('li', { class: 'plan-blocker-item' });
+      item.appendChild(el('div', { class: 'plan-blocker-message' }, message));
+      if (mermaidSrc) {
+        const pre = el('pre', { class: 'mermaid plan-blocker-graph' }, mermaidSrc);
+        item.appendChild(pre);
+        mermaidPres.push(pre);
+      }
+      list.appendChild(item);
+    }
+    block.appendChild(list);
     wrap.appendChild(block);
+    // Run Mermaid on all blocker graphs in one pass after the DOM is attached.
+    if (mermaidPres.length) {
+      mermaid.run({ nodes: mermaidPres }).catch(err => {
+        for (const pre of mermaidPres) {
+          if (pre.querySelector('svg')) continue;
+          pre.replaceWith(el('div', { class: 'muted plan-blocker-mermaid-fail' },
+            `(graph render failed: ${err?.message || err})`));
+        }
+      });
+    }
   }
 
   return wrap;

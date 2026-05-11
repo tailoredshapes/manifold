@@ -49,13 +49,25 @@ pub struct PlanGate {
     pub quiesce_for: Option<String>,
 }
 
+/// A blocker that prevents the plan from running clean. `message` is the
+/// human-readable summary; `mermaid`, when present, is a small Mermaid graph
+/// the frontend can render alongside the message (used for `dependency_cycle`
+/// blockers where the structural shape matters more than the prose).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Blocker {
+    pub kind: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub mermaid: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComputedPlan {
     pub change_request_id: String,
     pub change_request_summary: String,
     pub tier: String,
     pub steps: Vec<PlanStep>,
-    pub blockers: Vec<String>,
+    pub blockers: Vec<Blocker>,
     pub computed_at: String,
 }
 
@@ -77,7 +89,7 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
     //       from the targets, depth-first. Cycles are tolerated; we just don't
     //       revisit nodes.
     let mut summaries: BTreeMap<String, DeployableSummary> = BTreeMap::new();
-    let mut blockers: Vec<String> = Vec::new();
+    let mut blockers: Vec<Blocker> = Vec::new();
     let mut queue: VecDeque<String> = inputs.target_deployable_ids.iter().cloned().collect();
     let mut seen: HashSet<String> = HashSet::new();
 
@@ -91,7 +103,11 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
             .await
             .with_context(|| format!("groundwork.get_deployable({id})"))?;
         let Some(summary) = summary else {
-            blockers.push(format!("unknown deployable: {id}"));
+            blockers.push(Blocker {
+                kind: "unknown_deployable".into(),
+                message: format!("unknown deployable: {id}"),
+                mermaid: None,
+            });
             continue;
         };
         for dep in &summary.depends_on {
@@ -103,7 +119,11 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
     // ── 2. For each summary with no team_id, register an orphan blocker.
     for (_id, s) in &summaries {
         if s.team_id.as_deref().map(str::is_empty).unwrap_or(true) {
-            blockers.push(format!("orphan: {}", s.name));
+            blockers.push(Blocker {
+                kind: "orphan".into(),
+                message: format!("orphan: {}", s.name),
+                mermaid: None,
+            });
         }
     }
 
@@ -166,7 +186,7 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
 /// surfaces them to the user.
 fn topo_sort(
     summaries: &BTreeMap<String, DeployableSummary>,
-    blockers: &mut Vec<String>,
+    blockers: &mut Vec<Blocker>,
 ) -> Vec<String> {
     use std::collections::BTreeSet;
 
@@ -221,10 +241,53 @@ fn topo_sort(
             .iter()
             .map(|id| summaries.get(id).map(|s| s.name.as_str()).unwrap_or(id.as_str()))
             .collect();
-        blockers.push(format!("dependency cycle involving: {}", names.join(", ")));
+        let message = format!("dependency cycle involving: {}", names.join(", "));
+        let mermaid = render_cycle_mermaid(&leftover, summaries);
+        blockers.push(Blocker {
+            kind: "dependency_cycle".into(),
+            message,
+            mermaid: Some(mermaid),
+        });
         out.extend(leftover);
     }
 
+    out
+}
+
+/// Render the cycle subgraph as a small Mermaid `graph LR`. Only edges where
+/// both endpoints are in the cycle's node set are emitted — edges to nodes
+/// outside the cycle aren't part of the cycle itself.
+fn render_cycle_mermaid(
+    cycle_ids: &[String],
+    summaries: &BTreeMap<String, DeployableSummary>,
+) -> String {
+    use std::collections::HashMap;
+    let id_to_idx: HashMap<&str, usize> = cycle_ids
+        .iter()
+        .enumerate()
+        .map(|(i, id)| (id.as_str(), i))
+        .collect();
+
+    let mut out = String::from("graph LR\n");
+    // Nodes with their deployable names (escape double quotes defensively).
+    for (i, id) in cycle_ids.iter().enumerate() {
+        let name = summaries
+            .get(id)
+            .map(|s| s.name.as_str())
+            .unwrap_or(id.as_str());
+        let safe = name.replace('"', r#"\""#);
+        out.push_str(&format!("    n{i}[\"{safe}\"]\n"));
+    }
+    // Intra-cycle edges only.
+    for id in cycle_ids {
+        let Some(s) = summaries.get(id) else { continue };
+        let Some(&from) = id_to_idx.get(id.as_str()) else { continue };
+        for dep_id in &s.depends_on {
+            if let Some(&to) = id_to_idx.get(dep_id.as_str()) {
+                out.push_str(&format!("    n{from} --> n{to}\n"));
+            }
+        }
+    }
     out
 }
 

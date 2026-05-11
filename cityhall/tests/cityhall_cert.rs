@@ -585,7 +585,7 @@ async fn post_deployment_plan_gantt(
     let steps: Vec<cityhall::plan::PlanStep> =
         serde_json::from_str(steps_str).unwrap_or_default();
     let blockers_str = env.payload.get("blockers").and_then(|v| v.as_str()).unwrap_or("[]");
-    let blockers: Vec<String> = serde_json::from_str(blockers_str).unwrap_or_default();
+    let blockers: Vec<cityhall::plan::Blocker> = serde_json::from_str(blockers_str).unwrap_or_default();
     let computed = cityhall::plan::ComputedPlan {
         change_request_id: env.payload.get("change_request_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
         change_request_summary: env.payload.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string(),
@@ -901,10 +901,16 @@ async fn plan_blockers_contain(world: &mut CityhallWorld, expected: String) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("not JSON");
     let blockers_str = parsed.pointer("/payload/blockers").and_then(|v| v.as_str()).unwrap_or("[]");
-    let blockers: Vec<String> = serde_json::from_str(blockers_str).unwrap_or_default();
+    // Blockers are now structured ({kind, message, mermaid?}); match against
+    // the message field so feature scenarios stay readable.
+    let blockers: Vec<Value> = serde_json::from_str(blockers_str).unwrap_or_default();
+    let messages: Vec<String> = blockers
+        .iter()
+        .filter_map(|b| b.get("message").and_then(|m| m.as_str()).map(String::from))
+        .collect();
     assert!(
-        blockers.iter().any(|b| b.contains(&expected)),
-        "Blockers {blockers:?} do not contain {expected:?}. Body: {body}"
+        messages.iter().any(|m| m.contains(&expected)),
+        "Blocker messages {messages:?} do not contain {expected:?}. Body: {body}"
     );
 }
 

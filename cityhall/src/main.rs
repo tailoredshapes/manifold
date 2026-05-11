@@ -301,7 +301,7 @@ fn parse_plan_payload(payload: &meshql_core::Stash) -> anyhow::Result<plan::Comp
         .unwrap_or("[]");
     let steps: Vec<plan::PlanStep> = serde_json::from_str(steps_str)?;
     let blockers_str = payload.get("blockers").and_then(|v| v.as_str()).unwrap_or("[]");
-    let blockers: Vec<String> = serde_json::from_str(blockers_str).unwrap_or_default();
+    let blockers: Vec<plan::Blocker> = serde_json::from_str(blockers_str).unwrap_or_default();
     Ok(plan::ComputedPlan {
         change_request_id: payload
             .get("change_request_id")
