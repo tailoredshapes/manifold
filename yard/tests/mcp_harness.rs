@@ -2,12 +2,14 @@
 //!
 //! Spawns the binary as a subprocess (built via `CARGO_BIN_EXE_yard-mcp`) and
 //! exchanges line-delimited JSON-RPC frames over its stdin/stdout. The
-//! `YARD_URL` env var points the MCP child at an in-process Yard REST server
-//! bound to a random port. The in-process server registers REST routes for
-//! the seven catalog entities plus the two custom GET/POST endpoints the MCP
-//! tools wrap (`/test_environment/:id/history`, `/data_sync/recommend`). The
-//! `change_request.estimate` route is omitted: the corresponding scenarios
-//! exercise `tools/list` only, not the round-trip call.
+//! `YARD_URL` env var points the MCP child at an in-process Yard HTTP server
+//! (REST + GraphQL) bound to a random port. The in-process server registers
+//! REST routes for the seven catalog entities, graphlettes for the same
+//! entities (so auto-derived `list_*` capabilities can resolve via /graph),
+//! plus the two custom GET/POST endpoints the MCP custom capabilities wrap
+//! (`/test_environment/:id/history`, `/data_sync/recommend`). The
+//! `estimate_for_change_request` route is omitted: the corresponding
+//! scenarios exercise `tools/list` only, not the round-trip call.
 
 use axum::{
     extract::{Path, State},
@@ -17,7 +19,7 @@ use axum::{
     Json, Router,
 };
 use cucumber::{given, then, when, World};
-use meshql_core::{NoAuth, Repository, ServerConfig, Stash};
+use meshql_core::{GraphletteConfig, NoAuth, Repository, RootConfig, ServerConfig, Stash};
 use meshql_server::{ValidatorContext, ValidatorFn};
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
 use reqwest::Client;
@@ -29,6 +31,15 @@ use std::str::FromStr;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
+
+const TEST_ENVIRONMENT_GRAPHQL: &str = include_str!("../config/graph/test_environment.graphql");
+const TEST_INFRASTRUCTURE_GRAPHQL: &str =
+    include_str!("../config/graph/test_infrastructure.graphql");
+const MOCK_SOURCE_GRAPHQL: &str = include_str!("../config/graph/mock_source.graphql");
+const DATA_SOURCE_GRAPHQL: &str = include_str!("../config/graph/data_source.graphql");
+const DATA_SYNC_GRAPHQL: &str = include_str!("../config/graph/data_sync.graphql");
+const TEST_RUN_GRAPHQL: &str = include_str!("../config/graph/test_run.graphql");
+const TEST_SUITE_GRAPHQL: &str = include_str!("../config/graph/test_suite.graphql");
 
 // ── Storage ──────────────────────────────────────────────────────────────────
 
@@ -47,14 +58,15 @@ async fn make_pool() -> sqlx::SqlitePool {
 #[derive(Clone)]
 struct TestEntity {
     repo: Arc<dyn Repository>,
+    searcher: Arc<dyn meshql_core::Searcher>,
 }
 
 async fn make_entity() -> TestEntity {
     let pool = make_pool().await;
     let repo = Arc::new(SqliteRepository::new_with_pool(pool.clone()).await.unwrap());
-    let _searcher: Arc<dyn meshql_core::Searcher> =
+    let searcher: Arc<dyn meshql_core::Searcher> =
         Arc::new(SqliteSearcher::new_with_pool(pool).await.unwrap());
-    TestEntity { repo }
+    TestEntity { repo, searcher }
 }
 
 fn validator_for(schema_str: &str) -> ValidatorFn {
@@ -297,9 +309,125 @@ async fn build_server() -> String {
         .merge(test_suite_restlette)
         .merge(custom_routes);
 
+    let test_environment_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByKind", r#"{"payload.kind": "{{kind}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
+        .vector(
+            "getByInfrastructureId",
+            r#"{"payload.infrastructure_id": "{{infrastructure_id}}"}"#,
+        )
+        .build();
+    let test_infrastructure_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByProvider", r#"{"payload.provider": "{{provider}}"}"#)
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .build();
+    let mock_source_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .vector("getByLanguage", r#"{"payload.language": "{{language}}"}"#)
+        .build();
+    let data_source_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByKind", r#"{"payload.kind": "{{kind}}"}"#)
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .build();
+    let data_sync_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByKind", r#"{"payload.kind": "{{kind}}"}"#)
+        .vector(
+            "getByTargetEnvId",
+            r#"{"payload.target_env_id": "{{target_env_id}}"}"#,
+        )
+        .vector(
+            "getBySourceEnvId",
+            r#"{"payload.source_env_id": "{{source_env_id}}"}"#,
+        )
+        .build();
+    let test_run_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector(
+            "getByTestEnvironmentId",
+            r#"{"payload.test_environment_id": "{{test_environment_id}}"}"#,
+        )
+        .vector(
+            "getByChangeRequestId",
+            r#"{"payload.change_request_id": "{{change_request_id}}"}"#,
+        )
+        .vector("getByStatus", r#"{"payload.status": "{{status}}"}"#)
+        .vector("getByTeamId", r#"{"payload.team_id": "{{team_id}}"}"#)
+        .build();
+    let test_suite_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector("getByRunner", r#"{"payload.runner": "{{runner}}"}"#)
+        .build();
+
     let server_config = ServerConfig {
         port: 0,
-        graphlettes: vec![],
+        graphlettes: vec![
+            GraphletteConfig {
+                path: "/test_environment/graph".into(),
+                schema_text: TEST_ENVIRONMENT_GRAPHQL.into(),
+                root_config: test_environment_gql,
+                searcher: test_environment.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/test_infrastructure/graph".into(),
+                schema_text: TEST_INFRASTRUCTURE_GRAPHQL.into(),
+                root_config: test_infrastructure_gql,
+                searcher: test_infrastructure.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/mock_source/graph".into(),
+                schema_text: MOCK_SOURCE_GRAPHQL.into(),
+                root_config: mock_source_gql,
+                searcher: mock_source.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/data_source/graph".into(),
+                schema_text: DATA_SOURCE_GRAPHQL.into(),
+                root_config: data_source_gql,
+                searcher: data_source.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/data_sync/graph".into(),
+                schema_text: DATA_SYNC_GRAPHQL.into(),
+                root_config: data_sync_gql,
+                searcher: data_sync.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/test_run/graph".into(),
+                schema_text: TEST_RUN_GRAPHQL.into(),
+                root_config: test_run_gql,
+                searcher: test_run.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/test_suite/graph".into(),
+                schema_text: TEST_SUITE_GRAPHQL.into(),
+                root_config: test_suite_gql,
+                searcher: test_suite.searcher.clone(),
+            },
+        ],
         restlettes: vec![],
     };
 
@@ -426,13 +554,26 @@ impl McpWorld {
 
     fn structured_array(&self) -> Vec<Value> {
         let r = self.structured_result();
+        for key in [
+            "getAll",
+            "getByName",
+            "getByKind",
+            "getByStatus",
+            "getByTestEnvironmentId",
+            "getByDeployableId",
+            "getByTargetEnvId",
+        ] {
+            if let Some(arr) = r.get(key).and_then(|v| v.as_array()) {
+                return arr.clone();
+            }
+        }
         if let Some(arr) = r.as_array() {
             return arr.clone();
         }
         if let Some(arr) = r.get("result").and_then(|v| v.as_array()) {
             return arr.clone();
         }
-        panic!("expected array (raw or wrapped under 'result'), got: {r}");
+        panic!("expected array (raw or GraphQL-wrapped under getAll/etc), got: {r}");
     }
 }
 

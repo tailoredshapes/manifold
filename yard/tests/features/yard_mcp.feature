@@ -12,28 +12,28 @@ Feature: Yard MCP server
     And I have logged test run for "edge-env" with status "failed" lasting 7 minutes
     And I have logged test run for "smoke-env" with status "passed" lasting 4 minutes
 
-  Scenario: tools/list returns the catalogue + custom tools
+  Scenario: tools/list returns the auto-derived catalogue + custom capabilities
     When I send MCP request "tools/list"
-    Then the response should include tool "catalog.list"
-    And the response should include tool "catalog.get"
-    And the response should include tool "catalog.search"
-    And the response should include tool "environment.history"
-    And the response should include tool "environment.availability"
-    And the response should include tool "change_request.estimate"
-    And the response should include tool "data_sync.recommend"
+    Then the response should include tool "list_test_environments"
+    And the response should include tool "list_test_runs"
+    And the response should include tool "get_test_environment_by_id"
+    And the response should include tool "history_for_environment"
+    And the response should include tool "availability_for_environment"
+    And the response should include tool "estimate_for_change_request"
+    And the response should include tool "recommend_data_sync"
 
-  Scenario: catalog.list returns seeded test environments
-    When I call MCP tool "catalog.list" with arguments {"entity": "test_environment"}
+  Scenario: list_test_environments returns seeded test environments
+    When I call MCP tool "list_test_environments" with arguments {}
     Then the tool result should be a JSON array of at least 4 records
 
-  Scenario: catalog.list returns seeded test runs
-    When I call MCP tool "catalog.list" with arguments {"entity": "test_run"}
+  Scenario: list_test_runs returns seeded test runs
+    When I call MCP tool "list_test_runs" with arguments {}
     Then the tool result should be a JSON array of at least 4 records
 
-  Scenario: environment.history aggregates runs for a known environment
-    When I call MCP tool "environment.history" with arguments {"test_environment_id": "<ids.edge-env>"}
+  Scenario: history_for_environment aggregates runs for a known environment
+    When I call MCP tool "history_for_environment" with arguments {"test_environment_id": "<ids.edge-env>"}
     Then the tool result run_count should be at least 1
 
-  Scenario: data_sync.recommend returns a push recommendation for event edges
-    When I call MCP tool "data_sync.recommend" with arguments {"edge": "event"}
+  Scenario: recommend_data_sync returns a push recommendation for event edges
+    When I call MCP tool "recommend_data_sync" with arguments {"edge": "event"}
     Then the tool result kind should equal "push"
