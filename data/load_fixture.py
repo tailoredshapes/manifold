@@ -321,7 +321,7 @@ class Loader:
                 self.skipped["work_orders"] = self.skipped.get("work_orders", 0) + 1
                 continue
             payload = {"team_id": team_id, "summary": wo["summary"]}
-            for k in ("status", "priority", "completed_at"):
+            for k in ("status", "priority", "completed_at", "story_points"):
                 if wo.get(k) is not None:
                     payload[k] = wo[k]
             d_name = self.name_in(fixture_full["groundwork"], "deployables", wo.get("deployable_id"))

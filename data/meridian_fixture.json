@@ -2011,7 +2011,8 @@
         "priority": "low",
         "status": "proposed",
         "summary": "Add WhatsApp delivery channel for driver alerts",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "story_points": 3
       },
       {
         "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
@@ -2019,7 +2020,8 @@
         "priority": "low",
         "status": "proposed",
         "summary": "Upgrade Kafka from 3.4 to 3.8 — rolling restart plan",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "story_points": 5
       },
       {
         "change_request_id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
@@ -2028,7 +2030,8 @@
         "priority": "medium",
         "status": "proposed",
         "summary": "New carrier telemetry dashboard in analytics (CR-004)",
-        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba",
+        "story_points": 5
       },
       {
         "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
@@ -2037,7 +2040,8 @@
         "priority": "medium",
         "status": "proposed",
         "summary": "Admin panel: bulk user onboarding for MFA rollout (CR-003)",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "story_points": 5
       },
       {
         "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
@@ -2046,7 +2050,8 @@
         "priority": "high",
         "status": "in_progress",
         "summary": "MFA enforcement rollout — TOTP for internal users (CR-003)",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "story_points": 8
       },
       {
         "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
@@ -2055,7 +2060,8 @@
         "priority": "medium",
         "status": "in_progress",
         "summary": "Update portal login flow for MFA phase 2 (CR-003)",
-        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d",
+        "story_points": 3
       },
       {
         "change_request_id": "55586510-e6a8-4be1-911c-b61311fb9e05",
@@ -2064,7 +2070,8 @@
         "priority": "high",
         "status": "in_progress",
         "summary": "Integrate Google Maps Traffic API for dynamic re-routing (CR-001)",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "story_points": 5
       },
       {
         "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
@@ -2073,7 +2080,8 @@
         "priority": "high",
         "status": "in_progress",
         "summary": "Stripe v3 migration — webhook payload adapter (CR-002)",
-        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d",
+        "story_points": 8
       },
       {
         "change_request_id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
@@ -2082,7 +2090,8 @@
         "priority": "medium",
         "status": "in_progress",
         "summary": "Add FedEx Firehose source to ETL pipeline (CR-004)",
-        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba",
+        "story_points": 5
       },
       {
         "change_request_id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
@@ -2091,7 +2100,8 @@
         "priority": "high",
         "status": "in_progress",
         "summary": "Phase 1: Export all CRM records to Hubspot (CR-005)",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b",
+        "story_points": 8
       },
       {
         "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
@@ -2099,7 +2109,8 @@
         "priority": "high",
         "status": "blocked",
         "summary": "Sunset old driver app — push final users to v2 app",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b",
+        "story_points": 8
       },
       {
         "completed_at": "2026-05-08T12:00:00+00:00",
@@ -2108,7 +2119,8 @@
         "priority": "medium",
         "status": "done",
         "summary": "Add estimated delivery time to tracking page",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "story_points": 2
       },
       {
         "completed_at": "2026-05-03T12:00:00+00:00",
@@ -2117,7 +2129,8 @@
         "priority": "medium",
         "status": "done",
         "summary": "Driver app: offline POD capture retry queue",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "story_points": 3
       },
       {
         "completed_at": "2026-04-29T12:00:00+00:00",
@@ -2126,7 +2139,8 @@
         "priority": "high",
         "status": "done",
         "summary": "Auth Service: rotate JWT signing keys + publish JWKS",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "story_points": 5
       },
       {
         "completed_at": "2026-04-24T12:00:00+00:00",
@@ -2135,7 +2149,8 @@
         "priority": "low",
         "status": "done",
         "summary": "Notification Service: SendGrid v3 SDK upgrade",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "story_points": 1
       },
       {
         "completed_at": "2026-04-19T12:00:00+00:00",
@@ -2144,7 +2159,8 @@
         "priority": "medium",
         "status": "done",
         "summary": "Warehouse: barcode scanner SDK update to Zebra v6",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "story_points": 3
       },
       {
         "completed_at": "2026-04-14T12:00:00+00:00",
@@ -2153,7 +2169,8 @@
         "priority": "medium",
         "status": "done",
         "summary": "Customer Portal: redesign tracking timeline component",
-        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d",
+        "story_points": 5
       },
       {
         "completed_at": "2026-04-08T12:00:00+00:00",
@@ -2162,7 +2179,8 @@
         "priority": "medium",
         "status": "done",
         "summary": "Analytics: SLA breach report v2 with carrier breakdown",
-        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba",
+        "story_points": 3
       },
       {
         "completed_at": "2026-04-03T12:00:00+00:00",
@@ -2171,7 +2189,8 @@
         "priority": "high",
         "status": "done",
         "summary": "Invoice Engine: VAT handling for EU shipments",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "story_points": 5
       },
       {
         "completed_at": "2026-03-31T12:00:00+00:00",
@@ -2180,7 +2199,8 @@
         "priority": "medium",
         "status": "done",
         "summary": "Legacy CRM: read-only audit dump for compliance",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b",
+        "story_points": 2
       }
     ]
   },
