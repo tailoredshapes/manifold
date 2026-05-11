@@ -44,10 +44,20 @@ meshql-sqlite = { path = "../../meshql-rs/meshql-sqlite" }
 meshql-server = { path = "../../meshql-rs/meshql-server" }
 meshql-core   = { path = "../../meshql-rs/meshql-core" }
 axum          = "0.7"
+async-trait   = "0.1"
+sqlx          = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }
+serde_json    = { workspace = true }
+serde         = { workspace = true }
+anyhow        = { workspace = true }
 
 [[test]]
 name = "cityhall_cert"
 path = "tests/cityhall_cert.rs"
+harness = false
+
+[[test]]
+name = "mcp_harness"
+path = "tests/mcp_harness.rs"
 harness = false
 
 [features]
