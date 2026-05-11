@@ -25,4 +25,4 @@ Feature: Deployment plan computed from a change request
     Given I have a change request "deploy-orphan" with target deployables ["dep-orphan"]
     When I POST to "/change_request/<ids.deploy-orphan>/plan" with body {"tier": "prod"}
     Then the response status should be 201
-    And the plan blockers should contain "orphan: dep-orphan"
+    And the plan blockers should contain "orphan: orphan"

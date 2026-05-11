@@ -101,9 +101,9 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
     }
 
     // ── 2. For each summary with no team_id, register an orphan blocker.
-    for (id, s) in &summaries {
+    for (_id, s) in &summaries {
         if s.team_id.as_deref().map(str::is_empty).unwrap_or(true) {
-            blockers.push(format!("orphan: {id}"));
+            blockers.push(format!("orphan: {}", s.name));
         }
     }
 
@@ -215,7 +215,13 @@ fn topo_sort(
             .filter(|k| !out.contains(k))
             .cloned()
             .collect();
-        blockers.push(format!("dependency cycle involving: {leftover:?}"));
+        // Report by name so the blocker message is readable in the UI.
+        // Fall back to the id only if a name is somehow missing.
+        let names: Vec<&str> = leftover
+            .iter()
+            .map(|id| summaries.get(id).map(|s| s.name.as_str()).unwrap_or(id.as_str()))
+            .collect();
+        blockers.push(format!("dependency cycle involving: {}", names.join(", ")));
         out.extend(leftover);
     }
 
