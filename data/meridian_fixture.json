@@ -1,6 +1,6 @@
 {
   "_meta": {
-    "narrative_change_request": "d5024151-bade-454a-8bba-6cc0bc31d09c",
+    "narrative_change_request": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
     "narrative_summary": "Auth Service \u2014 MFA enforcement rollout (phase 2)",
     "narrative_trail": [
       "Groundwork: targets Auth Service, Customer Portal, Admin Panel",
