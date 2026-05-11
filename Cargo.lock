@@ -440,6 +440,7 @@ dependencies = [
  "cucumber",
  "meshql-core",
  "meshql-graphlette",
+ "meshql-mcp",
  "meshql-merkql",
  "meshql-mongo",
  "meshql-restlette",

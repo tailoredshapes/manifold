@@ -6,4 +6,5 @@
 pub mod bylaw;
 pub mod gantt;
 pub mod groundwork_client;
+pub mod mcp;
 pub mod plan;
