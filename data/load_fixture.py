@@ -321,13 +321,22 @@ class Loader:
                 self.skipped["work_orders"] = self.skipped.get("work_orders", 0) + 1
                 continue
             payload = {"team_id": team_id, "summary": wo["summary"]}
-            for k in ("status", "priority"):
+            for k in ("status", "priority", "completed_at"):
                 if wo.get(k) is not None:
                     payload[k] = wo[k]
             d_name = self.name_in(fixture_full["groundwork"], "deployables", wo.get("deployable_id"))
             d_id = self.lookup("groundwork", "deployable", d_name) if d_name else None
             if d_id:
                 payload["deployable_id"] = d_id
+            cr_summary = self.name_in(
+                fixture_full["cityhall"],
+                "change_requests",
+                wo.get("change_request_id"),
+                name_field="summary",
+            )
+            cr_id = self.lookup("cityhall", "change_request", cr_summary) if cr_summary else None
+            if cr_id:
+                payload["change_request_id"] = cr_id
             self.insert("union", "work_order", {"summary": wo["summary"]}, payload)
 
     def load_cityhall(self, fixture: dict, fixture_full: dict) -> None:
@@ -430,7 +439,8 @@ class Loader:
             payload = {k: v for k, v in ds.items() if k != "id" and v is not None}
             self.insert("yard", "data_source", {"name": ds["name"]}, payload)
 
-        # Test environments
+        # Test environments and data syncs both reference envs by id, so load
+        # envs first, then come back for data_syncs.
         self.hydrate_existing("yard", "test_environment", key="name")
         for env in fixture.get("test_environments", []):
             payload = {
@@ -452,6 +462,51 @@ class Loader:
             if m_id:
                 payload["mock_source_id"] = m_id
             self.insert("yard", "test_environment", {"name": env["name"]}, payload)
+
+        # Data syncs — natural key = (target_env_name, kind, source_ref)
+        # Since DataSync has no `name`, we synthesise a stable key from refs.
+        self.hydrate_data_syncs()
+        for dsy in fixture.get("data_syncs", []):
+            payload = {k: v for k, v in dsy.items() if k not in (
+                "id", "target_env_id", "source_env_id", "source_data_id"
+            ) and v is not None}
+            tgt_env_name = self.name_in(
+                fixture, "test_environments", dsy.get("target_env_id")
+            )
+            tgt_env_id = (
+                self.lookup("yard", "test_environment", tgt_env_name)
+                if tgt_env_name else None
+            )
+            if not tgt_env_id:
+                self.skipped["data_syncs"] = self.skipped.get("data_syncs", 0) + 1
+                continue
+            payload["target_env_id"] = tgt_env_id
+
+            src_env_name = self.name_in(
+                fixture, "test_environments", dsy.get("source_env_id")
+            )
+            src_env_id = (
+                self.lookup("yard", "test_environment", src_env_name)
+                if src_env_name else None
+            )
+            if src_env_id:
+                payload["source_env_id"] = src_env_id
+
+            src_ds_name = self.name_in(
+                fixture, "data_sources", dsy.get("source_data_id")
+            )
+            src_ds_id = (
+                self.lookup("yard", "data_source", src_ds_name)
+                if src_ds_name else None
+            )
+            if src_ds_id:
+                payload["source_data_id"] = src_ds_id
+
+            sync_key = (
+                f"{tgt_env_name}|{payload.get('kind','')}"
+                f"|{src_env_name or src_ds_name or ''}"
+            )
+            self.insert("yard", "data_sync", {"key": sync_key}, payload)
 
         # Test suites
         self.hydrate_existing("yard", "test_suite", key="name")
@@ -495,6 +550,86 @@ class Loader:
                 payload["team_id"] = team_id
             run_key = f"{env_name}|{payload.get('started_at','')}"
             self.insert("yard", "test_run", {"key": run_key}, payload)
+
+    def hydrate_data_syncs(self) -> None:
+        existing = get(self.url("yard", "data_sync")) or []
+        envs_by_id = {v: k for k, v in self.ids[("yard", "test_environment")].items()}
+        ds_by_id = {v: k for k, v in self.ids.get(("yard", "data_source"), {}).items()}
+        index: dict[str, str] = {}
+        for env in existing:
+            p = _payload(env)
+            tgt_name = envs_by_id.get(p.get("target_env_id"))
+            src_name = envs_by_id.get(p.get("source_env_id")) or ds_by_id.get(
+                p.get("source_data_id")
+            )
+            if tgt_name:
+                key = f"{tgt_name}|{p.get('kind','')}|{src_name or ''}"
+                index[key] = env["id"]
+        self.ids[("yard", "data_sync")] = index
+
+    def compute_plans_and_gantts(self, cityhall_base: str) -> None:
+        """For each ChangeRequest, trigger plan + gantt computation via the
+        existing cityhall endpoints. Idempotent in the sense that we skip CRs
+        which already have a plan."""
+        existing_crs = get(f"{cityhall_base}/change_request/api") or []
+        existing_plans = get(f"{cityhall_base}/deployment_plan/api") or []
+        existing_gantts = get(f"{cityhall_base}/gantt_output/api") or []
+
+        plans_by_cr: dict[str, str] = {}
+        for env in existing_plans:
+            p = _payload(env)
+            cr_id = p.get("change_request_id")
+            if cr_id:
+                plans_by_cr[cr_id] = env["id"]
+
+        gantts_by_plan: dict[str, str] = {}
+        for env in existing_gantts:
+            p = _payload(env)
+            plan_id = p.get("deployment_plan_id")
+            if plan_id:
+                gantts_by_plan[plan_id] = env["id"]
+
+        for cr_env in existing_crs:
+            cr_id = cr_env["id"]
+            if cr_id in plans_by_cr:
+                self.skipped["deployment_plans"] = (
+                    self.skipped.get("deployment_plans", 0) + 1
+                )
+                plan_id = plans_by_cr[cr_id]
+            else:
+                # Trigger plan compute. The tier comes from the CR payload.
+                status, body = http_json(
+                    "POST", f"{cityhall_base}/change_request/{cr_id}/plan", {}
+                )
+                if status not in (200, 201):
+                    print(
+                        f"  ! plan compute failed for {cr_id}: {status} {str(body)[:200]}"
+                    )
+                    continue
+                plan_id = body["id"] if isinstance(body, dict) else None
+                if not plan_id:
+                    print(f"  ! plan compute returned no id for {cr_id}")
+                    continue
+                self.created["deployment_plans"] = (
+                    self.created.get("deployment_plans", 0) + 1
+                )
+
+            if plan_id in gantts_by_plan:
+                self.skipped["gantt_outputs"] = (
+                    self.skipped.get("gantt_outputs", 0) + 1
+                )
+                continue
+            status, body = http_json(
+                "POST", f"{cityhall_base}/deployment_plan/{plan_id}/gantt", None
+            )
+            if status not in (200, 201):
+                print(
+                    f"  ! gantt render failed for plan {plan_id}: {status} {str(body)[:200]}"
+                )
+                continue
+            self.created["gantt_outputs"] = (
+                self.created.get("gantt_outputs", 0) + 1
+            )
 
     def hydrate_test_runs(self) -> None:
         existing = get(self.url("yard", "test_run")) or []
@@ -550,22 +685,26 @@ def main(argv: list[str]) -> int:
 
     L = Loader(urls)
 
-    # Order: union teams + people first; groundwork; union work_orders;
-    # cityhall (needs union + groundwork); yard (needs groundwork + cityhall + union).
-    print("\n[1/5] Union — teams, people, team_members")
+    # Order: union teams + people first; groundwork; cityhall (needs union +
+    # groundwork); union work_orders (need deployables and change_requests);
+    # yard (needs groundwork + cityhall + union).
+    print("\n[1/6] Union — teams, people, team_members")
     L.load_union(fixture["union"])
 
-    print("\n[2/5] Groundwork — deployables → services → exposes/deps → contracts → slas")
+    print("\n[2/6] Groundwork — deployables → services → exposes/deps → contracts → slas")
     L.load_groundwork(fixture["groundwork"], fixture)
 
-    print("\n[3/5] Union — work orders (need deployables)")
-    L.load_union_workorders(fixture["union"], fixture)
-
-    print("\n[4/5] Cityhall — org_nodes → bylaws → change_requests")
+    print("\n[3/6] Cityhall — org_nodes → bylaws → change_requests")
     L.load_cityhall(fixture["cityhall"], fixture)
 
-    print("\n[5/5] Yard — infra/mock/data sources → envs → suites → runs")
+    print("\n[4/6] Union — work orders (need deployables + change_requests)")
+    L.load_union_workorders(fixture["union"], fixture)
+
+    print("\n[5/6] Yard — infra/mock/data sources/data syncs → envs → suites → runs")
     L.load_yard(fixture["yard"], fixture)
+
+    print("\n[6/6] Cityhall — compute deployment plans + Gantt for each ChangeRequest")
+    L.compute_plans_and_gantts(urls["cityhall"])
 
     # Summary
     print("\n── Load summary ──────────────────────────────────────────────")

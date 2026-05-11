@@ -1,581 +1,327 @@
 {
+  "_meta": {
+    "narrative_change_request": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+    "narrative_summary": "Auth Service \u2014 MFA enforcement rollout (phase 2)",
+    "narrative_trail": [
+      "Groundwork: targets Auth Service, Customer Portal, Admin Panel",
+      "Union: Team Anvil + Apex Digital own related work orders",
+      "Cityhall: triggers ApprovalGate (Platform Engineering) and UAT sign-off (Customer-Facing Apps)",
+      "Yard: recent test runs against auth-service and customer-portal envs reference this CR"
+    ],
+    "regenerated_via": "data/build_meridian_fixture.py (dev tool, not committed)"
+  },
+  "cityhall": {
+    "bylaws": [
+      {
+        "approvers": "cto,eng-director",
+        "conditions": "tier == prod",
+        "description": "All production deployments require CTO or Engineering Director sign-off",
+        "gate_type": "ApprovalGate",
+        "id": "0b2a2018-36c2-44b6-b19b-c41012629472",
+        "org_node_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
+        "priority": "2"
+      },
+      {
+        "description": "Platform changes must deploy Mon-Fri 09:00-17:00 ET unless on-call approved",
+        "gate_type": "WindowGate",
+        "id": "6cbf58e2-eeab-4db1-8fde-9ead2fdf2dd4",
+        "org_node_id": "3f1f9b5c-3c76-5718-91fd-88c9a5c73f0a",
+        "priority": "3",
+        "window": "Mon-Fri 09:00-17:00 ET"
+      },
+      {
+        "approvers": "product-owner",
+        "conditions": "tier == uat",
+        "description": "Customer-facing systems need UAT sign-off from product owner before prod",
+        "gate_type": "ApprovalGate",
+        "id": "a02ee248-623c-4fb4-b19e-3378ca05c7db",
+        "org_node_id": "9f7d303a-7a7a-588c-a531-2962b48c5783",
+        "priority": "2"
+      },
+      {
+        "description": "Q4 peak-season deployment freeze \u2014 no prod changes Nov 15 through Jan 5",
+        "gate_type": "FreezePeriod",
+        "id": "aefdabe0-a83f-425a-b6ee-1aabf8182b33",
+        "org_node_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
+        "priority": "1",
+        "window": "Nov-15 to Jan-05"
+      },
+      {
+        "conditions": "deployable in [route-optimizer, order-management, driver-api]",
+        "description": "Core systems (route-optimizer, OMS, driver-api) require 30-min quiesce before UAT promotion",
+        "gate_type": "QuiesceGate",
+        "id": "c9728bd3-5ec8-40a9-a982-8a4b10ceb776",
+        "org_node_id": "477215cb-3eed-5fd4-ada2-f97fc34bc80f",
+        "priority": "1",
+        "quiesce_for": "30m"
+      },
+      {
+        "approvers": "security-team",
+        "conditions": "deployable in [auth-service, config-service]",
+        "description": "Any change touching auth-service or config-service requires security team approval",
+        "gate_type": "ApprovalGate",
+        "id": "de85631d-b2cd-4c48-b858-be176441b6c2",
+        "org_node_id": "3f1f9b5c-3c76-5718-91fd-88c9a5c73f0a",
+        "priority": "1"
+      }
+    ],
+    "change_requests": [
+      {
+        "description": "First phase of CRM sunset: export all customer and contact records from legacy-crm to Hubspot. DevStar leading. No downtime required \u2014 read-only migration script.",
+        "id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
+        "requested_by": "d0b7960c-9755-4842-84ae-26f725a697d1",
+        "status": "approved",
+        "summary": "Legacy CRM \u2192 Hubspot migration (phase 1: data export)",
+        "target_deployables": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "target_versions": "legacy-crm:0.9.1-export-patch",
+        "tier": "prod"
+      },
+      {
+        "description": "Phase 2 of MFA rollout: enforce TOTP for all internal users. Requires auth-service config change + customer-portal login flow update. Coordination with admin-panel for user onboarding flow.",
+        "id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "requested_by": "5d7acb9b-5fd9-4424-917a-2711caebd9bc",
+        "status": "draft",
+        "summary": "Auth Service \u2014 MFA enforcement rollout (phase 2)",
+        "target_deployables": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3,ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9,5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "target_versions": "auth-service:2.1.0,customer-portal:4.2.0,admin-panel:1.8.0",
+        "tier": "dev"
+      },
+      {
+        "description": "Upgrade route-optimizer to v2.4 which adds real-time traffic integration via Google Maps Traffic API. Requires geocoding-service dependency bump. Blast radius: driver-api, customer-portal.",
+        "id": "55586510-e6a8-4be1-911c-b61311fb9e05",
+        "requested_by": "a3e3fae9-2885-41e3-a953-7a94fa2bfa94",
+        "status": "approved",
+        "summary": "Route Optimizer v2.4 \u2014 dynamic re-routing on traffic events",
+        "target_deployables": "9bb28e8c-5a35-48df-8276-2ac0c86fe188,6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
+        "target_versions": "route-optimizer:2.4.0,geocoding-service:1.6.2",
+        "tier": "uat"
+      },
+      {
+        "description": "Stripe v2 API deprecated Q3. Migrating order-management to Stripe v3 SDK. Breaking change in webhook payload shape \u2014 notification-service and invoice-engine need coordinated update.",
+        "id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "requested_by": "0b3ded84-f023-4244-848a-03f2b7f6ff89",
+        "status": "submitted",
+        "summary": "OMS \u2014 migrate payment gateway from Stripe v2 to v3",
+        "target_deployables": "211a2a9d-3d61-41f1-be49-9bbe775e8b86,760922f7-529d-4cb4-9876-422b83732463,cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "target_versions": "order-management:1.9.0,notification-service:2.3.1,invoice-engine:3.1.0",
+        "tier": "dev"
+      },
+      {
+        "description": "Extend ETL to ingest carrier tracking events from FedEx Firehose. New data source feeds analytics-platform and reporting-dashboard. NorthBridge leading implementation.",
+        "id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
+        "requested_by": "ab31829f-4aa5-4cd9-b8ef-f208cdbd1b53",
+        "status": "draft",
+        "summary": "ETL Pipeline \u2014 add carrier telemetry source",
+        "target_deployables": "93418a84-de18-4beb-b1de-95a155497944,7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1,938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "target_versions": "etl-pipeline:2.2.0,analytics-platform:1.3.0,carrier-integration:2.2.0",
+        "tier": "dev"
+      }
+    ],
+    "deployment_plans": [],
+    "gantt_outputs": [],
+    "org_nodes": [
+      {
+        "id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
+        "kind": "enterprise",
+        "name": "Meridian Freight Solutions"
+      },
+      {
+        "id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b",
+        "kind": "division",
+        "name": "Engineering",
+        "parent_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4"
+      },
+      {
+        "id": "34f20513-0e2a-5d64-a8da-26ea534a6da6",
+        "kind": "division",
+        "name": "Customer Operations",
+        "parent_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4"
+      },
+      {
+        "id": "35a9a3f5-2969-5a85-bee3-94ae6054fb34",
+        "kind": "division",
+        "name": "Driver Operations",
+        "parent_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4"
+      },
+      {
+        "id": "477215cb-3eed-5fd4-ada2-f97fc34bc80f",
+        "kind": "domain",
+        "name": "Product Engineering",
+        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
+      },
+      {
+        "id": "3f1f9b5c-3c76-5718-91fd-88c9a5c73f0a",
+        "kind": "domain",
+        "name": "Platform Engineering",
+        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
+      },
+      {
+        "id": "ab737f30-451b-596a-a996-a8a6a327afc5",
+        "kind": "domain",
+        "name": "Data Platform",
+        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
+      },
+      {
+        "id": "13c5f97d-49aa-5192-8d5f-c9bc7d2230e9",
+        "kind": "domain",
+        "name": "Agency Partners",
+        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
+      },
+      {
+        "id": "9f7d303a-7a7a-588c-a531-2962b48c5783",
+        "kind": "domain",
+        "name": "Customer-Facing Apps",
+        "parent_id": "34f20513-0e2a-5d64-a8da-26ea534a6da6"
+      },
+      {
+        "id": "9593c843-f5e5-5952-9bba-c53449634843",
+        "kind": "domain",
+        "name": "Customer Support Tools",
+        "parent_id": "34f20513-0e2a-5d64-a8da-26ea534a6da6"
+      },
+      {
+        "id": "de0e7ad7-acef-5d19-a584-f045bd79e35b",
+        "kind": "domain",
+        "name": "Driver Apps",
+        "parent_id": "35a9a3f5-2969-5a85-bee3-94ae6054fb34"
+      },
+      {
+        "id": "33074beb-195e-589e-9104-bc0762a32652",
+        "kind": "domain",
+        "name": "Dispatch",
+        "parent_id": "35a9a3f5-2969-5a85-bee3-94ae6054fb34"
+      },
+      {
+        "id": "947ea542-5336-5abb-be6c-af32199a06eb",
+        "kind": "product",
+        "name": "Customer Experience",
+        "parent_id": "9f7d303a-7a7a-588c-a531-2962b48c5783",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "id": "ba09c5c0-364b-5666-a5b2-39218045fb01",
+        "kind": "product",
+        "name": "Platform & Data",
+        "parent_id": "3f1f9b5c-3c76-5718-91fd-88c9a5c73f0a",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "id": "c9e7f753-68b8-51ba-8df8-ab0e6337b639",
+        "kind": "product",
+        "name": "Analytics & ETL",
+        "parent_id": "ab737f30-451b-596a-a996-a8a6a327afc5",
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+      },
+      {
+        "id": "f756044c-296f-5571-bfd5-a48cb9a49a98",
+        "kind": "product",
+        "name": "Apex Digital (Partner)",
+        "parent_id": "13c5f97d-49aa-5192-8d5f-c9bc7d2230e9",
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+      },
+      {
+        "id": "75112fe8-b3f3-5080-af86-ff36bfb64d7c",
+        "kind": "product",
+        "name": "DevStar (Partner)",
+        "parent_id": "13c5f97d-49aa-5192-8d5f-c9bc7d2230e9",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+      }
+    ]
+  },
   "company": "Meridian Freight Solutions",
   "description": "Mid-size logistics / last-mile freight delivery company (~250 employees). Fictional test dataset for Manifold.",
   "groundwork": {
-    "deployables": [
+    "contracts": [
       {
-        "description": "Append-only compliance audit trail. On-demand releases. No test env \u2014 append-only, production-validated.",
-        "id": "04dc842c-fe15-452b-accc-2fc27707b439",
-        "name": "Audit Log",
-        "repo_url": "https://github.com/meridian-internal/audit-log",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "format": "openapi",
+        "id": "0d690ef8-848d-4c3f-8433-b5c49709c540",
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
+        "spec_url": "https://specs.meridianfreight.internal/carrier/v2.1.yaml",
+        "version": "2.1"
       },
       {
-        "description": "Kafka-backed async messaging backbone. Monthly releases. Dev sandbox env only.",
-        "id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
-        "name": "Event Bus",
-        "repo_url": "https://github.com/meridian-internal/event-bus",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "format": "openapi",
+        "id": "110f712b-9e81-4f00-8e74-fc0d850b4bf9",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "spec_url": "https://specs.meridianfreight.internal/auth-service/v2.0.yaml",
+        "version": "2.0"
       },
       {
-        "description": "Feature flags and runtime configuration. On-demand releases. Dev isolated env.",
-        "id": "116ef77b-1304-4666-b680-50a744319368",
-        "name": "Config Service",
-        "repo_url": "https://github.com/meridian-internal/config-service",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "format": "openapi",
+        "id": "621beb33-53ca-42e1-b7bd-f609cef677e3",
+        "service_id": "7311740a-cdbc-41b9-b5e9-431d54956eb2",
+        "spec_url": "https://specs.meridianfreight.internal/customer-api-gw/v1.2.yaml",
+        "version": "1.2"
       },
       {
-        "description": "Old customer relationship management system (being replaced by new CRM). On-demand patches only. No test env \u2014 too risky to replicate.",
-        "id": "15fd43a7-d38c-4308-a0b4-46f701669588",
-        "name": "Legacy CRM",
-        "repo_url": "https://github.com/meridian-internal/legacy-crm",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+        "format": "openapi",
+        "id": "6cfaa091-39e0-4f77-9def-b1f014d015e0",
+        "service_id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c",
+        "spec_url": "https://specs.meridianfreight.internal/route-optimizer/v2.3.yaml",
+        "version": "2.3"
       },
       {
-        "description": "Rate-limited API gateway for third-party integrators. Bi-weekly releases. Dev + staging envs.",
-        "id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
-        "name": "Customer API Gateway",
-        "repo_url": "https://github.com/meridian-internal/customer-api-gateway",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "format": "openapi",
+        "id": "bedc965f-c03a-40da-8447-d7d4db25662a",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
+        "spec_url": "https://specs.meridianfreight.internal/order-management/v1.8.yaml",
+        "version": "1.8"
       },
       {
-        "description": "Snowflake loader \u2014 transforms and loads from ETL. Quarterly releases. No dedicated test env.",
-        "id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
-        "name": "Data Warehouse Loader",
-        "repo_url": "https://github.com/meridian-internal/data-warehouse",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "format": "openapi",
+        "id": "d323d7f2-c81b-42f6-b5f2-67152a83a286",
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
+        "spec_url": "https://specs.meridianfreight.internal/driver-api/v3.1.yaml",
+        "version": "3.1"
       },
       {
-        "description": "Central OMS handling order intake, status, and fulfilment workflow. Bi-weekly releases. Dev + UAT envs.",
-        "id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
-        "name": "Order Management System",
-        "repo_url": "https://github.com/meridian-internal/order-management",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "format": "graphql",
+        "id": "eddacf26-724e-4aa0-ab0f-b6c28c2246f8",
+        "service_id": "8293c07d-4609-40a6-a023-1823bfd6c893",
+        "spec_url": "https://specs.meridianfreight.internal/analytics/v1.0.graphql",
+        "version": "1.0"
       },
       {
-        "description": "External customs API for cross-border shipments. Quarterly releases. External vendor sandbox only.",
-        "id": "21d5312e-de38-47a3-98ba-4346caab9920",
-        "name": "Customs Clearance Integration",
-        "repo_url": "https://github.com/meridian-internal/customs-clearance",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "format": "openapi",
+        "id": "e99f772d-a5e0-45d0-a319-37fb74e83963",
+        "service_id": "cc0ec6a2-f2a4-4fb9-8124-d0b3cd4e37fc",
+        "spec_url": "https://specs.meridianfreight.internal/customer-portal/v1.0.yaml",
+        "version": "1.0"
       },
       {
-        "description": "SMS and WhatsApp delivery via Twilio. Continuous CD. Mock-only env (Twilio test mode).",
-        "id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
-        "name": "SMS Gateway",
-        "repo_url": "https://github.com/meridian-internal/sms-gateway",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "format": "openapi",
+        "id": "cea2c190-af74-4509-a59f-c461faf8cbd3",
+        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7",
+        "spec_url": "https://specs.meridianfreight.internal/email/v1.4.yaml",
+        "version": "1.4"
       },
       {
-        "description": "Internal dispatcher UI \u2014 assign jobs, monitor drivers, handle exceptions. Monthly releases. Dev stub only.",
-        "id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
-        "name": "Dispatch Console",
-        "repo_url": "https://github.com/meridian-internal/dispatch-console",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "format": "openapi",
+        "id": "dc2cd4c0-77e0-4488-9006-53e6743d9de9",
+        "service_id": "d664876c-2a0a-4f21-a10a-b076931cc64c",
+        "spec_url": "https://specs.meridianfreight.internal/notify/v2.0.yaml",
+        "version": "2.0"
       },
       {
-        "description": "Android driver application. Bi-weekly Play Store releases. Test via AWS Device Farm only.",
-        "id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
-        "name": "Driver App Android",
-        "repo_url": "https://github.com/meridian-internal/driver-app-android",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+        "format": "openapi",
+        "id": "d5fc35dc-9fae-41e6-9a17-0057fa06f935",
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985",
+        "spec_url": "https://specs.meridianfreight.internal/geocoding/v1.1.yaml",
+        "version": "1.1"
       },
       {
-        "description": "Fleet tracker \u2014 vehicle assignments, maintenance schedules, fuel logs. Monthly releases. Shared UAT.",
-        "id": "48bfbc55-a08e-404b-8bb7-556b2fd68882",
-        "name": "Fleet Management",
-        "repo_url": "https://github.com/meridian-internal/fleet-management",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+        "format": "openapi",
+        "id": "7bcd8dcf-6fdc-419e-9a72-b74b1262f29b",
+        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414",
+        "spec_url": "https://specs.meridianfreight.internal/fleet/v1.6.yaml",
+        "version": "1.6"
       },
       {
-        "description": "Internal admin for ops team \u2014 user management, config, manual overrides. Quarterly releases. No test env; feature-flagged in prod.",
-        "id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
-        "name": "Admin Panel",
-        "repo_url": "https://github.com/meridian-internal/admin-panel",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      },
-      {
-        "description": "S3-backed object storage API \u2014 POD photos, documents. On-demand releases. No dedicated test env; mock via stub.",
-        "id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
-        "name": "File Storage",
-        "repo_url": "https://github.com/meridian-internal/file-storage",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "description": "Google Maps wrapper \u2014 address validation, lat/lng lookup. On-demand releases. No test env; uses Google Maps test API key.",
-        "id": "6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
-        "name": "Geocoding Service",
-        "repo_url": "https://github.com/meridian-internal/geocoding-service",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      },
-      {
-        "description": "BI dashboard \u2014 KPIs, SLA breach reports, driver performance. Quarterly releases. No test env; uses prod snapshots.",
-        "id": "7398af23-f605-4e2d-a092-adfadb636c1a",
-        "name": "Reporting Dashboard",
-        "repo_url": "https://github.com/meridian-internal/reporting-dashboard",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "description": "Fan-out push notifications, email, and SMS alerts. Bi-weekly releases. Dev stub env only.",
-        "id": "760922f7-529d-4cb4-9876-422b83732463",
-        "name": "Notification Service",
-        "repo_url": "https://github.com/meridian-internal/notification-service",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      },
-      {
-        "description": "ClickHouse-backed analytics for ops and executive dashboards. Quarterly releases. No test env \u2014 cost prohibitive.",
-        "id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
-        "name": "Analytics Platform",
-        "repo_url": "https://github.com/meridian-internal/analytics-platform",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "description": "Nightly ETL from operational DBs to data warehouse. Monthly releases. Dev isolated env only.",
-        "id": "93418a84-de18-4beb-b1de-95a155497944",
-        "name": "ETL Pipeline",
-        "repo_url": "https://github.com/meridian-internal/etl-pipeline",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "description": "Third-party carrier APIs \u2014 FedEx, UPS, USPS rate shopping and tracking. Monthly releases. External sandbox envs.",
-        "id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
-        "name": "Carrier Integration",
-        "repo_url": "https://github.com/meridian-internal/carrier-integration",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      },
-      {
-        "description": "iOS driver application. Bi-weekly App Store releases. Test via AWS Device Farm only.",
-        "id": "975e9d50-641d-4010-b42f-326327fd6bc3",
-        "name": "Driver App iOS",
-        "repo_url": "https://github.com/meridian-internal/driver-app-ios",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      },
-      {
-        "description": "Core routing engine \u2014 optimises last-mile delivery paths in real time. Weekly releases. Full test env stack.",
-        "id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
-        "name": "Route Optimizer",
-        "repo_url": "https://github.com/meridian-internal/route-optimizer",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      },
-      {
-        "description": "AuthN/AuthZ \u2014 JWT issuance, RBAC, MFA. Bi-weekly releases. Full test env stack; changes require security sign-off.",
-        "id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
-        "name": "Auth Service",
-        "repo_url": "https://github.com/meridian-internal/auth-service",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "description": "Public shipment tracking page (no auth). Weekly releases. No dedicated test env \u2014 tests against staging OMS.",
-        "id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
-        "name": "Tracking Page",
-        "repo_url": "https://github.com/meridian-internal/tracking-page",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      },
-      {
-        "description": "Mobile backend for driver apps \u2014 job assignment, proof of delivery, GPS telemetry. Weekly releases.",
-        "id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
-        "name": "Driver Service",
-        "repo_url": "https://github.com/meridian-internal/driver-api",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      },
-      {
-        "description": "Billing and invoice generation from completed orders. Monthly releases. UAT sandbox only.",
-        "id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
-        "name": "Invoice Engine",
-        "repo_url": "https://github.com/meridian-internal/invoice-engine",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "description": "Transactional email via SendGrid. Continuous CD. Mock-only env (Mailtrap).",
-        "id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
-        "name": "Email Service",
-        "repo_url": "https://github.com/meridian-internal/email-service",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "description": "WMS \u2014 inbound receiving, pick/pack, outbound manifests. Quarterly releases. Shared UAT with fleet.",
-        "id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
-        "name": "Warehouse Management",
-        "repo_url": "https://github.com/meridian-internal/warehouse-mgmt",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "description": "Deprecated driver app \u2014 sunset in progress, migrating users to v2. No new releases. No test env.",
-        "id": "e255adea-15d0-420e-9247-b435a2e78a14",
-        "name": "Old Driver App (v1)",
-        "repo_url": "https://github.com/meridian-internal/driver-app-v1",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
-      },
-      {
-        "description": "Web portal for shippers \u2014 booking, tracking, invoices. Weekly releases. Dev + staging envs.",
-        "id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
-        "name": "Customer Portal",
-        "repo_url": "https://github.com/meridian-internal/customer-portal",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      }
-    ],
-    "services": [
-      {
-        "description": "JWT issuance, token introspection, RBAC enforcement",
-        "endpoint": "https://groundwork.meridianfreight.internal/auth-service",
-        "id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
-        "name": "Auth Service API",
-        "type": "rest"
-      },
-      {
-        "description": "Order CRUD, status transitions, fulfilment workflow",
-        "endpoint": "https://groundwork.meridianfreight.internal/order-management",
-        "id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
-        "name": "OMS REST API",
-        "type": "rest"
-      },
-      {
-        "description": "Send SMS/WhatsApp via Twilio",
-        "endpoint": "https://groundwork.meridianfreight.internal/sms-gateway",
-        "id": "25c80ba2-88dc-4e06-840d-de1ff782b708",
-        "name": "SMS Gateway API",
-        "type": "rest"
-      },
-      {
-        "description": "Feature flag evaluation and config fetch",
-        "endpoint": "https://groundwork.meridianfreight.internal/config-service",
-        "id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
-        "name": "Config Service API",
-        "type": "rest"
-      },
-      {
-        "description": "Topic management and health endpoint",
-        "endpoint": "https://groundwork.meridianfreight.internal/event-bus",
-        "id": "4bf6afba-a4f4-4784-b12b-3ead01c6668a",
-        "name": "Event Bus API",
-        "type": "rest"
-      },
-      {
-        "description": "Internal dispatcher job management",
-        "endpoint": "https://groundwork.meridianfreight.internal/dispatch-console",
-        "id": "520ce2d5-8f22-4266-9353-d64448d71a51",
-        "name": "Dispatch Console API",
-        "type": "rest"
-      },
-      {
-        "description": "Object upload/download/presign",
-        "endpoint": "https://groundwork.meridianfreight.internal/file-storage",
-        "id": "585d78d8-92ec-40d8-865b-16402a850b04",
-        "name": "File Storage API",
-        "type": "rest"
-      },
-      {
-        "description": "Trigger nightly runs and check job status",
-        "endpoint": "https://groundwork.meridianfreight.internal/etl-pipeline",
-        "id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf",
-        "name": "ETL Pipeline API",
-        "type": "rest"
-      },
-      {
-        "description": "Rate shopping and tracking across FedEx, UPS, USPS",
-        "endpoint": "https://groundwork.meridianfreight.internal/carrier-integration",
-        "id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
-        "name": "Carrier Integration API",
-        "type": "rest"
-      },
-      {
-        "description": "Vehicle status, maintenance scheduling",
-        "endpoint": "https://groundwork.meridianfreight.internal/fleet-management",
-        "id": "64700b35-7ad3-496c-b759-1988f4cad414",
-        "name": "Fleet Management API",
-        "type": "rest"
-      },
-      {
-        "description": "Order lifecycle events on the event bus",
-        "id": "6c08f467-ea71-4081-aea1-0af7bdb9d670",
-        "name": "OMS Event Stream",
-        "type": "event"
-      },
-      {
-        "description": "Optimisation endpoint \u2014 POST a delivery batch, get back ordered stops",
-        "endpoint": "https://groundwork.meridianfreight.internal/route-optimizer",
-        "id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c",
-        "name": "Route Optimizer API",
-        "type": "rest"
-      },
-      {
-        "description": "Rate-limited gateway for third-party integrators",
-        "endpoint": "https://api.meridianfreight.com",
-        "id": "7311740a-cdbc-41b9-b5e9-431d54956eb2",
-        "name": "Customer Gateway API",
-        "type": "rest"
-      },
-      {
-        "description": "Send transactional email via SendGrid",
-        "endpoint": "https://groundwork.meridianfreight.internal/email-service",
-        "id": "806222a9-b095-4307-9366-e28a6aadabe7",
-        "name": "Email Service API",
-        "type": "rest"
-      },
-      {
-        "description": "ClickHouse-backed analytics query API",
-        "endpoint": "https://groundwork.meridianfreight.internal/analytics-platform",
-        "id": "8293c07d-4609-40a6-a023-1823bfd6c893",
-        "name": "Analytics Platform API",
-        "type": "graphql"
-      },
-      {
-        "description": "Inbound/outbound manifest and inventory endpoints",
-        "endpoint": "https://groundwork.meridianfreight.internal/warehouse-mgmt",
-        "id": "85e4b044-57f8-4f37-81c5-4dcef64ba12e",
-        "name": "Warehouse Management API",
-        "type": "rest"
-      },
-      {
-        "description": "Job assignment, GPS telemetry, POD capture",
-        "endpoint": "https://groundwork.meridianfreight.internal/driver-api",
-        "id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
-        "name": "Driver API",
-        "type": "rest"
-      },
-      {
-        "description": "Address validation and lat/lng lookup",
-        "endpoint": "https://groundwork.meridianfreight.internal/geocoding-service",
-        "id": "b41354d8-f627-4251-b55d-d3e8b4895985",
-        "name": "Geocoding Service API",
-        "type": "rest"
-      },
-      {
-        "description": "Booking, tracking, and account endpoints for the portal SPA",
-        "endpoint": "https://groundwork.meridianfreight.internal/customer-portal",
-        "id": "cc0ec6a2-f2a4-4fb9-8124-d0b3cd4e37fc",
-        "name": "Customer Portal API",
-        "type": "rest"
-      },
-      {
-        "description": "Login, logout, and permission change events",
-        "id": "cea4c841-e3ca-4186-897d-f31c66a797ec",
-        "name": "Auth Event Stream",
-        "type": "event"
-      },
-      {
-        "description": "Fan-out trigger endpoint for push/email/SMS",
-        "endpoint": "https://groundwork.meridianfreight.internal/notification-service",
-        "id": "d664876c-2a0a-4f21-a10a-b076931cc64c",
-        "name": "Notification Service API",
-        "type": "rest"
-      },
-      {
-        "description": "Append-only audit event ingest and query",
-        "endpoint": "https://groundwork.meridianfreight.internal/audit-log",
-        "id": "d7f612a3-6900-4112-8bf9-9189e43a0891",
-        "name": "Audit Log API",
-        "type": "rest"
-      },
-      {
-        "description": "Public shipment tracking \u2014 no auth required",
-        "endpoint": "https://groundwork.meridianfreight.internal/tracking-page",
-        "id": "e9c978d1-2890-4f1e-8a65-27d6d9eb62ae",
-        "name": "Tracking API",
-        "type": "rest"
-      },
-      {
-        "description": "Invoice generation and billing queries",
-        "endpoint": "https://groundwork.meridianfreight.internal/invoice-engine",
-        "id": "edf89fa0-54ec-44fb-9377-7eedbee4f6d2",
-        "name": "Invoice Engine API",
-        "type": "rest"
-      },
-      {
-        "name": "Customs Clearance API",
-        "type": "rest",
-        "description": "Submits export declarations, queries clearance status, and uploads supporting documents to customs brokers.",
-        "endpoint": "https://groundwork.meridianfreight.internal/customs",
-        "id": "b8889699-8051-433c-9963-f381084f06b4"
-      },
-      {
-        "name": "Legacy CRM API",
-        "type": "soap",
-        "description": "Legacy customer record API. Read-only since Q1 \u2014 Hubspot is the new system of record. Maintained for historical reads.",
-        "endpoint": "https://groundwork.meridianfreight.internal/legacy-crm",
-        "id": "c8aab52a-3438-442f-b872-88f556518dcd"
-      }
-    ],
-    "exposes": [
-      {
-        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
-        "id": "050879fd-57e7-4d4b-98a0-4d76505a8703",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7"
-      },
-      {
-        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
-        "id": "177e46a6-6655-495f-b7de-12d054d4a5cc",
-        "protocol": "kafka",
-        "service_id": "cea4c841-e3ca-4186-897d-f31c66a797ec"
-      },
-      {
-        "deployable_id": "04dc842c-fe15-452b-accc-2fc27707b439",
-        "id": "187c9cc4-0e85-43f1-a648-d8e523057df7",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891"
-      },
-      {
-        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
-        "id": "27284162-4839-447f-a660-ca56de4bdff3",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c"
-      },
-      {
-        "deployable_id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
-        "id": "2b6a8b1e-8532-4182-904e-15fc919866af",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "8293c07d-4609-40a6-a023-1823bfd6c893"
-      },
-      {
-        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
-        "id": "3a6026da-6241-4f65-875b-65d21fcdc6d2",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "d664876c-2a0a-4f21-a10a-b076931cc64c"
-      },
-      {
-        "deployable_id": "116ef77b-1304-4666-b680-50a744319368",
-        "id": "42cf193c-7faa-4699-bd02-225e7ce0a214",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
-      },
-      {
-        "deployable_id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
-        "id": "512f817a-1e63-45c4-b46e-b78bedb32c54",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "25c80ba2-88dc-4e06-840d-de1ff782b708"
-      },
-      {
-        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
-        "id": "5a2da4c0-44c8-45a2-978c-88787cf86825",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "85e4b044-57f8-4f37-81c5-4dcef64ba12e"
-      },
-      {
-        "deployable_id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
-        "id": "708deccd-01c1-4f45-a252-de0791b0cd70",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
-      },
-      {
-        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
-        "id": "73c74e78-26d3-4c03-8d92-c255a278022a",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805"
-      },
-      {
-        "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
-        "id": "7be515aa-9092-4609-b2eb-210fab9abd20",
-        "port": "443",
-        "protocol": "https",
-        "service_id": "e9c978d1-2890-4f1e-8a65-27d6d9eb62ae"
-      },
-      {
-        "deployable_id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
-        "id": "7f2a3300-c8d0-473f-94b8-01e301635000",
-        "port": "443",
-        "protocol": "https",
-        "service_id": "7311740a-cdbc-41b9-b5e9-431d54956eb2"
-      },
-      {
-        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
-        "id": "82aab53c-86d4-4307-bc89-e7b39a844970",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf"
-      },
-      {
-        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
-        "id": "9a69a773-bc22-4fad-9d61-89797b8d13fd",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
-      },
-      {
-        "deployable_id": "6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
-        "id": "ae618dd3-d8fd-4ed7-aaa8-394a2248ced2",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985"
-      },
-      {
-        "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
-        "id": "c5256d92-9914-459e-bd2a-c6908e862683",
-        "port": "9092",
-        "protocol": "kafka",
-        "service_id": "4bf6afba-a4f4-4784-b12b-3ead01c6668a"
-      },
-      {
-        "deployable_id": "48bfbc55-a08e-404b-8bb7-556b2fd68882",
-        "id": "ced7fac1-29fe-45ec-b388-018318a68b54",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414"
-      },
-      {
-        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
-        "id": "cf58a867-857b-4de0-886a-ce93831ab180",
-        "protocol": "kafka",
-        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670"
-      },
-      {
-        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
-        "id": "d90d4260-a0d7-4c41-9179-4ace14f20fd0",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97"
-      },
-      {
-        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
-        "id": "dd9054ea-5b93-42de-98bd-d223fb3ca2bc",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "edf89fa0-54ec-44fb-9377-7eedbee4f6d2"
-      },
-      {
-        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
-        "id": "e161508e-99ec-4eac-87a4-90fed5aa38e5",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "520ce2d5-8f22-4266-9353-d64448d71a51"
-      },
-      {
-        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
-        "id": "ec8a97cd-05f3-4ac7-baeb-2945f1a33ec5",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "cc0ec6a2-f2a4-4fb9-8124-d0b3cd4e37fc"
-      },
-      {
-        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
-        "id": "f2a66343-b93f-48e3-821e-c81455b9258f",
-        "port": "8080",
-        "protocol": "http",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
-      },
-      {
-        "id": "263d0cd9-635c-4120-99f5-e249edb69eb2",
-        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
+        "format": "openapi",
+        "id": "6c37c05b-b3d3-4cc8-b603-2b7ab3d294ff",
         "service_id": "b8889699-8051-433c-9963-f381084f06b4",
-        "port": "8080",
-        "protocol": "https"
-      },
-      {
-        "id": "0dcbd88b-c4a6-4751-87cb-efbab4f6bcf1",
-        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
-        "service_id": "c8aab52a-3438-442f-b872-88f556518dcd",
-        "port": "8443",
-        "protocol": "https"
+        "spec_url": "https://specs.meridianfreight.internal/customs/v0.9.yaml",
+        "version": "0.9"
       }
     ],
     "dependencies": [
@@ -876,489 +622,972 @@
         "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
         "id": "db6bb4d3-d674-440f-98e8-daa9a281cd1f",
-        "deployable_id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
         "id": "6d224c6f-6dcf-4988-85df-b58ab0764eee",
-        "deployable_id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
-        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "975e9d50-641d-4010-b42f-326327fd6bc3",
         "id": "35b11df9-d201-4560-8562-baf0f50e5a44",
-        "deployable_id": "975e9d50-641d-4010-b42f-326327fd6bc3",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "975e9d50-641d-4010-b42f-326327fd6bc3",
         "id": "fb930a12-90ff-4ec9-9afa-528a6c8d5e2b",
-        "deployable_id": "975e9d50-641d-4010-b42f-326327fd6bc3",
-        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
         "id": "ea24a16e-644c-42a1-bf6d-9aee19267a80",
-        "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "basic",
+        "criticality": "high",
+        "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
         "id": "73072825-7f7e-461b-89fb-01fd34feca36",
-        "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
-        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
         "protocol": "https",
-        "auth_method": "basic",
-        "criticality": "high"
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
         "id": "559a812c-17f7-4cf7-bb66-5279e83eec7d",
-        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
-        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
         "id": "ad4b7615-5443-4cc0-9b73-525cd48db962",
-        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
-        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
         "id": "5b27cdc4-88c2-4128-a6bf-493d021c6d62",
-        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
-        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
         "id": "3bc26c71-69cd-47f8-86a3-5158dba94a31",
-        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
-        "service_id": "7311740a-cdbc-41b9-b5e9-431d54956eb2",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "7311740a-cdbc-41b9-b5e9-431d54956eb2"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
         "id": "c23dde2c-ea03-42ba-ba78-be54d7e8adc0",
-        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
-        "service_id": "d664876c-2a0a-4f21-a10a-b076931cc64c",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "d664876c-2a0a-4f21-a10a-b076931cc64c"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "7398af23-f605-4e2d-a092-adfadb636c1a",
         "id": "243c628d-0be0-4c73-ad3a-ce781b0fda5b",
-        "deployable_id": "7398af23-f605-4e2d-a092-adfadb636c1a",
-        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "7398af23-f605-4e2d-a092-adfadb636c1a",
         "id": "5d3572cc-6dab-4777-85d5-125c7f7a47d4",
-        "deployable_id": "7398af23-f605-4e2d-a092-adfadb636c1a",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
         "id": "2cb60793-7559-40d9-82d0-5dbe1a8388d7",
-        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
         "id": "794bd9db-d6e7-4ab1-9536-36b0178e7601",
-        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
-        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
         "id": "8c47a8fc-f476-47d6-91d8-0d83b5a7530e",
-        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
-        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
         "id": "d0753fd6-9885-45d8-8ad4-01df2a24e825",
-        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
-        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805"
       },
       {
+        "auth_method": "mtls",
+        "criticality": "high",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
         "id": "83d7f07e-20ae-46c5-a377-c70850fac06f",
-        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
-        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670",
         "protocol": "tcp",
-        "auth_method": "mtls",
-        "criticality": "high"
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
         "id": "a52a2b21-6053-4297-88b6-5ff39367493c",
-        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
-        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
         "id": "8f25977b-7a04-4e35-bfc7-fd8b04d964f6",
-        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
-        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
         "id": "8b55036b-ffdd-4693-9c98-09a943f9c00e",
-        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
-        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
         "id": "996eb70b-68b1-47bf-85a0-5ee48f27c617",
-        "deployable_id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
-        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf"
       },
       {
-        "id": "32aac4df-10e8-471c-8e14-fdbb53215cce",
-        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
-        "protocol": "https",
         "auth_method": "basic",
-        "criticality": "high"
-      },
-      {
-        "id": "517808ad-f4c0-42ae-825b-34b0bb308a7a",
+        "criticality": "high",
         "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
-        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7",
+        "id": "32aac4df-10e8-471c-8e14-fdbb53215cce",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "id": "517808ad-f4c0-42ae-825b-34b0bb308a7a",
+        "protocol": "https",
+        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7"
+      },
+      {
+        "auth_method": "mtls",
+        "criticality": "high",
+        "deployable_id": "04dc842c-fe15-452b-accc-2fc27707b439",
         "id": "93346efa-2c8b-4869-9776-0a61578ae43c",
-        "deployable_id": "04dc842c-fe15-452b-accc-2fc27707b439",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "mtls",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "04dc842c-fe15-452b-accc-2fc27707b439",
         "id": "2dd68b27-0184-4e6f-af7e-ee2bbd1d03b2",
-        "deployable_id": "04dc842c-fe15-452b-accc-2fc27707b439",
-        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
       },
       {
+        "auth_method": "mtls",
+        "criticality": "high",
+        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
         "id": "6ce2241e-aa78-441e-bf03-b1e88596cf84",
-        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "mtls",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
         "id": "c0a86eb6-8203-45ca-b6c5-6e78a035980d",
-        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
-        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
         "id": "3bacba1d-700a-483a-95f1-dcb8ce2158f6",
-        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
-        "service_id": "b8889699-8051-433c-9963-f381084f06b4",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "b8889699-8051-433c-9963-f381084f06b4"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
         "id": "37a712a0-f620-4c78-be45-cfed499155b3",
-        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
-        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
         "id": "8c4e7647-174a-4b2e-bc64-d816996179aa",
-        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
-        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
       },
       {
-        "id": "cea0e3d2-e72b-4496-b882-3c6bed7df8b7",
+        "auth_method": "jwt",
+        "criticality": "high",
         "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
-        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "id": "cea0e3d2-e72b-4496-b882-3c6bed7df8b7",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
       },
       {
+        "auth_method": "mtls",
+        "criticality": "high",
+        "deployable_id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
         "id": "c3f59d37-55bd-493a-b8a0-c33056032e95",
-        "deployable_id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "mtls",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
         "id": "7ee9b30b-da40-4909-9ceb-77beda04db71",
-        "deployable_id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
-        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
       },
       {
-        "id": "1034b3d5-95ee-4470-a714-2a37d90a26c3",
+        "auth_method": "jwt",
+        "criticality": "medium",
         "deployable_id": "6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
-        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "id": "1034b3d5-95ee-4470-a714-2a37d90a26c3",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
       },
       {
-        "id": "cace9557-a441-44ce-ba8a-5847a50a9371",
+        "auth_method": "jwt",
+        "criticality": "medium",
         "deployable_id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
-        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "id": "cace9557-a441-44ce-ba8a-5847a50a9371",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
       },
       {
-        "id": "3be6e2d7-9e9e-40c2-84c6-f72a99e7c38c",
+        "auth_method": "mtls",
+        "criticality": "medium",
         "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
-        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670",
+        "id": "3be6e2d7-9e9e-40c2-84c6-f72a99e7c38c",
         "protocol": "tcp",
-        "auth_method": "mtls",
-        "criticality": "medium"
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670"
       },
       {
-        "id": "a8beccb0-e6a9-4da0-bd44-9ce9f0b6d734",
+        "auth_method": "jwt",
+        "criticality": "low",
         "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
-        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985",
+        "id": "a8beccb0-e6a9-4da0-bd44-9ce9f0b6d734",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985"
       },
       {
-        "id": "a92c6a85-6a21-426e-9278-fd2a9ed7850f",
+        "auth_method": "mtls",
+        "criticality": "high",
         "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "id": "a92c6a85-6a21-426e-9278-fd2a9ed7850f",
         "protocol": "https",
-        "auth_method": "mtls",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
         "id": "88ae01e6-c347-4584-aa07-64313335468a",
-        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
-        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
         "id": "ee7929f3-ddd3-48d2-ba06-3d95504de175",
-        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
-        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
         "id": "2fc2d932-023b-44ad-9259-f493f83d5eb5",
-        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "low",
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
         "id": "dd60570e-a5e9-4b5f-9287-c3c4e99b815f",
-        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
-        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "low"
+        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "high",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
         "id": "ddedde85-ec99-48be-82e6-deffcd4d9611",
-        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
-        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "high"
+        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
         "id": "bdb97b6e-4a51-4852-8a1f-528cd5196fe4",
-        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
-        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985"
       },
       {
+        "auth_method": "jwt",
+        "criticality": "medium",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
         "id": "87be3f86-008d-4812-a237-f6763c533114",
-        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
-        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
         "protocol": "https",
-        "auth_method": "jwt",
-        "criticality": "medium"
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97"
       },
       {
+        "auth_method": "mtls",
+        "criticality": "medium",
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
         "id": "5838240b-b959-4fd8-82f7-ec4c4c10b302",
-        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
         "protocol": "https",
-        "auth_method": "mtls",
-        "criticality": "medium"
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
       },
       {
-        "id": "fb70e04e-0c08-4c69-9dc6-c73fe1c35161",
-        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
-        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891",
-        "protocol": "https",
         "auth_method": "jwt",
-        "criticality": "low"
+        "criticality": "low",
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "id": "fb70e04e-0c08-4c69-9dc6-c73fe1c35161",
+        "protocol": "https",
+        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891"
       },
       {
-        "id": "fd8e9c23-e767-4900-8e69-eac2a708eaa0",
-        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
-        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670",
-        "protocol": "tcp",
         "auth_method": "mtls",
-        "criticality": "high"
+        "criticality": "high",
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "id": "fd8e9c23-e767-4900-8e69-eac2a708eaa0",
+        "protocol": "tcp",
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670"
       }
     ],
-    "contracts": [
+    "deployables": [
       {
-        "format": "openapi",
-        "id": "0d690ef8-848d-4c3f-8433-b5c49709c540",
-        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
-        "spec_url": "https://specs.meridianfreight.internal/carrier/v2.1.yaml",
-        "version": "2.1"
+        "description": "Append-only compliance audit trail. On-demand releases. No test env \u2014 append-only, production-validated.",
+        "id": "04dc842c-fe15-452b-accc-2fc27707b439",
+        "name": "Audit Log",
+        "repo_url": "https://github.com/meridian-internal/audit-log",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       },
       {
-        "format": "openapi",
-        "id": "110f712b-9e81-4f00-8e74-fc0d850b4bf9",
-        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
-        "spec_url": "https://specs.meridianfreight.internal/auth-service/v2.0.yaml",
-        "version": "2.0"
+        "description": "Kafka-backed async messaging backbone. Monthly releases. Dev sandbox env only.",
+        "id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
+        "name": "Event Bus",
+        "repo_url": "https://github.com/meridian-internal/event-bus",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       },
       {
-        "format": "openapi",
-        "id": "621beb33-53ca-42e1-b7bd-f609cef677e3",
-        "service_id": "7311740a-cdbc-41b9-b5e9-431d54956eb2",
-        "spec_url": "https://specs.meridianfreight.internal/customer-api-gw/v1.2.yaml",
-        "version": "1.2"
+        "description": "Feature flags and runtime configuration. On-demand releases. Dev isolated env.",
+        "id": "116ef77b-1304-4666-b680-50a744319368",
+        "name": "Config Service",
+        "repo_url": "https://github.com/meridian-internal/config-service",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       },
       {
-        "format": "openapi",
-        "id": "6cfaa091-39e0-4f77-9def-b1f014d015e0",
-        "service_id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c",
-        "spec_url": "https://specs.meridianfreight.internal/route-optimizer/v2.3.yaml",
-        "version": "2.3"
+        "description": "Old customer relationship management system (being replaced by new CRM). On-demand patches only. No test env \u2014 too risky to replicate.",
+        "id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "name": "Legacy CRM",
+        "repo_url": "https://github.com/meridian-internal/legacy-crm",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
       },
       {
-        "format": "openapi",
-        "id": "bedc965f-c03a-40da-8447-d7d4db25662a",
-        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
-        "spec_url": "https://specs.meridianfreight.internal/order-management/v1.8.yaml",
-        "version": "1.8"
+        "description": "Rate-limited API gateway for third-party integrators. Bi-weekly releases. Dev + staging envs.",
+        "id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "name": "Customer API Gateway",
+        "repo_url": "https://github.com/meridian-internal/customer-api-gateway",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
       },
       {
-        "format": "openapi",
-        "id": "d323d7f2-c81b-42f6-b5f2-67152a83a286",
-        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
-        "spec_url": "https://specs.meridianfreight.internal/driver-api/v3.1.yaml",
-        "version": "3.1"
+        "description": "Snowflake loader \u2014 transforms and loads from ETL. Quarterly releases. No dedicated test env.",
+        "id": "1d2671ec-16b6-4f0c-896e-1ae6b0295517",
+        "name": "Data Warehouse Loader",
+        "repo_url": "https://github.com/meridian-internal/data-warehouse",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       },
       {
-        "format": "graphql",
-        "id": "eddacf26-724e-4aa0-ab0f-b6c28c2246f8",
-        "service_id": "8293c07d-4609-40a6-a023-1823bfd6c893",
-        "spec_url": "https://specs.meridianfreight.internal/analytics/v1.0.graphql",
-        "version": "1.0"
+        "description": "Central OMS handling order intake, status, and fulfilment workflow. Bi-weekly releases. Dev + UAT envs.",
+        "id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "name": "Order Management System",
+        "repo_url": "https://github.com/meridian-internal/order-management",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
       },
       {
-        "id": "e99f772d-a5e0-45d0-a319-37fb74e83963",
-        "service_id": "cc0ec6a2-f2a4-4fb9-8124-d0b3cd4e37fc",
-        "spec_url": "https://specs.meridianfreight.internal/customer-portal/v1.0.yaml",
-        "version": "1.0",
-        "format": "openapi"
+        "description": "External customs API for cross-border shipments. Quarterly releases. External vendor sandbox only.",
+        "id": "21d5312e-de38-47a3-98ba-4346caab9920",
+        "name": "Customs Clearance Integration",
+        "repo_url": "https://github.com/meridian-internal/customs-clearance",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       },
       {
-        "id": "cea2c190-af74-4509-a59f-c461faf8cbd3",
-        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7",
-        "spec_url": "https://specs.meridianfreight.internal/email/v1.4.yaml",
-        "version": "1.4",
-        "format": "openapi"
+        "description": "SMS and WhatsApp delivery via Twilio. Continuous CD. Mock-only env (Twilio test mode).",
+        "id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
+        "name": "SMS Gateway",
+        "repo_url": "https://github.com/meridian-internal/sms-gateway",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       },
       {
-        "id": "dc2cd4c0-77e0-4488-9006-53e6743d9de9",
-        "service_id": "d664876c-2a0a-4f21-a10a-b076931cc64c",
-        "spec_url": "https://specs.meridianfreight.internal/notify/v2.0.yaml",
-        "version": "2.0",
-        "format": "openapi"
+        "description": "Internal dispatcher UI \u2014 assign jobs, monitor drivers, handle exceptions. Monthly releases. Dev stub only.",
+        "id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "name": "Dispatch Console",
+        "repo_url": "https://github.com/meridian-internal/dispatch-console",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
       },
       {
-        "id": "d5fc35dc-9fae-41e6-9a17-0057fa06f935",
-        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985",
-        "spec_url": "https://specs.meridianfreight.internal/geocoding/v1.1.yaml",
-        "version": "1.1",
-        "format": "openapi"
+        "description": "Android driver application. Bi-weekly Play Store releases. Test via AWS Device Farm only.",
+        "id": "424e8d90-4c62-4a2c-bfcd-18aeaed0406b",
+        "name": "Driver App Android",
+        "repo_url": "https://github.com/meridian-internal/driver-app-android",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
       },
       {
-        "id": "7bcd8dcf-6fdc-419e-9a72-b74b1262f29b",
-        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414",
-        "spec_url": "https://specs.meridianfreight.internal/fleet/v1.6.yaml",
-        "version": "1.6",
-        "format": "openapi"
+        "description": "Fleet tracker \u2014 vehicle assignments, maintenance schedules, fuel logs. Monthly releases. Shared UAT.",
+        "id": "48bfbc55-a08e-404b-8bb7-556b2fd68882",
+        "name": "Fleet Management",
+        "repo_url": "https://github.com/meridian-internal/fleet-management",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       },
       {
-        "id": "6c37c05b-b3d3-4cc8-b603-2b7ab3d294ff",
-        "service_id": "b8889699-8051-433c-9963-f381084f06b4",
-        "spec_url": "https://specs.meridianfreight.internal/customs/v0.9.yaml",
-        "version": "0.9",
-        "format": "openapi"
+        "description": "Internal admin for ops team \u2014 user management, config, manual overrides. Quarterly releases. No test env; feature-flagged in prod.",
+        "id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "name": "Admin Panel",
+        "repo_url": "https://github.com/meridian-internal/admin-panel",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "S3-backed object storage API \u2014 POD photos, documents. On-demand releases. No dedicated test env; mock via stub.",
+        "id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
+        "name": "File Storage",
+        "repo_url": "https://github.com/meridian-internal/file-storage",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Google Maps wrapper \u2014 address validation, lat/lng lookup. On-demand releases. No test env; uses Google Maps test API key.",
+        "id": "6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
+        "name": "Geocoding Service",
+        "repo_url": "https://github.com/meridian-internal/geocoding-service",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "BI dashboard \u2014 KPIs, SLA breach reports, driver performance. Quarterly releases. No test env; uses prod snapshots.",
+        "id": "7398af23-f605-4e2d-a092-adfadb636c1a",
+        "name": "Reporting Dashboard",
+        "repo_url": "https://github.com/meridian-internal/reporting-dashboard",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Fan-out push notifications, email, and SMS alerts. Bi-weekly releases. Dev stub env only.",
+        "id": "760922f7-529d-4cb4-9876-422b83732463",
+        "name": "Notification Service",
+        "repo_url": "https://github.com/meridian-internal/notification-service",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "ClickHouse-backed analytics for ops and executive dashboards. Quarterly releases. No test env \u2014 cost prohibitive.",
+        "id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
+        "name": "Analytics Platform",
+        "repo_url": "https://github.com/meridian-internal/analytics-platform",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Nightly ETL from operational DBs to data warehouse. Monthly releases. Dev isolated env only.",
+        "id": "93418a84-de18-4beb-b1de-95a155497944",
+        "name": "ETL Pipeline",
+        "repo_url": "https://github.com/meridian-internal/etl-pipeline",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Third-party carrier APIs \u2014 FedEx, UPS, USPS rate shopping and tracking. Monthly releases. External sandbox envs.",
+        "id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "name": "Carrier Integration",
+        "repo_url": "https://github.com/meridian-internal/carrier-integration",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "iOS driver application. Bi-weekly App Store releases. Test via AWS Device Farm only.",
+        "id": "975e9d50-641d-4010-b42f-326327fd6bc3",
+        "name": "Driver App iOS",
+        "repo_url": "https://github.com/meridian-internal/driver-app-ios",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "Core routing engine \u2014 optimises last-mile delivery paths in real time. Weekly releases. Full test env stack.",
+        "id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "name": "Route Optimizer",
+        "repo_url": "https://github.com/meridian-internal/route-optimizer",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "AuthN/AuthZ \u2014 JWT issuance, RBAC, MFA. Bi-weekly releases. Full test env stack; changes require security sign-off.",
+        "id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "name": "Auth Service",
+        "repo_url": "https://github.com/meridian-internal/auth-service",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Public shipment tracking page (no auth). Weekly releases. No dedicated test env \u2014 tests against staging OMS.",
+        "id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
+        "name": "Tracking Page",
+        "repo_url": "https://github.com/meridian-internal/tracking-page",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "Mobile backend for driver apps \u2014 job assignment, proof of delivery, GPS telemetry. Weekly releases.",
+        "id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "name": "Driver Service",
+        "repo_url": "https://github.com/meridian-internal/driver-api",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "description": "Billing and invoice generation from completed orders. Monthly releases. UAT sandbox only.",
+        "id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "name": "Invoice Engine",
+        "repo_url": "https://github.com/meridian-internal/invoice-engine",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Transactional email via SendGrid. Continuous CD. Mock-only env (Mailtrap).",
+        "id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
+        "name": "Email Service",
+        "repo_url": "https://github.com/meridian-internal/email-service",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "WMS \u2014 inbound receiving, pick/pack, outbound manifests. Quarterly releases. Shared UAT with fleet.",
+        "id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "name": "Warehouse Management",
+        "repo_url": "https://github.com/meridian-internal/warehouse-mgmt",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "description": "Deprecated driver app \u2014 sunset in progress, migrating users to v2. No new releases. No test env.",
+        "id": "e255adea-15d0-420e-9247-b435a2e78a14",
+        "name": "Old Driver App (v1)",
+        "repo_url": "https://github.com/meridian-internal/driver-app-v1",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
+      },
+      {
+        "description": "Web portal for shippers \u2014 booking, tracking, invoices. Weekly releases. Dev + staging envs.",
+        "id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "name": "Customer Portal",
+        "repo_url": "https://github.com/meridian-internal/customer-portal",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      }
+    ],
+    "exposes": [
+      {
+        "deployable_id": "d9cffaa5-9c14-476f-8cbf-5f12fd53df86",
+        "id": "050879fd-57e7-4d4b-98a0-4d76505a8703",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "806222a9-b095-4307-9366-e28a6aadabe7"
+      },
+      {
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "177e46a6-6655-495f-b7de-12d054d4a5cc",
+        "protocol": "kafka",
+        "service_id": "cea4c841-e3ca-4186-897d-f31c66a797ec"
+      },
+      {
+        "deployable_id": "04dc842c-fe15-452b-accc-2fc27707b439",
+        "id": "187c9cc4-0e85-43f1-a648-d8e523057df7",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "d7f612a3-6900-4112-8bf9-9189e43a0891"
+      },
+      {
+        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "id": "27284162-4839-447f-a660-ca56de4bdff3",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c"
+      },
+      {
+        "deployable_id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
+        "id": "2b6a8b1e-8532-4182-904e-15fc919866af",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "8293c07d-4609-40a6-a023-1823bfd6c893"
+      },
+      {
+        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
+        "id": "3a6026da-6241-4f65-875b-65d21fcdc6d2",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "d664876c-2a0a-4f21-a10a-b076931cc64c"
+      },
+      {
+        "deployable_id": "116ef77b-1304-4666-b680-50a744319368",
+        "id": "42cf193c-7faa-4699-bd02-225e7ce0a214",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "27439ff4-a3d8-481b-bbe2-78c8b7081945"
+      },
+      {
+        "deployable_id": "2aac26c3-6efc-4d92-8801-044716bc5cfa",
+        "id": "512f817a-1e63-45c4-b46e-b78bedb32c54",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "25c80ba2-88dc-4e06-840d-de1ff782b708"
+      },
+      {
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "id": "5a2da4c0-44c8-45a2-978c-88787cf86825",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "85e4b044-57f8-4f37-81c5-4dcef64ba12e"
+      },
+      {
+        "deployable_id": "62d59277-a844-4c74-90c6-9bd8ed0df94f",
+        "id": "708deccd-01c1-4f45-a252-de0791b0cd70",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "585d78d8-92ec-40d8-865b-16402a850b04"
+      },
+      {
+        "deployable_id": "938019f8-2db2-4f61-9b4d-34c187f760a6",
+        "id": "73c74e78-26d3-4c03-8d92-c255a278022a",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "64392252-c20e-4f5c-aa72-fd17e7aad805"
+      },
+      {
+        "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
+        "id": "7be515aa-9092-4609-b2eb-210fab9abd20",
+        "port": "443",
+        "protocol": "https",
+        "service_id": "e9c978d1-2890-4f1e-8a65-27d6d9eb62ae"
+      },
+      {
+        "deployable_id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "id": "7f2a3300-c8d0-473f-94b8-01e301635000",
+        "port": "443",
+        "protocol": "https",
+        "service_id": "7311740a-cdbc-41b9-b5e9-431d54956eb2"
+      },
+      {
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "id": "82aab53c-86d4-4307-bc89-e7b39a844970",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf"
+      },
+      {
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "9a69a773-bc22-4fad-9d61-89797b8d13fd",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "057e3527-fdd2-4f59-92de-94d7ecfc8899"
+      },
+      {
+        "deployable_id": "6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
+        "id": "ae618dd3-d8fd-4ed7-aaa8-394a2248ced2",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "b41354d8-f627-4251-b55d-d3e8b4895985"
+      },
+      {
+        "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
+        "id": "c5256d92-9914-459e-bd2a-c6908e862683",
+        "port": "9092",
+        "protocol": "kafka",
+        "service_id": "4bf6afba-a4f4-4784-b12b-3ead01c6668a"
+      },
+      {
+        "deployable_id": "48bfbc55-a08e-404b-8bb7-556b2fd68882",
+        "id": "ced7fac1-29fe-45ec-b388-018318a68b54",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "64700b35-7ad3-496c-b759-1988f4cad414"
+      },
+      {
+        "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
+        "id": "cf58a867-857b-4de0-886a-ce93831ab180",
+        "protocol": "kafka",
+        "service_id": "6c08f467-ea71-4081-aea1-0af7bdb9d670"
+      },
+      {
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "id": "d90d4260-a0d7-4c41-9179-4ace14f20fd0",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97"
+      },
+      {
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "id": "dd9054ea-5b93-42de-98bd-d223fb3ca2bc",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "edf89fa0-54ec-44fb-9377-7eedbee4f6d2"
+      },
+      {
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "id": "e161508e-99ec-4eac-87a4-90fed5aa38e5",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "520ce2d5-8f22-4266-9353-d64448d71a51"
+      },
+      {
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "ec8a97cd-05f3-4ac7-baeb-2945f1a33ec5",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "cc0ec6a2-f2a4-4fb9-8124-d0b3cd4e37fc"
+      },
+      {
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "f2a66343-b93f-48e3-821e-c81455b9258f",
+        "port": "8080",
+        "protocol": "http",
+        "service_id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf"
+      },
+      {
+        "deployable_id": "21d5312e-de38-47a3-98ba-4346caab9920",
+        "id": "263d0cd9-635c-4120-99f5-e249edb69eb2",
+        "port": "8080",
+        "protocol": "https",
+        "service_id": "b8889699-8051-433c-9963-f381084f06b4"
+      },
+      {
+        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "id": "0dcbd88b-c4a6-4751-87cb-efbab4f6bcf1",
+        "port": "8443",
+        "protocol": "https",
+        "service_id": "c8aab52a-3438-442f-b872-88f556518dcd"
+      }
+    ],
+    "services": [
+      {
+        "description": "JWT issuance, token introspection, RBAC enforcement",
+        "endpoint": "https://groundwork.meridianfreight.internal/auth-service",
+        "id": "03eefcd0-0a6c-40c5-b372-72bc0ab4e1cf",
+        "name": "Auth Service API",
+        "type": "rest"
+      },
+      {
+        "description": "Order CRUD, status transitions, fulfilment workflow",
+        "endpoint": "https://groundwork.meridianfreight.internal/order-management",
+        "id": "057e3527-fdd2-4f59-92de-94d7ecfc8899",
+        "name": "OMS REST API",
+        "type": "rest"
+      },
+      {
+        "description": "Send SMS/WhatsApp via Twilio",
+        "endpoint": "https://groundwork.meridianfreight.internal/sms-gateway",
+        "id": "25c80ba2-88dc-4e06-840d-de1ff782b708",
+        "name": "SMS Gateway API",
+        "type": "rest"
+      },
+      {
+        "description": "Feature flag evaluation and config fetch",
+        "endpoint": "https://groundwork.meridianfreight.internal/config-service",
+        "id": "27439ff4-a3d8-481b-bbe2-78c8b7081945",
+        "name": "Config Service API",
+        "type": "rest"
+      },
+      {
+        "description": "Topic management and health endpoint",
+        "endpoint": "https://groundwork.meridianfreight.internal/event-bus",
+        "id": "4bf6afba-a4f4-4784-b12b-3ead01c6668a",
+        "name": "Event Bus API",
+        "type": "rest"
+      },
+      {
+        "description": "Internal dispatcher job management",
+        "endpoint": "https://groundwork.meridianfreight.internal/dispatch-console",
+        "id": "520ce2d5-8f22-4266-9353-d64448d71a51",
+        "name": "Dispatch Console API",
+        "type": "rest"
+      },
+      {
+        "description": "Object upload/download/presign",
+        "endpoint": "https://groundwork.meridianfreight.internal/file-storage",
+        "id": "585d78d8-92ec-40d8-865b-16402a850b04",
+        "name": "File Storage API",
+        "type": "rest"
+      },
+      {
+        "description": "Trigger nightly runs and check job status",
+        "endpoint": "https://groundwork.meridianfreight.internal/etl-pipeline",
+        "id": "5fd9e3db-cb2d-49d4-aa45-d07f63ffc3bf",
+        "name": "ETL Pipeline API",
+        "type": "rest"
+      },
+      {
+        "description": "Rate shopping and tracking across FedEx, UPS, USPS",
+        "endpoint": "https://groundwork.meridianfreight.internal/carrier-integration",
+        "id": "64392252-c20e-4f5c-aa72-fd17e7aad805",
+        "name": "Carrier Integration API",
+        "type": "rest"
+      },
+      {
+        "description": "Vehicle status, maintenance scheduling",
+        "endpoint": "https://groundwork.meridianfreight.internal/fleet-management",
+        "id": "64700b35-7ad3-496c-b759-1988f4cad414",
+        "name": "Fleet Management API",
+        "type": "rest"
+      },
+      {
+        "description": "Order lifecycle events on the event bus",
+        "id": "6c08f467-ea71-4081-aea1-0af7bdb9d670",
+        "name": "OMS Event Stream",
+        "type": "event"
+      },
+      {
+        "description": "Optimisation endpoint \u2014 POST a delivery batch, get back ordered stops",
+        "endpoint": "https://groundwork.meridianfreight.internal/route-optimizer",
+        "id": "708f978a-47e7-48a9-9a7f-ee2f66891a2c",
+        "name": "Route Optimizer API",
+        "type": "rest"
+      },
+      {
+        "description": "Rate-limited gateway for third-party integrators",
+        "endpoint": "https://api.meridianfreight.com",
+        "id": "7311740a-cdbc-41b9-b5e9-431d54956eb2",
+        "name": "Customer Gateway API",
+        "type": "rest"
+      },
+      {
+        "description": "Send transactional email via SendGrid",
+        "endpoint": "https://groundwork.meridianfreight.internal/email-service",
+        "id": "806222a9-b095-4307-9366-e28a6aadabe7",
+        "name": "Email Service API",
+        "type": "rest"
+      },
+      {
+        "description": "ClickHouse-backed analytics query API",
+        "endpoint": "https://groundwork.meridianfreight.internal/analytics-platform",
+        "id": "8293c07d-4609-40a6-a023-1823bfd6c893",
+        "name": "Analytics Platform API",
+        "type": "graphql"
+      },
+      {
+        "description": "Inbound/outbound manifest and inventory endpoints",
+        "endpoint": "https://groundwork.meridianfreight.internal/warehouse-mgmt",
+        "id": "85e4b044-57f8-4f37-81c5-4dcef64ba12e",
+        "name": "Warehouse Management API",
+        "type": "rest"
+      },
+      {
+        "description": "Job assignment, GPS telemetry, POD capture",
+        "endpoint": "https://groundwork.meridianfreight.internal/driver-api",
+        "id": "9beabc88-ff7a-427c-a9f5-fd2b1abcfd97",
+        "name": "Driver API",
+        "type": "rest"
+      },
+      {
+        "description": "Address validation and lat/lng lookup",
+        "endpoint": "https://groundwork.meridianfreight.internal/geocoding-service",
+        "id": "b41354d8-f627-4251-b55d-d3e8b4895985",
+        "name": "Geocoding Service API",
+        "type": "rest"
+      },
+      {
+        "description": "Booking, tracking, and account endpoints for the portal SPA",
+        "endpoint": "https://groundwork.meridianfreight.internal/customer-portal",
+        "id": "cc0ec6a2-f2a4-4fb9-8124-d0b3cd4e37fc",
+        "name": "Customer Portal API",
+        "type": "rest"
+      },
+      {
+        "description": "Login, logout, and permission change events",
+        "id": "cea4c841-e3ca-4186-897d-f31c66a797ec",
+        "name": "Auth Event Stream",
+        "type": "event"
+      },
+      {
+        "description": "Fan-out trigger endpoint for push/email/SMS",
+        "endpoint": "https://groundwork.meridianfreight.internal/notification-service",
+        "id": "d664876c-2a0a-4f21-a10a-b076931cc64c",
+        "name": "Notification Service API",
+        "type": "rest"
+      },
+      {
+        "description": "Append-only audit event ingest and query",
+        "endpoint": "https://groundwork.meridianfreight.internal/audit-log",
+        "id": "d7f612a3-6900-4112-8bf9-9189e43a0891",
+        "name": "Audit Log API",
+        "type": "rest"
+      },
+      {
+        "description": "Public shipment tracking \u2014 no auth required",
+        "endpoint": "https://groundwork.meridianfreight.internal/tracking-page",
+        "id": "e9c978d1-2890-4f1e-8a65-27d6d9eb62ae",
+        "name": "Tracking API",
+        "type": "rest"
+      },
+      {
+        "description": "Invoice generation and billing queries",
+        "endpoint": "https://groundwork.meridianfreight.internal/invoice-engine",
+        "id": "edf89fa0-54ec-44fb-9377-7eedbee4f6d2",
+        "name": "Invoice Engine API",
+        "type": "rest"
+      },
+      {
+        "description": "Submits export declarations, queries clearance status, and uploads supporting documents to customs brokers.",
+        "endpoint": "https://groundwork.meridianfreight.internal/customs",
+        "id": "b8889699-8051-433c-9963-f381084f06b4",
+        "name": "Customs Clearance API",
+        "type": "rest"
+      },
+      {
+        "description": "Legacy customer record API. Read-only since Q1 \u2014 Hubspot is the new system of record. Maintained for historical reads.",
+        "endpoint": "https://groundwork.meridianfreight.internal/legacy-crm",
+        "id": "c8aab52a-3438-442f-b872-88f556518dcd",
+        "name": "Legacy CRM API",
+        "type": "soap"
       }
     ],
     "slas": [
@@ -1447,57 +1676,57 @@
         "window": "30d"
       },
       {
-        "id": "8017a68c-4750-4b87-88b6-73496d0b4303",
         "contract_id": "e99f772d-a5e0-45d0-a319-37fb74e83963",
+        "id": "8017a68c-4750-4b87-88b6-73496d0b4303",
         "metric": "p99_latency_ms",
         "target": "300",
         "window": "1h"
       },
       {
-        "id": "1478d675-06c5-4421-8178-ffe42d63743e",
         "contract_id": "e99f772d-a5e0-45d0-a319-37fb74e83963",
+        "id": "1478d675-06c5-4421-8178-ffe42d63743e",
         "metric": "availability",
         "target": "99.9",
         "window": "30d"
       },
       {
-        "id": "11ebe7f8-e29c-4c11-85cb-6f88b0f3350c",
         "contract_id": "cea2c190-af74-4509-a59f-c461faf8cbd3",
+        "id": "11ebe7f8-e29c-4c11-85cb-6f88b0f3350c",
         "metric": "p99_latency_ms",
         "target": "1500",
         "window": "1h"
       },
       {
-        "id": "c26d14b3-f3fc-4ccf-b3bc-5ed75f64d52a",
         "contract_id": "dc2cd4c0-77e0-4488-9006-53e6743d9de9",
+        "id": "c26d14b3-f3fc-4ccf-b3bc-5ed75f64d52a",
         "metric": "p99_latency_ms",
         "target": "750",
         "window": "1h"
       },
       {
-        "id": "517e7e52-a5b8-480b-b568-aab052592299",
         "contract_id": "dc2cd4c0-77e0-4488-9006-53e6743d9de9",
+        "id": "517e7e52-a5b8-480b-b568-aab052592299",
         "metric": "availability",
         "target": "99.9",
         "window": "30d"
       },
       {
-        "id": "aa5a2696-83a3-476d-8cc5-bfb22e655097",
         "contract_id": "d5fc35dc-9fae-41e6-9a17-0057fa06f935",
+        "id": "aa5a2696-83a3-476d-8cc5-bfb22e655097",
         "metric": "p99_latency_ms",
         "target": "400",
         "window": "1h"
       },
       {
-        "id": "50cd5782-6560-4abb-ad9a-30033adbf30e",
         "contract_id": "7bcd8dcf-6fdc-419e-9a72-b74b1262f29b",
+        "id": "50cd5782-6560-4abb-ad9a-30033adbf30e",
         "metric": "availability",
         "target": "99.95",
         "window": "30d"
       },
       {
-        "id": "37d511f7-dd0c-47b4-89be-b33b9ec235d1",
         "contract_id": "7bcd8dcf-6fdc-419e-9a72-b74b1262f29b",
+        "id": "37d511f7-dd0c-47b4-89be-b33b9ec235d1",
         "metric": "p99_latency_ms",
         "target": "250",
         "window": "1h"
@@ -1505,38 +1734,6 @@
     ]
   },
   "union": {
-    "teams": [
-      {
-        "description": "Agency \u2014 staff aug on analytics, ETL, and data platform",
-        "id": "6f099b92-535e-4a24-b186-d1e28506e4ba",
-        "kind": "support",
-        "name": "NorthBridge Tech"
-      },
-      {
-        "description": "Product engineering \u2014 customer-facing apps, routing, driver experience",
-        "id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
-        "kind": "product",
-        "name": "Team Orion"
-      },
-      {
-        "description": "Agency \u2014 staff aug on OMS, customer portal, and tracking",
-        "id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d",
-        "kind": "support",
-        "name": "Apex Digital"
-      },
-      {
-        "description": "Platform engineering \u2014 shared services, data, infrastructure",
-        "id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
-        "kind": "platform",
-        "name": "Team Anvil"
-      },
-      {
-        "description": "Agency \u2014 legacy CRM modernisation and old driver app sunset",
-        "id": "e9a581ef-b83b-434d-9afb-becf75669d9b",
-        "kind": "support",
-        "name": "DevStar"
-      }
-    ],
     "people": [
       {
         "contact": "ryan.murphy@meridianfreight.com",
@@ -1745,300 +1942,281 @@
         "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
       }
     ],
+    "teams": [
+      {
+        "description": "Agency \u2014 staff aug on analytics, ETL, and data platform",
+        "id": "6f099b92-535e-4a24-b186-d1e28506e4ba",
+        "kind": "support",
+        "name": "NorthBridge Tech"
+      },
+      {
+        "description": "Product engineering \u2014 customer-facing apps, routing, driver experience",
+        "id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "kind": "product",
+        "name": "Team Orion"
+      },
+      {
+        "description": "Agency \u2014 staff aug on OMS, customer portal, and tracking",
+        "id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d",
+        "kind": "support",
+        "name": "Apex Digital"
+      },
+      {
+        "description": "Platform engineering \u2014 shared services, data, infrastructure",
+        "id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "kind": "platform",
+        "name": "Team Anvil"
+      },
+      {
+        "description": "Agency \u2014 legacy CRM modernisation and old driver app sunset",
+        "id": "e9a581ef-b83b-434d-9afb-becf75669d9b",
+        "kind": "support",
+        "name": "DevStar"
+      }
+    ],
     "work_orders": [
       {
-        "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
-        "id": "02c6f8b3-bb8c-492e-94bd-647f52697aeb",
-        "priority": "high",
-        "status": "in_progress",
-        "summary": "Sunset old driver app \u2014 push final users to v2 app",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
-      },
-      {
-        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
-        "id": "2a308604-5de5-4c19-a965-94b14316d4e2",
-        "priority": "high",
-        "status": "in_progress",
-        "summary": "Phase 1: Export all CRM records to Hubspot (CR-005)",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
-      },
-      {
-        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
-        "id": "48a984f4-710b-4db4-8db8-36e63ca6dc76",
-        "priority": "medium",
-        "status": "proposed",
-        "summary": "Update portal login flow for MFA phase 2 (CR-003)",
-        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
-      },
-      {
-        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
-        "id": "5647317d-8f4e-480a-b02e-9f137e3b8db4",
-        "priority": "high",
-        "status": "in_progress",
-        "summary": "MFA enforcement rollout \u2014 TOTP for internal users (CR-003)",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
-        "id": "70b34d7d-d0b4-4b22-ab12-ed081ccd3392",
-        "priority": "medium",
-        "status": "in_progress",
-        "summary": "Add estimated delivery time to tracking page",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      },
-      {
-        "deployable_id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
-        "id": "959efd20-cd49-4e0f-b7c7-ece4e9f1aaf3",
-        "priority": "medium",
-        "status": "proposed",
-        "summary": "New carrier telemetry dashboard in analytics (CR-004)",
-        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
-      },
-      {
-        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
-        "id": "9e325b5e-06ec-4a92-bf7c-09bae7305720",
-        "priority": "medium",
-        "status": "in_progress",
-        "summary": "Add FedEx Firehose source to ETL pipeline (CR-004)",
-        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
-      },
-      {
-        "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
-        "id": "a38451cf-18bd-47bb-86a3-3e4e8729d03a",
-        "priority": "low",
-        "status": "proposed",
-        "summary": "Upgrade Kafka from 3.4 to 3.8 \u2014 rolling restart plan",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
         "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
-        "id": "bb030d1c-6848-467e-8279-5fbae16e6357",
+        "id": "f9cfabf5-ec14-56b4-b4b5-af54810dc34d",
         "priority": "low",
         "status": "proposed",
         "summary": "Add WhatsApp delivery channel for driver alerts",
         "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
       },
       {
+        "deployable_id": "0c77ba37-4fce-47c3-92a4-07cf29f56a0e",
+        "id": "d9c7fcd5-c794-5e43-ace0-80db640d5953",
+        "priority": "low",
+        "status": "proposed",
+        "summary": "Upgrade Kafka from 3.4 to 3.8 \u2014 rolling restart plan",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "change_request_id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
+        "deployable_id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
+        "id": "3755dadf-1e39-516e-bb82-dbd769c4ffb6",
+        "priority": "medium",
+        "status": "proposed",
+        "summary": "New carrier telemetry dashboard in analytics (CR-004)",
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "deployable_id": "5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
+        "id": "9864cd11-7494-540d-ba97-e648d0898423",
+        "priority": "medium",
+        "status": "proposed",
+        "summary": "Admin panel: bulk user onboarding for MFA rollout (CR-003)",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "86f452a9-f1a0-5dd4-8c69-1524b4ef6c37",
+        "priority": "high",
+        "status": "in_progress",
+        "summary": "MFA enforcement rollout \u2014 TOTP for internal users (CR-003)",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "54f3933a-cdfb-503e-aa20-6b96b674e20c",
+        "priority": "medium",
+        "status": "in_progress",
+        "summary": "Update portal login flow for MFA phase 2 (CR-003)",
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+      },
+      {
+        "change_request_id": "55586510-e6a8-4be1-911c-b61311fb9e05",
+        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
+        "id": "5ae39f11-7325-5f4d-9db9-1183c570ef2f",
+        "priority": "high",
+        "status": "in_progress",
+        "summary": "Integrate Google Maps Traffic API for dynamic re-routing (CR-001)",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
         "deployable_id": "211a2a9d-3d61-41f1-be49-9bbe775e8b86",
-        "id": "cbb31f61-5216-4029-8c7e-2063b6beaab5",
+        "id": "60592a07-31d4-585e-a7ab-8dd9061c8179",
         "priority": "high",
         "status": "in_progress",
         "summary": "Stripe v3 migration \u2014 webhook payload adapter (CR-002)",
         "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
       },
       {
-        "deployable_id": "9bb28e8c-5a35-48df-8276-2ac0c86fe188",
-        "id": "ce6c1fd7-c132-44dd-8260-3235cc58f3a0",
-        "priority": "high",
+        "change_request_id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
+        "deployable_id": "93418a84-de18-4beb-b1de-95a155497944",
+        "id": "d085b44e-5a6d-55b7-a651-afc858378144",
+        "priority": "medium",
         "status": "in_progress",
-        "summary": "Integrate Google Maps Traffic API for dynamic re-routing (CR-001)",
-        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
-      }
-    ]
-  },
-  "cityhall": {
-    "org_nodes": [
-      {
-        "id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
-        "kind": "enterprise",
-        "name": "Meridian Freight Solutions"
-      },
-      {
-        "id": "0b780517-05fb-44ef-a19f-a42ceb7884d3",
-        "kind": "domain",
-        "name": "Agency Partners",
-        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
-      },
-      {
-        "id": "11701439-d41e-4ea8-aab8-d33f8bf87c9e",
-        "kind": "product",
-        "name": "Platform & Data",
-        "parent_id": "621b60c2-2164-41cc-92f2-e10e21064a5f",
-        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
-      },
-      {
-        "id": "1cbbffef-4052-4a79-a319-31936f15baf4",
-        "kind": "product",
-        "name": "DevStar (Partner)",
-        "parent_id": "0b780517-05fb-44ef-a19f-a42ceb7884d3",
-        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
-      },
-      {
-        "id": "1d43d16b-84f1-4040-b664-4c7d1516799d",
-        "kind": "product",
-        "name": "NorthBridge Tech (Partner)",
-        "parent_id": "0b780517-05fb-44ef-a19f-a42ceb7884d3",
+        "summary": "Add FedEx Firehose source to ETL pipeline (CR-004)",
         "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
       },
       {
-        "id": "4434cc12-8c57-4f68-a89c-22581752bd75",
-        "kind": "domain",
-        "name": "Product Engineering",
-        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
+        "change_request_id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
+        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "id": "bf10d267-627f-5c09-af7a-d18f19ea60b0",
+        "priority": "high",
+        "status": "in_progress",
+        "summary": "Phase 1: Export all CRM records to Hubspot (CR-005)",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
       },
       {
-        "id": "621b60c2-2164-41cc-92f2-e10e21064a5f",
-        "kind": "domain",
-        "name": "Platform Engineering",
-        "parent_id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b"
+        "deployable_id": "e255adea-15d0-420e-9247-b435a2e78a14",
+        "id": "7fd5201b-95f7-5844-83be-7cdad773dd36",
+        "priority": "high",
+        "status": "blocked",
+        "summary": "Sunset old driver app \u2014 push final users to v2 app",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
       },
       {
-        "id": "9e829514-1c45-4993-8563-25be0f76cabf",
-        "kind": "product",
-        "name": "Apex Digital (Partner)",
-        "parent_id": "0b780517-05fb-44ef-a19f-a42ceb7884d3",
-        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
-      },
-      {
-        "id": "ae4cda4b-7adf-4553-89d7-3dd4f12b2662",
-        "kind": "product",
-        "name": "Customer Experience",
-        "parent_id": "4434cc12-8c57-4f68-a89c-22581752bd75",
+        "completed_at": "2026-05-08T12:00:00+00:00",
+        "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
+        "id": "a7bcef96-4e84-5182-b178-c3e54345a8c6",
+        "priority": "medium",
+        "status": "done",
+        "summary": "Add estimated delivery time to tracking page",
         "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
       },
       {
-        "id": "c3f28ab6-5390-4cbb-b5b3-d64703d8918b",
-        "kind": "division",
-        "name": "Engineering",
-        "parent_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4"
+        "completed_at": "2026-05-03T12:00:00+00:00",
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "id": "d4214dc8-5d46-5fcf-9d28-39a2d58b0a81",
+        "priority": "medium",
+        "status": "done",
+        "summary": "Driver app: offline POD capture retry queue",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "completed_at": "2026-04-29T12:00:00+00:00",
+        "deployable_id": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3",
+        "id": "32783d97-7a2c-5940-93b1-954548d6f599",
+        "priority": "high",
+        "status": "done",
+        "summary": "Auth Service: rotate JWT signing keys + publish JWKS",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "completed_at": "2026-04-24T12:00:00+00:00",
+        "deployable_id": "760922f7-529d-4cb4-9876-422b83732463",
+        "id": "56637ffa-db83-54a3-94f3-046f23a1f8fa",
+        "priority": "low",
+        "status": "done",
+        "summary": "Notification Service: SendGrid v3 SDK upgrade",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97"
+      },
+      {
+        "completed_at": "2026-04-19T12:00:00+00:00",
+        "deployable_id": "dbb4a44c-ddb9-46db-9769-b7f47ec10b88",
+        "id": "60085b52-6068-55e5-85ba-74798e66457d",
+        "priority": "medium",
+        "status": "done",
+        "summary": "Warehouse: barcode scanner SDK update to Zebra v6",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "completed_at": "2026-04-14T12:00:00+00:00",
+        "deployable_id": "ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9",
+        "id": "d3a28ff4-141e-5f46-a596-f0c63009201d",
+        "priority": "medium",
+        "status": "done",
+        "summary": "Customer Portal: redesign tracking timeline component",
+        "team_id": "d184425a-bfa3-47fc-9433-11e4f0d87e1d"
+      },
+      {
+        "completed_at": "2026-04-08T12:00:00+00:00",
+        "deployable_id": "7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1",
+        "id": "425886bc-2597-574e-8a24-b17126b5862b",
+        "priority": "medium",
+        "status": "done",
+        "summary": "Analytics: SLA breach report v2 with carrier breakdown",
+        "team_id": "6f099b92-535e-4a24-b186-d1e28506e4ba"
+      },
+      {
+        "completed_at": "2026-04-03T12:00:00+00:00",
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "id": "6e1a6564-08ae-5523-b2c3-b42995b6f6d4",
+        "priority": "high",
+        "status": "done",
+        "summary": "Invoice Engine: VAT handling for EU shipments",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4"
+      },
+      {
+        "completed_at": "2026-03-31T12:00:00+00:00",
+        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "id": "1a29274d-1d6f-5100-8255-8c0246827bf4",
+        "priority": "medium",
+        "status": "done",
+        "summary": "Legacy CRM: read-only audit dump for compliance",
+        "team_id": "e9a581ef-b83b-434d-9afb-becf75669d9b"
       }
-    ],
-    "bylaws": [
-      {
-        "approvers": "cto,eng-director",
-        "conditions": "tier == prod",
-        "description": "All production deployments require CTO or Engineering Director sign-off",
-        "gate_type": "ApprovalGate",
-        "id": "0b2a2018-36c2-44b6-b19b-c41012629472",
-        "org_node_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
-        "priority": "2"
-      },
-      {
-        "description": "Platform changes must deploy Mon-Fri 09:00-17:00 ET unless on-call approved",
-        "gate_type": "WindowGate",
-        "id": "6cbf58e2-eeab-4db1-8fde-9ead2fdf2dd4",
-        "org_node_id": "621b60c2-2164-41cc-92f2-e10e21064a5f",
-        "priority": "3",
-        "window": "Mon-Fri 09:00-17:00 ET"
-      },
-      {
-        "approvers": "product-owner",
-        "conditions": "tier == uat",
-        "description": "Customer-facing systems need UAT sign-off from product owner before prod",
-        "gate_type": "ApprovalGate",
-        "id": "a02ee248-623c-4fb4-b19e-3378ca05c7db",
-        "org_node_id": "ae4cda4b-7adf-4553-89d7-3dd4f12b2662",
-        "priority": "2"
-      },
-      {
-        "description": "Q4 peak-season deployment freeze \u2014 no prod changes Nov 15 through Jan 5",
-        "gate_type": "FreezePeriod",
-        "id": "aefdabe0-a83f-425a-b6ee-1aabf8182b33",
-        "org_node_id": "095e0f1c-f050-4f76-b8df-42eed0d080d4",
-        "priority": "1",
-        "window": "Nov-15 to Jan-05"
-      },
-      {
-        "conditions": "deployable in [route-optimizer, order-management, driver-api]",
-        "description": "Core systems (route-optimizer, OMS, driver-api) require 30-min quiesce before UAT promotion",
-        "gate_type": "QuiesceGate",
-        "id": "c9728bd3-5ec8-40a9-a982-8a4b10ceb776",
-        "org_node_id": "4434cc12-8c57-4f68-a89c-22581752bd75",
-        "priority": "1",
-        "quiesce_for": "30m"
-      },
-      {
-        "approvers": "security-team",
-        "conditions": "deployable in [auth-service, config-service]",
-        "description": "Any change touching auth-service or config-service requires security team approval",
-        "gate_type": "ApprovalGate",
-        "id": "de85631d-b2cd-4c48-b858-be176441b6c2",
-        "org_node_id": "621b60c2-2164-41cc-92f2-e10e21064a5f",
-        "priority": "1"
-      }
-    ],
-    "change_requests": [
-      {
-        "description": "First phase of CRM sunset: export all customer and contact records from legacy-crm to Hubspot. DevStar leading. No downtime required \u2014 read-only migration script.",
-        "id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
-        "requested_by": "d0b7960c-9755-4842-84ae-26f725a697d1",
-        "status": "approved",
-        "summary": "Legacy CRM \u2192 Hubspot migration (phase 1: data export)",
-        "target_deployables": "15fd43a7-d38c-4308-a0b4-46f701669588",
-        "target_versions": "legacy-crm:0.9.1-export-patch",
-        "tier": "prod"
-      },
-      {
-        "description": "Phase 2 of MFA rollout: enforce TOTP for all internal users. Requires auth-service config change + customer-portal login flow update. Coordination with admin-panel for user onboarding flow.",
-        "id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
-        "requested_by": "5d7acb9b-5fd9-4424-917a-2711caebd9bc",
-        "status": "draft",
-        "summary": "Auth Service \u2014 MFA enforcement rollout (phase 2)",
-        "target_deployables": "a0762167-4ac7-44d4-9a8b-bd4517e3a1e3,ef8f2eaf-28d5-49cc-8ecd-1278eb1c43f9,5fe19a74-18e6-46a4-a7c4-975e5f9da14c",
-        "target_versions": "auth-service:2.1.0,customer-portal:4.2.0,admin-panel:1.8.0",
-        "tier": "dev"
-      },
-      {
-        "description": "Upgrade route-optimizer to v2.4 which adds real-time traffic integration via Google Maps Traffic API. Requires geocoding-service dependency bump. Blast radius: driver-api, customer-portal.",
-        "id": "55586510-e6a8-4be1-911c-b61311fb9e05",
-        "requested_by": "a3e3fae9-2885-41e3-a953-7a94fa2bfa94",
-        "status": "approved",
-        "summary": "Route Optimizer v2.4 \u2014 dynamic re-routing on traffic events",
-        "target_deployables": "9bb28e8c-5a35-48df-8276-2ac0c86fe188,6e12a7cc-4a76-4b7a-8c06-78970359ddc6",
-        "target_versions": "route-optimizer:2.4.0,geocoding-service:1.6.2",
-        "tier": "uat"
-      },
-      {
-        "description": "Stripe v2 API deprecated Q3. Migrating order-management to Stripe v3 SDK. Breaking change in webhook payload shape \u2014 notification-service and invoice-engine need coordinated update.",
-        "id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
-        "requested_by": "0b3ded84-f023-4244-848a-03f2b7f6ff89",
-        "status": "submitted",
-        "summary": "OMS \u2014 migrate payment gateway from Stripe v2 to v3",
-        "target_deployables": "211a2a9d-3d61-41f1-be49-9bbe775e8b86,760922f7-529d-4cb4-9876-422b83732463,cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
-        "target_versions": "order-management:1.9.0,notification-service:2.3.1,invoice-engine:3.1.0",
-        "tier": "dev"
-      },
-      {
-        "description": "Extend ETL to ingest carrier tracking events from FedEx Firehose. New data source feeds analytics-platform and reporting-dashboard. NorthBridge leading implementation.",
-        "id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
-        "requested_by": "ab31829f-4aa5-4cd9-b8ef-f208cdbd1b53",
-        "status": "draft",
-        "summary": "ETL Pipeline \u2014 add carrier telemetry source",
-        "target_deployables": "93418a84-de18-4beb-b1de-95a155497944,7f7d9fe6-1f8c-423c-a3a7-43b8b918b2b1,938019f8-2db2-4f61-9b4d-34c187f760a6",
-        "target_versions": "etl-pipeline:2.2.0,analytics-platform:1.3.0,carrier-integration:2.2.0",
-        "tier": "dev"
-      }
-    ],
-    "deployment_plans": []
+    ]
   },
   "yard": {
-    "test_infrastructure": [
+    "data_sources": [
       {
-        "cost_per_hour": "0.12",
-        "id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
-        "instance_type": "fargate",
-        "name": "AWS ECS Cluster (eu-west-1)",
-        "notes": "Fargate-based isolated envs; spins up per-PR, tears down on merge",
-        "provider": "aws_ecs",
-        "region": "eu-west-1"
+        "id": "1b82308b-5c90-5df7-9775-c416606e723f",
+        "kind": "prod_snapshot",
+        "location": "s3://meridian-prod-snapshots/orders/latest.parquet",
+        "name": "meridian-prod-snapshot",
+        "notes": "Weekly anonymised snapshot of order + shipment data from production.",
+        "refresh_policy": "periodic"
       },
       {
-        "cost_per_hour": "0.17",
-        "id": "96e8142d-26ba-48ba-82fa-79728b1d75f1",
-        "instance_type": "device-farm",
-        "name": "AWS Device Farm",
-        "notes": "Mobile device testing \u2014 iOS + Android physical device pool",
-        "provider": "external_saas",
-        "region": "us-east-1"
+        "id": "61154eb0-1b50-5edd-8160-4dd67fd03af2",
+        "kind": "synthetic",
+        "location": "git://meridian-internal/fixtures/synthetic_shipments",
+        "name": "synthetic-shipments",
+        "notes": "Generator-script-driven synthetic shipment dataset for isolated envs.",
+        "refresh_policy": "on_demand"
       },
       {
-        "cost_per_hour": "0.03",
-        "id": "ea437c9f-2322-42ae-b053-57e520ee347b",
-        "instance_type": "k8s-shared",
-        "name": "Internal K8s (on-prem)",
-        "notes": "Shared Kubernetes cluster; used for persistent sandbox envs",
-        "provider": "kubernetes",
-        "region": "dc-london"
+        "id": "053099e6-16b0-56c7-b218-93cbcf0f3f83",
+        "kind": "external_mock",
+        "location": "https://sandbox.fedex.com/firehose",
+        "name": "fedex-mock",
+        "notes": "FedEx sandbox Firehose; replayed events for ETL telemetry tests.",
+        "refresh_policy": "per_test_run"
+      }
+    ],
+    "data_syncs": [
+      {
+        "estimated_minutes": "45",
+        "id": "dc381c00-b790-5c43-9c04-8ed5305fb57e",
+        "kind": "pull",
+        "notes": "Pulls weekly prod snapshot into OMS UAT for realistic UAT scenarios.",
+        "refresh_policy": "periodic",
+        "source_data_id": "1b82308b-5c90-5df7-9775-c416606e723f",
+        "target_env_id": "33d141a7-57e5-47e4-aebe-417e9cb4558a"
+      },
+      {
+        "estimated_minutes": "8",
+        "id": "05dceed8-6ad4-57bb-98de-98e44f51f92d",
+        "kind": "push",
+        "notes": "Pushes synthetic shipment batches into route-optimizer dev for routing tests.",
+        "refresh_policy": "per_test_run",
+        "source_data_id": "61154eb0-1b50-5edd-8160-4dd67fd03af2",
+        "target_env_id": "062c3952-7831-4a34-8cde-52b52837293d"
+      },
+      {
+        "estimated_minutes": "15",
+        "id": "b4e2f13c-2301-5953-bfba-da63d85c8173",
+        "kind": "pull",
+        "notes": "Replays FedEx sandbox Firehose into ETL dev for carrier telemetry pipeline tests.",
+        "refresh_policy": "per_test_run",
+        "source_data_id": "053099e6-16b0-56c7-b218-93cbcf0f3f83",
+        "target_env_id": "9ea048ab-65c6-4751-8add-4f0a224f5503"
+      },
+      {
+        "estimated_minutes": "5",
+        "id": "6915478b-9469-508c-8289-dd59816714b0",
+        "kind": "shared",
+        "notes": "Route staging shares OMS dev order seed via the shared event bus topic.",
+        "refresh_policy": "on_demand",
+        "source_env_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d",
+        "target_env_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59"
       }
     ],
     "mock_sources": [
@@ -2083,7 +2261,6 @@
         "repo_url": "https://github.com/meridian-internal/sms-gateway"
       }
     ],
-    "data_sources": [],
     "test_environments": [
       {
         "concurrency_limit": "5",
@@ -2358,7 +2535,1144 @@
         "teardown_policy": "on_finish"
       }
     ],
-    "test_suites": [],
-    "test_runs": []
+    "test_infrastructure": [
+      {
+        "cost_per_hour": "0.12",
+        "id": "6c98c63c-e35c-4662-835d-80edc73ec2c9",
+        "instance_type": "fargate",
+        "name": "AWS ECS Cluster (eu-west-1)",
+        "notes": "Fargate-based isolated envs; spins up per-PR, tears down on merge",
+        "provider": "aws_ecs",
+        "region": "eu-west-1"
+      },
+      {
+        "cost_per_hour": "0.17",
+        "id": "96e8142d-26ba-48ba-82fa-79728b1d75f1",
+        "instance_type": "device-farm",
+        "name": "AWS Device Farm",
+        "notes": "Mobile device testing \u2014 iOS + Android physical device pool",
+        "provider": "external_saas",
+        "region": "us-east-1"
+      },
+      {
+        "cost_per_hour": "0.03",
+        "id": "ea437c9f-2322-42ae-b053-57e520ee347b",
+        "instance_type": "k8s-shared",
+        "name": "Internal K8s (on-prem)",
+        "notes": "Shared Kubernetes cluster; used for persistent sandbox envs",
+        "provider": "kubernetes",
+        "region": "dc-london"
+      }
+    ],
+    "test_runs": [
+      {
+        "cost_actual": "0.0000",
+        "duration_minutes": "126",
+        "finished_at": "2026-03-19T15:17:04+00:00",
+        "id": "c7454159-c3b8-5b40-b421-9cf06f25b9b7",
+        "started_at": "2026-03-19T13:10:52+00:00",
+        "status": "passed",
+        "test_environment_id": "09af19b2-505e-4658-9c16-403f9ba616d7"
+      },
+      {
+        "cost_actual": "0.0629",
+        "duration_minutes": "47",
+        "id": "0b5ddd7c-89fb-5097-ad6c-567c7f173067",
+        "started_at": "2026-04-30T09:12:33+00:00",
+        "status": "running",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "57289eb9-e75d-4d96-aa40-29e3dfc7a5db",
+        "test_suite_id": "804d33f8-f17c-5dee-96c7-7b9ef54c575d"
+      },
+      {
+        "cost_actual": "0.0000",
+        "duration_minutes": "19",
+        "finished_at": "2026-03-17T01:43:02+00:00",
+        "id": "ed27f6ab-270b-52f0-a0b0-16bd8b42b0c8",
+        "started_at": "2026-03-17T01:23:56+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "09af19b2-505e-4658-9c16-403f9ba616d7",
+        "test_suite_id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998"
+      },
+      {
+        "cost_actual": "0.0150",
+        "duration_minutes": "5",
+        "finished_at": "2026-04-03T21:48:45+00:00",
+        "id": "af9c29f0-ce14-5b94-b4c9-598331044bd4",
+        "started_at": "2026-04-03T21:43:45+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "cost_actual": "0.0139",
+        "duration_minutes": "10",
+        "finished_at": "2026-03-17T06:06:26+00:00",
+        "id": "28be4487-85cb-5be7-80d9-a77ce945814d",
+        "started_at": "2026-03-17T05:56:02+00:00",
+        "status": "passed",
+        "test_environment_id": "68c05445-f44a-4d8d-81d8-4972d1035e64"
+      },
+      {
+        "cost_actual": "0.0089",
+        "duration_minutes": "13",
+        "finished_at": "2026-04-06T20:14:55+00:00",
+        "id": "76716e04-3579-58d6-af23-19099c39f0a3",
+        "started_at": "2026-04-06T20:01:31+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "cost_actual": "0.0216",
+        "duration_minutes": "32",
+        "finished_at": "2026-03-17T20:59:10+00:00",
+        "id": "fbae0103-1b29-58e7-bb14-984bf8692d58",
+        "started_at": "2026-03-17T20:26:46+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0133",
+        "duration_minutes": "13",
+        "finished_at": "2026-05-05T14:28:03+00:00",
+        "id": "14dc9ccd-3323-5362-8e5e-092725b4209b",
+        "started_at": "2026-05-05T14:14:45+00:00",
+        "status": "cancelled",
+        "test_environment_id": "e88713d5-3abd-4a31-a04a-d8db74df31f4"
+      },
+      {
+        "cost_actual": "0.0162",
+        "duration_minutes": "9",
+        "finished_at": "2026-05-03T01:08:29+00:00",
+        "id": "da3a9861-d28b-553d-8083-693b3f1f474e",
+        "started_at": "2026-05-03T00:58:47+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "d4dafbb7-eb07-4248-8b19-0fd12034a9cc"
+      },
+      {
+        "cost_actual": "0.0819",
+        "duration_minutes": "27",
+        "finished_at": "2026-04-26T18:47:29+00:00",
+        "id": "fe86d5bc-238b-59d2-995b-c7c2f83ac9f3",
+        "started_at": "2026-04-26T18:20:11+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0444",
+        "duration_minutes": "22",
+        "finished_at": "2026-05-11T07:56:07+00:00",
+        "id": "b968aec2-4cd1-5efa-804d-a24ad2c175dc",
+        "started_at": "2026-05-11T07:33:55+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "eaa0cc54-554f-403c-8177-0a6883a7a47b",
+        "test_suite_id": "dc427d20-e8ec-5799-82ce-1ddb24f5c70c"
+      },
+      {
+        "cost_actual": "0.0000",
+        "duration_minutes": "24",
+        "finished_at": "2026-04-25T19:18:24+00:00",
+        "id": "5aae56c3-810b-57dc-a54c-bf5e705e111d",
+        "started_at": "2026-04-25T18:53:48+00:00",
+        "status": "errored",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "aec0dc7f-c731-4f83-b6a1-c54596f04108"
+      },
+      {
+        "cost_actual": "0.0472",
+        "duration_minutes": "35",
+        "finished_at": "2026-04-26T02:38:25+00:00",
+        "id": "fc85cee0-f7d8-5b22-8a2b-65d07c083105",
+        "started_at": "2026-04-26T02:03:01+00:00",
+        "status": "passed",
+        "test_environment_id": "e76a589d-e1fe-45e7-8071-3426fbc57470",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "cost_actual": "0.0072",
+        "duration_minutes": "10",
+        "finished_at": "2026-04-14T06:42:58+00:00",
+        "id": "a73faaad-1a95-5b74-9f19-d69f7ab9c8a7",
+        "started_at": "2026-04-14T06:32:10+00:00",
+        "status": "passed",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59"
+      },
+      {
+        "cost_actual": "0.0542",
+        "duration_minutes": "21",
+        "finished_at": "2026-04-25T04:55:20+00:00",
+        "id": "dc17cd3e-3f01-5008-afff-f9c07d20b187",
+        "started_at": "2026-04-25T04:33:38+00:00",
+        "status": "cancelled",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "062c3952-7831-4a34-8cde-52b52837293d",
+        "test_suite_id": "804d33f8-f17c-5dee-96c7-7b9ef54c575d"
+      },
+      {
+        "cost_actual": "0.0220",
+        "duration_minutes": "11",
+        "finished_at": "2026-03-30T00:58:55+00:00",
+        "id": "9e14f04b-0c5a-5e5b-be43-a03161423fd3",
+        "started_at": "2026-03-30T00:47:55+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "eaa0cc54-554f-403c-8177-0a6883a7a47b"
+      },
+      {
+        "cost_actual": "0.0455",
+        "duration_minutes": "19",
+        "finished_at": "2026-03-28T03:44:05+00:00",
+        "id": "4a7f83e5-6432-5e82-8a45-83577740d9e9",
+        "started_at": "2026-03-28T03:24:35+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "b57712e2-f63e-47cb-8097-d86d2e7386d8",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "change_request_id": "55586510-e6a8-4be1-911c-b61311fb9e05",
+        "cost_actual": "0.0850",
+        "duration_minutes": "34",
+        "finished_at": "2026-03-29T18:58:52+00:00",
+        "id": "5867d239-7259-5d5d-8f1c-bbabd910a4cb",
+        "started_at": "2026-03-29T18:24:52+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "062c3952-7831-4a34-8cde-52b52837293d"
+      },
+      {
+        "cost_actual": "0.0439",
+        "duration_minutes": "65",
+        "finished_at": "2026-05-10T19:11:45+00:00",
+        "id": "b44a0b21-2246-51d9-96aa-f3fe95835517",
+        "started_at": "2026-05-10T18:05:51+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59",
+        "test_suite_id": "dc427d20-e8ec-5799-82ce-1ddb24f5c70c"
+      },
+      {
+        "cost_actual": "0.0288",
+        "duration_minutes": "14",
+        "finished_at": "2026-04-26T09:57:37+00:00",
+        "id": "a6169ca6-0552-5ca0-acd1-c839f59f2c0f",
+        "started_at": "2026-04-26T09:43:13+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "eaa0cc54-554f-403c-8177-0a6883a7a47b"
+      },
+      {
+        "cost_actual": "0.0458",
+        "duration_minutes": "27",
+        "finished_at": "2026-04-02T15:38:44+00:00",
+        "id": "0cc7ba14-80a1-52c0-a912-2edcc8d97d13",
+        "started_at": "2026-04-02T15:11:14+00:00",
+        "status": "errored",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "d4dafbb7-eb07-4248-8b19-0fd12034a9cc",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0171",
+        "duration_minutes": "25",
+        "finished_at": "2026-04-07T06:09:20+00:00",
+        "id": "32025d0f-bc39-57f2-accb-ced0103aa35c",
+        "started_at": "2026-04-07T05:43:44+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59",
+        "test_suite_id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998"
+      },
+      {
+        "cost_actual": "0.0135",
+        "duration_minutes": "20",
+        "finished_at": "2026-04-17T03:15:05+00:00",
+        "id": "7eeba970-f571-5bf7-a455-2970b3645ade",
+        "started_at": "2026-04-17T02:54:47+00:00",
+        "status": "cancelled",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "cost_actual": "0.0267",
+        "duration_minutes": "8",
+        "finished_at": "2026-04-11T19:53:11+00:00",
+        "id": "e45709f6-7762-563a-84c7-2bccd95067e4",
+        "started_at": "2026-04-11T19:44:17+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d"
+      },
+      {
+        "cost_actual": "0.0138",
+        "duration_minutes": "5",
+        "finished_at": "2026-04-06T12:53:28+00:00",
+        "id": "8e16e0d5-0d4b-5494-8ec5-11f14847f4ce",
+        "started_at": "2026-04-06T12:47:34+00:00",
+        "status": "passed",
+        "test_environment_id": "b57712e2-f63e-47cb-8097-d86d2e7386d8",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0342",
+        "duration_minutes": "20",
+        "finished_at": "2026-04-20T15:36:17+00:00",
+        "id": "86252ce7-9894-5a02-9bea-3cc2d4371d48",
+        "started_at": "2026-04-20T15:15:47+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "d4dafbb7-eb07-4248-8b19-0fd12034a9cc"
+      },
+      {
+        "cost_actual": "0.0105",
+        "duration_minutes": "15",
+        "finished_at": "2026-03-19T19:53:35+00:00",
+        "id": "1cf6bc86-24c8-50a6-b046-3eb79ed9baa3",
+        "started_at": "2026-03-19T19:37:47+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5"
+      },
+      {
+        "cost_actual": "0.0111",
+        "duration_minutes": "16",
+        "finished_at": "2026-04-29T18:35:10+00:00",
+        "id": "7b793fe1-c036-5f65-8614-c744606555d4",
+        "started_at": "2026-04-29T18:18:34+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5"
+      },
+      {
+        "cost_actual": "0.0783",
+        "duration_minutes": "26",
+        "finished_at": "2026-05-05T09:43:24+00:00",
+        "id": "ac218139-36c0-5fab-b5d6-5edd88e4df52",
+        "started_at": "2026-05-05T09:17:18+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d",
+        "test_suite_id": "5f8f40ac-f10d-5adc-864e-fc1e54f096c4"
+      },
+      {
+        "change_request_id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
+        "cost_actual": "0.0151",
+        "duration_minutes": "22",
+        "finished_at": "2026-05-10T12:53:02+00:00",
+        "id": "d05143a7-192b-54c3-b4d9-d26bc7bac482",
+        "started_at": "2026-05-10T12:30:20+00:00",
+        "status": "passed",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5",
+        "test_suite_id": "804d33f8-f17c-5dee-96c7-7b9ef54c575d"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "cost_actual": "0.0265",
+        "duration_minutes": "26",
+        "finished_at": "2026-04-04T09:35:39+00:00",
+        "id": "c13c175d-59a5-5b5d-8797-5889107347bc",
+        "started_at": "2026-04-04T09:09:09+00:00",
+        "status": "cancelled",
+        "test_environment_id": "33d141a7-57e5-47e4-aebe-417e9cb4558a",
+        "test_suite_id": "1626dba2-8f1e-5b42-8481-902bd8fa504c"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0065",
+        "duration_minutes": "9",
+        "finished_at": "2026-05-05T18:40:12+00:00",
+        "id": "0512e4b4-c9f7-578a-af20-589dd075d3c7",
+        "started_at": "2026-05-05T18:30:24+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "77ea9cd4-556f-41cf-b692-d1a75c1d3287",
+        "test_suite_id": "1626dba2-8f1e-5b42-8481-902bd8fa504c"
+      },
+      {
+        "change_request_id": "55586510-e6a8-4be1-911c-b61311fb9e05",
+        "cost_actual": "0.0555",
+        "duration_minutes": "83",
+        "finished_at": "2026-05-04T19:35:34+00:00",
+        "id": "79aa59a0-fe61-55d1-a43c-5582c31a6e77",
+        "started_at": "2026-05-04T18:12:22+00:00",
+        "status": "errored",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59"
+      },
+      {
+        "cost_actual": "0.0000",
+        "duration_minutes": "52",
+        "finished_at": "2026-03-22T05:12:14+00:00",
+        "id": "75bbb9f7-54d1-5259-adcb-36b650d89873",
+        "started_at": "2026-03-22T04:19:38+00:00",
+        "status": "failed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "34da3498-76a9-47b5-a7bb-02ba9fd82dc4",
+        "test_suite_id": "804d33f8-f17c-5dee-96c7-7b9ef54c575d"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0086",
+        "duration_minutes": "12",
+        "finished_at": "2026-04-03T07:19:41+00:00",
+        "id": "16edbcd3-100a-59fd-b869-1c92f5f2289e",
+        "started_at": "2026-04-03T07:06:47+00:00",
+        "status": "passed",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5"
+      },
+      {
+        "cost_actual": "0.0274",
+        "duration_minutes": "32",
+        "finished_at": "2026-03-19T14:23:49+00:00",
+        "id": "5035352d-eee7-5d59-b04e-187ce9021eaa",
+        "started_at": "2026-03-19T13:50:55+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "7034e8fc-7518-4e16-bda9-ac45d46eb5b7"
+      },
+      {
+        "cost_actual": "0.0305",
+        "duration_minutes": "45",
+        "finished_at": "2026-03-16T17:40:06+00:00",
+        "id": "211578d9-e69b-5e42-92c2-b201b4e0209c",
+        "started_at": "2026-03-16T16:54:24+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59"
+      },
+      {
+        "cost_actual": "0.0247",
+        "duration_minutes": "14",
+        "finished_at": "2026-04-15T06:33:46+00:00",
+        "id": "211f97c3-d8b9-5f33-b5c7-d92c1507d5af",
+        "started_at": "2026-04-15T06:18:58+00:00",
+        "status": "failed",
+        "test_environment_id": "d4dafbb7-eb07-4248-8b19-0fd12034a9cc"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0334",
+        "duration_minutes": "33",
+        "finished_at": "2026-03-17T04:42:34+00:00",
+        "id": "b664af57-3d0a-5e10-b69b-52c5b95dbd04",
+        "started_at": "2026-03-17T04:09:10+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "33d141a7-57e5-47e4-aebe-417e9cb4558a",
+        "test_suite_id": "dc427d20-e8ec-5799-82ce-1ddb24f5c70c"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "cost_actual": "0.0335",
+        "duration_minutes": "13",
+        "finished_at": "2026-03-18T15:31:16+00:00",
+        "id": "11537792-629a-53a3-8586-4c213089f43b",
+        "started_at": "2026-03-18T15:17:52+00:00",
+        "status": "cancelled",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "062c3952-7831-4a34-8cde-52b52837293d",
+        "test_suite_id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998"
+      },
+      {
+        "cost_actual": "0.0257",
+        "duration_minutes": "30",
+        "finished_at": "2026-04-27T17:20:07+00:00",
+        "id": "dcd05cb8-2f94-5ae4-acac-c38401bc58d8",
+        "started_at": "2026-04-27T16:49:13+00:00",
+        "status": "cancelled",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "7034e8fc-7518-4e16-bda9-ac45d46eb5b7",
+        "test_suite_id": "1626dba2-8f1e-5b42-8481-902bd8fa504c"
+      },
+      {
+        "cost_actual": "0.0389",
+        "duration_minutes": "58",
+        "finished_at": "2026-04-28T22:30:21+00:00",
+        "id": "956932b8-ac73-5fe1-9b93-ea54c86948b1",
+        "started_at": "2026-04-28T21:31:57+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5"
+      },
+      {
+        "cost_actual": "0.0782",
+        "duration_minutes": "78",
+        "finished_at": "2026-05-09T02:59:48+00:00",
+        "id": "fd4b5614-87db-57ee-ad87-54257dc326d9",
+        "started_at": "2026-05-09T01:41:36+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "e88713d5-3abd-4a31-a04a-d8db74df31f4"
+      },
+      {
+        "cost_actual": "0.0000",
+        "duration_minutes": "53",
+        "finished_at": "2026-05-02T17:24:46+00:00",
+        "id": "720b5347-c17d-5c27-b300-c87d0a68d6a2",
+        "started_at": "2026-05-02T16:31:28+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "09af19b2-505e-4658-9c16-403f9ba616d7"
+      },
+      {
+        "cost_actual": "0.0096",
+        "duration_minutes": "14",
+        "finished_at": "2026-04-16T08:07:14+00:00",
+        "id": "4a648883-a9ae-5c79-9963-a53679398488",
+        "started_at": "2026-04-16T07:52:50+00:00",
+        "status": "passed",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59"
+      },
+      {
+        "cost_actual": "0.0278",
+        "duration_minutes": "13",
+        "finished_at": "2026-04-27T03:51:32+00:00",
+        "id": "849be0c9-a87c-5627-9e8f-f55267980588",
+        "started_at": "2026-04-27T03:37:38+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "eaa0cc54-554f-403c-8177-0a6883a7a47b"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "cost_actual": "0.0903",
+        "duration_minutes": "30",
+        "finished_at": "2026-05-05T04:17:44+00:00",
+        "id": "1dcd65ee-1779-580c-9325-ddbefe16127c",
+        "started_at": "2026-05-05T03:47:38+00:00",
+        "status": "cancelled",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "change_request_id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
+        "cost_actual": "0.0590",
+        "duration_minutes": "29",
+        "finished_at": "2026-05-04T13:16:18+00:00",
+        "id": "00329105-a193-5e7e-aa06-4f352d3f28a0",
+        "started_at": "2026-05-04T12:46:48+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "eaa0cc54-554f-403c-8177-0a6883a7a47b",
+        "test_suite_id": "1626dba2-8f1e-5b42-8481-902bd8fa504c"
+      },
+      {
+        "change_request_id": "55586510-e6a8-4be1-911c-b61311fb9e05",
+        "cost_actual": "0.0289",
+        "duration_minutes": "12",
+        "finished_at": "2026-03-28T16:37:21+00:00",
+        "id": "c7cd2cb1-e6be-5c2a-921b-433dfb45ccdd",
+        "started_at": "2026-03-28T16:24:57+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "b57712e2-f63e-47cb-8097-d86d2e7386d8",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0420",
+        "duration_minutes": "31",
+        "finished_at": "2026-03-28T18:49:04+00:00",
+        "id": "b7e6817a-88a6-58f8-a448-c94a0a748c3c",
+        "started_at": "2026-03-28T18:17:34+00:00",
+        "status": "cancelled",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "57289eb9-e75d-4d96-aa40-29e3dfc7a5db"
+      },
+      {
+        "cost_actual": "0.0063",
+        "duration_minutes": "9",
+        "finished_at": "2026-03-18T07:27:04+00:00",
+        "id": "30bb92d7-34ec-52b7-9759-d1732c13c1d9",
+        "started_at": "2026-03-18T07:17:34+00:00",
+        "status": "passed",
+        "test_environment_id": "77ea9cd4-556f-41cf-b692-d1a75c1d3287"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "cost_actual": "0.0244",
+        "duration_minutes": "24",
+        "finished_at": "2026-04-12T12:51:30+00:00",
+        "id": "567c7246-04c1-53d1-ac8c-74c1b4e6c5ae",
+        "started_at": "2026-04-12T12:27:06+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "33d141a7-57e5-47e4-aebe-417e9cb4558a",
+        "test_suite_id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "cost_actual": "0.0336",
+        "duration_minutes": "11",
+        "finished_at": "2026-04-22T10:12:19+00:00",
+        "id": "122839f3-0991-53a5-bcbf-06cd240595a0",
+        "started_at": "2026-04-22T10:01:07+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "change_request_id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
+        "cost_actual": "0.0000",
+        "duration_minutes": "28",
+        "finished_at": "2026-05-02T03:55:39+00:00",
+        "id": "a0b80536-a646-591a-b273-a58e532172ea",
+        "started_at": "2026-05-02T03:26:51+00:00",
+        "status": "passed",
+        "test_environment_id": "34da3498-76a9-47b5-a7bb-02ba9fd82dc4",
+        "test_suite_id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "cost_actual": "0.0354",
+        "duration_minutes": "35",
+        "finished_at": "2026-05-08T16:39:12+00:00",
+        "id": "af214667-bb79-524f-b3e1-15fceb8d05e2",
+        "started_at": "2026-05-08T16:03:48+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "33d141a7-57e5-47e4-aebe-417e9cb4558a"
+      },
+      {
+        "cost_actual": "0.0159",
+        "duration_minutes": "15",
+        "finished_at": "2026-05-08T12:42:45+00:00",
+        "id": "9ad86d48-34b1-5682-8c40-c7a1af4b2241",
+        "started_at": "2026-05-08T12:26:51+00:00",
+        "status": "passed",
+        "test_environment_id": "33d141a7-57e5-47e4-aebe-417e9cb4558a"
+      },
+      {
+        "cost_actual": "0.0000",
+        "duration_minutes": "77",
+        "finished_at": "2026-04-05T12:30:21+00:00",
+        "id": "8c592c7d-67ca-5213-aeb7-2ac072fb86fc",
+        "started_at": "2026-04-05T11:13:09+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "aec0dc7f-c731-4f83-b6a1-c54596f04108"
+      },
+      {
+        "cost_actual": "0.0333",
+        "duration_minutes": "11",
+        "finished_at": "2026-03-16T14:34:44+00:00",
+        "id": "81667b21-cf19-593b-8600-c232a0b25e84",
+        "started_at": "2026-03-16T14:23:38+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d",
+        "test_suite_id": "804d33f8-f17c-5dee-96c7-7b9ef54c575d"
+      },
+      {
+        "cost_actual": "0.0585",
+        "duration_minutes": "58",
+        "finished_at": "2026-04-27T18:41:27+00:00",
+        "id": "4fa4a508-4b85-56eb-8f6a-d8852212ce15",
+        "started_at": "2026-04-27T17:42:57+00:00",
+        "status": "cancelled",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "33d141a7-57e5-47e4-aebe-417e9cb4558a",
+        "test_suite_id": "1626dba2-8f1e-5b42-8481-902bd8fa504c"
+      },
+      {
+        "cost_actual": "0.0119",
+        "duration_minutes": "8",
+        "finished_at": "2026-04-22T15:58:37+00:00",
+        "id": "dd7450de-b5eb-5d6b-83ea-2bc8a68b1d06",
+        "started_at": "2026-04-22T15:49:43+00:00",
+        "status": "passed",
+        "test_environment_id": "e76a589d-e1fe-45e7-8071-3426fbc57470",
+        "test_suite_id": "5f8f40ac-f10d-5adc-864e-fc1e54f096c4"
+      },
+      {
+        "cost_actual": "0.0236",
+        "duration_minutes": "11",
+        "finished_at": "2026-04-03T22:26:14+00:00",
+        "id": "7ed3d404-6a7e-5190-89dc-fbc8314f77ed",
+        "started_at": "2026-04-03T22:14:26+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "eaa0cc54-554f-403c-8177-0a6883a7a47b",
+        "test_suite_id": "dc427d20-e8ec-5799-82ce-1ddb24f5c70c"
+      },
+      {
+        "cost_actual": "0.0244",
+        "duration_minutes": "36",
+        "finished_at": "2026-04-20T05:06:11+00:00",
+        "id": "f97f1543-94f2-5e0a-9c3a-ff448928b3e4",
+        "started_at": "2026-04-20T04:29:35+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "cost_actual": "0.0261",
+        "duration_minutes": "19",
+        "finished_at": "2026-05-01T11:00:25+00:00",
+        "id": "9b2176de-fade-51c2-be43-44fc99feff93",
+        "started_at": "2026-05-01T10:40:49+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "57289eb9-e75d-4d96-aa40-29e3dfc7a5db",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "cost_actual": "0.0576",
+        "duration_minutes": "24",
+        "finished_at": "2026-03-18T04:49:11+00:00",
+        "id": "16d9e580-2c58-569a-bce8-c096e5b6f483",
+        "started_at": "2026-03-18T04:24:29+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "b57712e2-f63e-47cb-8097-d86d2e7386d8"
+      },
+      {
+        "cost_actual": "0.0347",
+        "duration_minutes": "52",
+        "finished_at": "2026-04-22T07:09:31+00:00",
+        "id": "eb5bc94f-6499-5230-aeef-9f146c95f093",
+        "started_at": "2026-04-22T06:17:25+00:00",
+        "status": "passed",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5",
+        "test_suite_id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998"
+      },
+      {
+        "cost_actual": "0.1295",
+        "duration_minutes": "51",
+        "finished_at": "2026-05-11T05:17:23+00:00",
+        "id": "63b57857-b4f9-55a1-a98b-77328d146faa",
+        "started_at": "2026-05-11T04:25:35+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "062c3952-7831-4a34-8cde-52b52837293d",
+        "test_suite_id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998"
+      },
+      {
+        "cost_actual": "0.0240",
+        "duration_minutes": "9",
+        "finished_at": "2026-04-24T08:02:09+00:00",
+        "id": "4f8d8fbb-3b16-5791-90c4-4fea53eccac7",
+        "started_at": "2026-04-24T07:52:33+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "062c3952-7831-4a34-8cde-52b52837293d"
+      },
+      {
+        "change_request_id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
+        "cost_actual": "0.0108",
+        "duration_minutes": "12",
+        "finished_at": "2026-03-29T00:19:35+00:00",
+        "id": "c0d3a65d-2300-5b83-ab71-5170689a9b70",
+        "started_at": "2026-03-29T00:06:41+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "9b258dcc-05d8-49b8-8059-4cdf258d015c"
+      },
+      {
+        "cost_actual": "0.0534",
+        "duration_minutes": "26",
+        "finished_at": "2026-04-08T13:31:24+00:00",
+        "id": "19ab42b6-bd3c-597b-8c43-cd78738c0ec6",
+        "started_at": "2026-04-08T13:04:42+00:00",
+        "status": "errored",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "eaa0cc54-554f-403c-8177-0a6883a7a47b",
+        "test_suite_id": "1626dba2-8f1e-5b42-8481-902bd8fa504c"
+      },
+      {
+        "cost_actual": "0.0400",
+        "duration_minutes": "60",
+        "finished_at": "2026-05-04T16:12:48+00:00",
+        "id": "595dc53c-f325-59f9-9858-50e68a5507e9",
+        "started_at": "2026-05-04T15:12:48+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5"
+      },
+      {
+        "cost_actual": "0.0215",
+        "duration_minutes": "32",
+        "finished_at": "2026-05-11T01:46:53+00:00",
+        "id": "f99014fa-ad6e-5dfe-ab2b-56c371d0791e",
+        "started_at": "2026-05-11T01:14:41+00:00",
+        "status": "passed",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5"
+      },
+      {
+        "cost_actual": "0.0177",
+        "duration_minutes": "26",
+        "finished_at": "2026-05-06T20:21:30+00:00",
+        "id": "3d32dad9-a0b4-520d-ba1a-cf92338f8dd1",
+        "started_at": "2026-05-06T19:55:00+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5",
+        "test_suite_id": "dc427d20-e8ec-5799-82ce-1ddb24f5c70c"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "cost_actual": "0.1137",
+        "duration_minutes": "37",
+        "finished_at": "2026-05-08T00:41:19+00:00",
+        "id": "8562dba7-54e3-52d9-af9a-68b2bcf07919",
+        "started_at": "2026-05-08T00:03:25+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d"
+      },
+      {
+        "cost_actual": "0.0996",
+        "duration_minutes": "33",
+        "finished_at": "2026-04-28T06:59:24+00:00",
+        "id": "052cb0e1-e241-58ea-a06d-4ccc691b1ccc",
+        "started_at": "2026-04-28T06:26:12+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d"
+      },
+      {
+        "change_request_id": "288b13bd-7c14-4c6d-9487-75a3de200b2e",
+        "cost_actual": "0.0162",
+        "duration_minutes": "24",
+        "finished_at": "2026-04-22T00:31:38+00:00",
+        "id": "09e736a0-289e-5862-b70c-86dde2b369e5",
+        "started_at": "2026-04-22T00:07:20+00:00",
+        "status": "errored",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "9b29ccb3-f689-4dfe-9f7a-e2ac1122a4d1",
+        "test_suite_id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998"
+      },
+      {
+        "change_request_id": "aef3bdaa-ec37-45e3-a121-06f5a6e247e7",
+        "cost_actual": "0.0391",
+        "duration_minutes": "13",
+        "finished_at": "2026-03-21T06:25:39+00:00",
+        "id": "6ad17a43-9082-5bd9-b77e-dca64651cdfe",
+        "started_at": "2026-03-21T06:11:51+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "1822dec3-3e4e-4e8c-9adb-4730cc5b53e1"
+      },
+      {
+        "cost_actual": "0.0159",
+        "duration_minutes": "23",
+        "finished_at": "2026-04-13T11:12:41+00:00",
+        "id": "ed0ac5d7-0483-5e46-bcd5-2e7ee0510e28",
+        "started_at": "2026-04-13T10:48:53+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0085",
+        "duration_minutes": "12",
+        "finished_at": "2026-03-21T15:08:24+00:00",
+        "id": "113ce8cf-558c-5a21-b4aa-ffaa082819c3",
+        "started_at": "2026-03-21T14:55:36+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "77ea9cd4-556f-41cf-b692-d1a75c1d3287",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "cost_actual": "0.0170",
+        "duration_minutes": "25",
+        "finished_at": "2026-04-09T07:43:07+00:00",
+        "id": "2aecd9ff-17e9-59e0-a502-d82a4f1de2d1",
+        "started_at": "2026-04-09T07:17:37+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59"
+      },
+      {
+        "cost_actual": "0.2315",
+        "duration_minutes": "81",
+        "finished_at": "2026-04-07T04:56:11+00:00",
+        "id": "5f0c308d-bd3b-56a3-9731-167b5af4be43",
+        "started_at": "2026-04-07T03:34:29+00:00",
+        "status": "errored",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "1822dec3-3e4e-4e8c-9adb-4730cc5b53e1"
+      },
+      {
+        "cost_actual": "0.0092",
+        "duration_minutes": "13",
+        "finished_at": "2026-04-26T02:35:53+00:00",
+        "id": "ff515a9f-4c98-5fa8-bdbd-58037d159b4c",
+        "started_at": "2026-04-26T02:22:05+00:00",
+        "status": "passed",
+        "test_environment_id": "d5112c5d-1c4a-4220-ac6f-3dcdff66cd59",
+        "test_suite_id": "5f8f40ac-f10d-5adc-864e-fc1e54f096c4"
+      },
+      {
+        "change_request_id": "55586510-e6a8-4be1-911c-b61311fb9e05",
+        "cost_actual": "0.0490",
+        "duration_minutes": "21",
+        "finished_at": "2026-03-18T19:39:29+00:00",
+        "id": "a8455f06-9425-5303-84e2-12f42ccd7f7c",
+        "started_at": "2026-03-18T19:18:29+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "b57712e2-f63e-47cb-8097-d86d2e7386d8"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0170",
+        "duration_minutes": "10",
+        "finished_at": "2026-04-29T16:04:18+00:00",
+        "id": "a51c0913-862a-534f-b1b4-5f5cd2232858",
+        "started_at": "2026-04-29T15:54:06+00:00",
+        "status": "failed",
+        "test_environment_id": "d4dafbb7-eb07-4248-8b19-0fd12034a9cc"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0416",
+        "duration_minutes": "20",
+        "finished_at": "2026-04-14T17:52:50+00:00",
+        "id": "3108631b-5afb-5cd3-8d05-4dc09eb764a2",
+        "started_at": "2026-04-14T17:32:02+00:00",
+        "status": "cancelled",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "eaa0cc54-554f-403c-8177-0a6883a7a47b"
+      },
+      {
+        "cost_actual": "0.0383",
+        "duration_minutes": "57",
+        "finished_at": "2026-04-27T04:20:11+00:00",
+        "id": "1ef1326e-f382-5ef9-ae73-0a421507bb7c",
+        "started_at": "2026-04-27T03:22:47+00:00",
+        "status": "passed",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5",
+        "test_suite_id": "5f8f40ac-f10d-5adc-864e-fc1e54f096c4"
+      },
+      {
+        "change_request_id": "55586510-e6a8-4be1-911c-b61311fb9e05",
+        "cost_actual": "0.0170",
+        "duration_minutes": "6",
+        "id": "0f239f60-cf1e-50c8-bb78-ff306743fee0",
+        "started_at": "2026-05-07T13:11:28+00:00",
+        "status": "running",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "062c3952-7831-4a34-8cde-52b52837293d"
+      },
+      {
+        "cost_actual": "0.1122",
+        "duration_minutes": "48",
+        "finished_at": "2026-04-11T03:40:06+00:00",
+        "id": "ad79c339-7850-562d-977e-d078fc99e151",
+        "started_at": "2026-04-11T02:52:00+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "b57712e2-f63e-47cb-8097-d86d2e7386d8",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "cost_actual": "0.0141",
+        "duration_minutes": "16",
+        "finished_at": "2026-05-08T10:17:40+00:00",
+        "id": "4867453a-f7ca-5909-8192-6446ca9074ba",
+        "started_at": "2026-05-08T10:00:46+00:00",
+        "status": "passed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "e3467475-0ada-4c86-a495-3a1573a512b6"
+      },
+      {
+        "cost_actual": "0.0349",
+        "duration_minutes": "52",
+        "finished_at": "2026-03-31T13:23:43+00:00",
+        "id": "f85ed522-a951-570e-ac24-1a7812cfef32",
+        "started_at": "2026-03-31T12:31:25+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "9b29ccb3-f689-4dfe-9f7a-e2ac1122a4d1"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0215",
+        "duration_minutes": "32",
+        "finished_at": "2026-04-08T15:33:47+00:00",
+        "id": "db458f79-7c72-5224-be3d-0dfe25a11b56",
+        "started_at": "2026-04-08T15:01:29+00:00",
+        "status": "errored",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "77ea9cd4-556f-41cf-b692-d1a75c1d3287"
+      },
+      {
+        "cost_actual": "0.0000",
+        "duration_minutes": "20",
+        "finished_at": "2026-05-10T22:05:53+00:00",
+        "id": "61f39a31-a924-5c8e-a240-78af7b35957c",
+        "started_at": "2026-05-10T21:45:17+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "aec0dc7f-c731-4f83-b6a1-c54596f04108",
+        "test_suite_id": "1626dba2-8f1e-5b42-8481-902bd8fa504c"
+      },
+      {
+        "cost_actual": "0.0212",
+        "duration_minutes": "9",
+        "finished_at": "2026-03-23T21:08:40+00:00",
+        "id": "ef651a32-ac02-54b0-9074-c293c95789c9",
+        "started_at": "2026-03-23T20:59:34+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "b57712e2-f63e-47cb-8097-d86d2e7386d8",
+        "test_suite_id": "acad8e1f-4212-5bed-b007-308b61d64e6d"
+      },
+      {
+        "change_request_id": "82148dbb-cdf4-425f-9f05-1fa8b1738b16",
+        "cost_actual": "0.0228",
+        "duration_minutes": "7",
+        "finished_at": "2026-03-28T19:29:39+00:00",
+        "id": "5262e64e-9afd-5021-aea4-b02c9be118bc",
+        "started_at": "2026-03-28T19:22:03+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d",
+        "test_suite_id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998"
+      },
+      {
+        "cost_actual": "0.0237",
+        "duration_minutes": "7",
+        "finished_at": "2026-04-13T20:50:41+00:00",
+        "id": "363ce7d1-084b-5c18-b588-89b43e7707c0",
+        "started_at": "2026-04-13T20:42:47+00:00",
+        "status": "passed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "ab97f8d7-4c40-40ae-ad20-54ae247c901d"
+      },
+      {
+        "cost_actual": "0.0474",
+        "duration_minutes": "71",
+        "finished_at": "2026-04-23T02:48:39+00:00",
+        "id": "d91eb975-7f2d-58f1-8abd-9cfc48a2ef9d",
+        "started_at": "2026-04-23T01:37:33+00:00",
+        "status": "errored",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5",
+        "test_suite_id": "804d33f8-f17c-5dee-96c7-7b9ef54c575d"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0058",
+        "duration_minutes": "8",
+        "finished_at": "2026-03-31T04:30:19+00:00",
+        "id": "8daabfec-f394-53c8-91ac-b79027944139",
+        "started_at": "2026-03-31T04:21:37+00:00",
+        "status": "failed",
+        "team_id": "da67129c-09d0-4c18-80f0-fa4da0f51da4",
+        "test_environment_id": "b6c846b3-7eac-4b17-b554-e21dcb2dcee5",
+        "test_suite_id": "804d33f8-f17c-5dee-96c7-7b9ef54c575d"
+      },
+      {
+        "change_request_id": "326f0dfe-3741-4495-81fb-be1d225c4dbb",
+        "cost_actual": "0.0193",
+        "duration_minutes": "6",
+        "finished_at": "2026-03-20T07:13:12+00:00",
+        "id": "e827cbf9-a837-5271-8594-11b0b4f6488b",
+        "started_at": "2026-03-20T07:06:24+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "1822dec3-3e4e-4e8c-9adb-4730cc5b53e1",
+        "test_suite_id": "dc427d20-e8ec-5799-82ce-1ddb24f5c70c"
+      },
+      {
+        "cost_actual": "0.0550",
+        "duration_minutes": "16",
+        "finished_at": "2026-03-26T20:22:24+00:00",
+        "id": "be70ad8f-1cbc-591c-b069-07c53f2e552b",
+        "started_at": "2026-03-26T20:05:54+00:00",
+        "status": "passed",
+        "test_environment_id": "9ea048ab-65c6-4751-8add-4f0a224f5503"
+      },
+      {
+        "cost_actual": "0.0688",
+        "duration_minutes": "34",
+        "finished_at": "2026-03-17T09:52:30+00:00",
+        "id": "0516d103-412f-5924-8239-3e841da4eb31",
+        "started_at": "2026-03-17T09:18:06+00:00",
+        "status": "passed",
+        "test_environment_id": "eaa0cc54-554f-403c-8177-0a6883a7a47b",
+        "test_suite_id": "dc427d20-e8ec-5799-82ce-1ddb24f5c70c"
+      },
+      {
+        "cost_actual": "0.0305",
+        "duration_minutes": "45",
+        "finished_at": "2026-05-10T02:04:23+00:00",
+        "id": "c2293c4b-6d71-5535-8157-5b06f4a9c9c6",
+        "started_at": "2026-05-10T01:18:35+00:00",
+        "status": "failed",
+        "team_id": "c4aee732-d79c-4494-825a-ecdb3bca8e97",
+        "test_environment_id": "77ea9cd4-556f-41cf-b692-d1a75c1d3287"
+      }
+    ],
+    "test_suites": [
+      {
+        "command": "yarn test:integration --suite=customer-api",
+        "deployable_id": "1bf1077a-a5d6-468f-928a-9058f7d0c422",
+        "description": "Contract + integration tests against the customer API gateway.",
+        "id": "c53d356b-1ac7-5d41-bd4a-9bdb0ad3d998",
+        "name": "customer-api-suite",
+        "runner": "jest"
+      },
+      {
+        "command": "./gradlew :driver-api:test :driver-api:integrationTest",
+        "deployable_id": "c1dc3dd1-9cf1-48c1-a82b-f5f1e196857b",
+        "description": "Driver API + service-token auth flow + GPS telemetry assertions.",
+        "id": "acad8e1f-4212-5bed-b007-308b61d64e6d",
+        "name": "driver-app-suite",
+        "runner": "gradle"
+      },
+      {
+        "command": "npx playwright test --project=dispatch",
+        "deployable_id": "3f0d714b-9b56-4d90-836d-dd7c7cd6832e",
+        "description": "End-to-end Playwright suite against the dispatcher web UI.",
+        "id": "804d33f8-f17c-5dee-96c7-7b9ef54c575d",
+        "name": "dispatch-console-suite",
+        "runner": "playwright"
+      },
+      {
+        "command": "pytest tests/legacy_crm -m export_safe",
+        "deployable_id": "15fd43a7-d38c-4308-a0b4-46f701669588",
+        "description": "Read-only contract tests for the Legacy CRM export pipeline.",
+        "id": "dc427d20-e8ec-5799-82ce-1ddb24f5c70c",
+        "name": "legacy-crm-suite",
+        "runner": "pytest"
+      },
+      {
+        "command": "npx playwright test --project=tracking-public",
+        "deployable_id": "b6a197d8-2a7f-4a60-8d68-b78be037d704",
+        "description": "Public tracking page accessibility + happy-path tests.",
+        "id": "5f8f40ac-f10d-5adc-864e-fc1e54f096c4",
+        "name": "tracking-suite",
+        "runner": "playwright"
+      },
+      {
+        "command": "pytest tests/payments -m stripe_v3",
+        "deployable_id": "cfc67e32-6971-4009-aec2-0e9bfe33ad1f",
+        "description": "Payment + Stripe webhook integration tests with sandbox accounts.",
+        "id": "1626dba2-8f1e-5b42-8481-902bd8fa504c",
+        "name": "payments-suite",
+        "runner": "pytest"
+      }
+    ]
   }
 }
