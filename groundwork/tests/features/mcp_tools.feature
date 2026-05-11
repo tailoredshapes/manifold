@@ -7,49 +7,50 @@ Feature: Groundwork MCP server
     And I have registered service "payments-api"
     And I have recorded that "checkout" depends on "payments-api"
 
-  Scenario: tools/list returns the catalogue
+  Scenario: tools/list returns the auto-derived catalogue and custom capabilities
     When I send MCP request "tools/list"
-    Then the response should include tool "catalog.list"
-    And the response should include tool "catalog.get"
-    And the response should include tool "catalog.search"
-    And the response should include tool "graph.blast_radius"
-    And the response should include tool "graph.dependencies_of"
-    And the response should include tool "graph.deployment_plan"
+    Then the response should include tool "list_deployables"
+    And the response should include tool "get_deployable_by_id"
+    And the response should include tool "find_deployables_by_name"
+    And the response should include tool "list_services"
+    And the response should include tool "blast_radius_for_service"
+    And the response should include tool "dependencies_of_deployable"
+    And the response should include tool "deployment_plan_for_deployable"
 
-  Scenario: catalog.list returns deployables
-    When I call MCP tool "catalog.list" with arguments {"entity": "deployable"}
+  Scenario: list_deployables returns flat GraphQL rows
+    When I call MCP tool "list_deployables" with arguments {}
     Then the tool result should be a JSON array
     And the tool result should contain a record named "checkout"
 
-  Scenario: catalog.get fetches a single deployable
-    When I call MCP tool "catalog.get" with arguments {"entity": "deployable", "id": "<ids.checkout>"}
-    Then the tool result envelope name should be "checkout"
+  Scenario: get_deployable_by_id fetches a single deployable
+    When I call MCP tool "get_deployable_by_id" with arguments {"id": "<ids.checkout>"}
+    Then the tool result name should be "checkout"
 
-  Scenario: catalog.search filters by name substring
-    When I call MCP tool "catalog.search" with arguments {"entity": "service", "name": "payments"}
+  Scenario: find_services_by_name filters by name
+    When I call MCP tool "find_services_by_name" with arguments {"name": "payments-api"}
     Then the tool result should be a JSON array
     And the tool result should contain a record named "payments-api"
 
-  Scenario: graph.blast_radius returns dependents
-    When I call MCP tool "graph.blast_radius" with arguments {"service_id": "<ids.payments-api>"}
+  Scenario: blast_radius_for_service returns dependents
+    When I call MCP tool "blast_radius_for_service" with arguments {"service_id": "<ids.payments-api>"}
     Then the tool result should describe "checkout" as a dependent
 
-  Scenario: graph.deployment_plan orders dependencies first
+  Scenario: deployment_plan_for_deployable orders dependencies first
     Given I have registered service "auth-api"
     And I have registered deployable "auth"
     And I have recorded that "auth" exposes "auth-api"
     And I have recorded that "checkout" depends on "auth-api"
-    When I call MCP tool "graph.deployment_plan" with arguments {"deployable_id": "<ids.checkout>"}
+    When I call MCP tool "deployment_plan_for_deployable" with arguments {"deployable_id": "<ids.checkout>"}
     Then the deployment plan should list "auth" before "checkout"
 
-  Scenario: graph.deployment_plan flags managed external services
-    When I call MCP tool "graph.deployment_plan" with arguments {"deployable_id": "<ids.checkout>"}
+  Scenario: deployment_plan_for_deployable flags managed external services
+    When I call MCP tool "deployment_plan_for_deployable" with arguments {"deployable_id": "<ids.checkout>"}
     Then the deployment plan should list "payments-api" as an external prerequisite
 
-  Scenario: graph.dependencies_of walks forward
+  Scenario: dependencies_of_deployable walks forward
     Given I have registered service "auth-api"
     And I have registered deployable "auth"
     And I have recorded that "auth" exposes "auth-api"
     And I have recorded that "checkout" depends on "auth-api"
-    When I call MCP tool "graph.dependencies_of" with arguments {"deployable_id": "<ids.checkout>"}
+    When I call MCP tool "dependencies_of_deployable" with arguments {"deployable_id": "<ids.checkout>"}
     Then the tool result should describe "auth" as a dependency

@@ -3,10 +3,12 @@
 //! Spawns the binary as a subprocess (built via `CARGO_BIN_EXE_groundwork-mcp`)
 //! and exchanges line-delimited JSON-RPC frames over its stdin/stdout. The
 //! `GROUNDWORK_URL` env var points the MCP child at an in-process Groundwork
-//! REST server bound to a random port.
+//! HTTP server (REST + GraphQL) bound to a random port. Each entity's
+//! restlette repository and graphlette searcher share a single SQLite pool
+//! so reads via `/graph` see the same rows the test wrote via `/api`.
 
 use cucumber::{given, then, when, World};
-use meshql_core::{NoAuth, ServerConfig, Stash};
+use meshql_core::{GraphletteConfig, NoAuth, RootConfig, ServerConfig, Stash};
 use meshql_server::{ValidatorContext, ValidatorFn};
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
 use reqwest::Client;
@@ -19,7 +21,14 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 
-// ── In-process Groundwork REST server (REST only — MCP doesn't need GraphQL) ──
+const DEPLOYABLE_GRAPHQL: &str = include_str!("../config/graph/deployable.graphql");
+const SERVICE_GRAPHQL: &str = include_str!("../config/graph/service.graphql");
+const DEPENDENCY_GRAPHQL: &str = include_str!("../config/graph/dependency.graphql");
+const EXPOSES_GRAPHQL: &str = include_str!("../config/graph/exposes.graphql");
+const CONTRACT_GRAPHQL: &str = include_str!("../config/graph/contract.graphql");
+const SLA_GRAPHQL: &str = include_str!("../config/graph/sla.graphql");
+
+// ── In-process Groundwork HTTP server (REST + GraphQL) ───────────────────────
 
 async fn make_pool() -> sqlx::SqlitePool {
     SqlitePoolOptions::new()
@@ -35,14 +44,15 @@ async fn make_pool() -> sqlx::SqlitePool {
 
 struct TestEntity {
     repo: Arc<dyn meshql_core::Repository>,
+    searcher: Arc<dyn meshql_core::Searcher>,
 }
 
 async fn make_entity() -> TestEntity {
     let pool = make_pool().await;
     let repo = Arc::new(SqliteRepository::new_with_pool(pool.clone()).await.unwrap());
-    let _searcher: Arc<dyn meshql_core::Searcher> =
+    let searcher: Arc<dyn meshql_core::Searcher> =
         Arc::new(SqliteSearcher::new_with_pool(pool).await.unwrap());
-    TestEntity { repo }
+    TestEntity { repo, searcher }
 }
 
 fn validator_for(schema_str: &str) -> ValidatorFn {
@@ -78,7 +88,7 @@ async fn build_server() -> String {
 
     let deployable_restlette = meshql_server::build_restlette_router_ext(
         "/deployable/api",
-        deployable.repo,
+        deployable.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/deployable.schema.json"))),
@@ -87,7 +97,7 @@ async fn build_server() -> String {
     );
     let service_restlette = meshql_server::build_restlette_router_ext(
         "/service/api",
-        service.repo,
+        service.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/service.schema.json"))),
@@ -96,7 +106,7 @@ async fn build_server() -> String {
     );
     let dependency_restlette = meshql_server::build_restlette_router_ext(
         "/dependency/api",
-        dependency.repo,
+        dependency.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/dependency.schema.json"))),
@@ -105,7 +115,7 @@ async fn build_server() -> String {
     );
     let exposes_restlette = meshql_server::build_restlette_router_ext(
         "/exposes/api",
-        exposes.repo,
+        exposes.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/exposes.schema.json"))),
@@ -114,7 +124,7 @@ async fn build_server() -> String {
     );
     let contract_restlette = meshql_server::build_restlette_router_ext(
         "/contract/api",
-        contract.repo,
+        contract.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/contract.schema.json"))),
@@ -123,7 +133,7 @@ async fn build_server() -> String {
     );
     let sla_restlette = meshql_server::build_restlette_router_ext(
         "/sla/api",
-        sla.repo,
+        sla.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/sla.schema.json"))),
@@ -139,9 +149,84 @@ async fn build_server() -> String {
         .merge(contract_restlette)
         .merge(sla_restlette);
 
+    // GraphQL surfaces for the six entities. Templates mirror groundwork's
+    // production main.rs so the auto-derived MCP capabilities see the same
+    // query shape. No federated singleton/vector resolvers — the harness
+    // doesn't run a Union sidecar; capabilities that ask for the federated
+    // `team` field will get null, which is fine for the scenarios here.
+    let deployable_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .build();
+    let service_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .build();
+    let dependency_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
+        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .build();
+    let exposes_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
+        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .build();
+    let contract_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .build();
+    let sla_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByContractId", r#"{"payload.contract_id": "{{contract_id}}"}"#)
+        .build();
+
     let server_config = ServerConfig {
         port: 0,
-        graphlettes: vec![],
+        graphlettes: vec![
+            GraphletteConfig {
+                path: "/deployable/graph".into(),
+                schema_text: DEPLOYABLE_GRAPHQL.into(),
+                root_config: deployable_gql,
+                searcher: deployable.searcher,
+            },
+            GraphletteConfig {
+                path: "/service/graph".into(),
+                schema_text: SERVICE_GRAPHQL.into(),
+                root_config: service_gql,
+                searcher: service.searcher,
+            },
+            GraphletteConfig {
+                path: "/dependency/graph".into(),
+                schema_text: DEPENDENCY_GRAPHQL.into(),
+                root_config: dependency_gql,
+                searcher: dependency.searcher,
+            },
+            GraphletteConfig {
+                path: "/exposes/graph".into(),
+                schema_text: EXPOSES_GRAPHQL.into(),
+                root_config: exposes_gql,
+                searcher: exposes.searcher,
+            },
+            GraphletteConfig {
+                path: "/contract/graph".into(),
+                schema_text: CONTRACT_GRAPHQL.into(),
+                root_config: contract_gql,
+                searcher: contract.searcher,
+            },
+            GraphletteConfig {
+                path: "/sla/graph".into(),
+                schema_text: SLA_GRAPHQL.into(),
+                root_config: sla_gql,
+                searcher: sla.searcher,
+            },
+        ],
         restlettes: vec![],
     };
 
@@ -266,19 +351,6 @@ impl McpWorld {
         self.last_tool_result
             .as_ref()
             .expect("no tool result captured")
-    }
-
-    /// Unwrap the `{ "result": [...] }` envelope the server uses to keep MCP's
-    /// `structuredContent` an object, when the underlying value is an array.
-    fn structured_array(&self) -> Vec<Value> {
-        let r = self.structured_result();
-        if let Some(arr) = r.as_array() {
-            return arr.clone();
-        }
-        if let Some(arr) = r.get("result").and_then(|v| v.as_array()) {
-            return arr.clone();
-        }
-        panic!("expected array (raw or wrapped under 'result'), got: {r}");
     }
 }
 
@@ -421,36 +493,61 @@ async fn response_includes_tool(world: &mut McpWorld, name: String) {
     );
 }
 
+impl McpWorld {
+    /// Pull the array of GraphQL rows from the structured tool result.
+    /// Auto-derived capabilities wrap their data under the operation name
+    /// (`{ getAll: [...] }` or `{ getByName: [...] }`); fall back to a raw
+    /// array (when scenarios call a custom Custom-handler capability that
+    /// returns one) and to the `result`-wrapped envelope.
+    fn gql_rows(&self) -> Vec<Value> {
+        let r = self.structured_result();
+        for key in ["getAll", "getByName", "getById"] {
+            if let Some(arr) = r.get(key).and_then(|v| v.as_array()) {
+                return arr.clone();
+            }
+        }
+        if let Some(arr) = r.as_array() {
+            return arr.clone();
+        }
+        if let Some(arr) = r.get("result").and_then(|v| v.as_array()) {
+            return arr.clone();
+        }
+        panic!("expected GraphQL rows under getAll/getByName/getById, got: {r}");
+    }
+
+    /// Pull the single GraphQL row from a `getById`-style result.
+    fn gql_row(&self) -> Value {
+        let r = self.structured_result();
+        for key in ["getById"] {
+            if let Some(row) = r.get(key) {
+                return row.clone();
+            }
+        }
+        r.clone()
+    }
+}
+
 #[then("the tool result should be a JSON array")]
 async fn tool_result_is_array(world: &mut McpWorld) {
-    // Either raw array or `{ "result": [...] }` (the wire wrapper).
-    let _ = world.structured_array();
+    // GraphQL responses wrap rows under the operation name; the helper
+    // unwraps to a Vec<Value> for assertions.
+    let _ = world.gql_rows();
 }
 
 #[then(regex = r#"^the tool result should contain a record named "([^"]+)"$"#)]
 async fn tool_result_contains_named(world: &mut McpWorld, name: String) {
-    let arr = world.structured_array();
-    let found = arr.iter().any(|env| {
-        let n = env
-            .get("payload")
-            .and_then(|p| p.get("name"))
-            .and_then(|v| v.as_str())
-            .or_else(|| env.get("name").and_then(|v| v.as_str()));
-        n == Some(name.as_str())
-    });
+    let arr = world.gql_rows();
+    let found = arr
+        .iter()
+        .any(|row| row.get("name").and_then(|v| v.as_str()) == Some(name.as_str()));
     assert!(found, "no record named {name} in {arr:?}");
 }
 
-#[then(regex = r#"^the tool result envelope name should be "([^"]+)"$"#)]
-async fn envelope_name_equals(world: &mut McpWorld, expected: String) {
-    let r = world.structured_result();
-    let actual = r
-        .get("payload")
-        .and_then(|p| p.get("name"))
-        .and_then(|v| v.as_str())
-        .or_else(|| r.get("name").and_then(|v| v.as_str()))
-        .unwrap_or("");
-    assert_eq!(actual, expected, "envelope: {r}");
+#[then(regex = r#"^the tool result name should be "([^"]+)"$"#)]
+async fn flat_name_equals(world: &mut McpWorld, expected: String) {
+    let row = world.gql_row();
+    let actual = row.get("name").and_then(|v| v.as_str()).unwrap_or("");
+    assert_eq!(actual, expected, "row: {row}");
 }
 
 #[then(regex = r#"^the tool result should describe "([^"]+)" as a dependent$"#)]
