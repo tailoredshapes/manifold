@@ -2,12 +2,14 @@
 //!
 //! Spawns the binary as a subprocess (built via `CARGO_BIN_EXE_union-mcp`)
 //! and exchanges line-delimited JSON-RPC frames over its stdin/stdout. The
-//! `UNION_URL` env var points the MCP child at an in-process Union REST
-//! server bound to a random port. The in-process server registers REST
-//! routes only — MCP tools never touch the GraphQL surface.
+//! `UNION_URL` env var points the MCP child at an in-process Union HTTP
+//! server (REST + GraphQL) bound to a random port. Each entity's restlette
+//! repository and graphlette searcher share a single SQLite pool so reads
+//! via `/graph` (used by auto-derived catalog capabilities) see the same
+//! rows the test wrote via `/api`.
 
 use cucumber::{given, then, when, World};
-use meshql_core::{NoAuth, ServerConfig, Stash};
+use meshql_core::{GraphletteConfig, NoAuth, RootConfig, ServerConfig, Stash};
 use meshql_server::{ValidatorContext, ValidatorFn};
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
 use reqwest::Client;
@@ -20,7 +22,12 @@ use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 
-// ── In-process Union REST server ─────────────────────────────────────────────
+const PERSON_GRAPHQL: &str = include_str!("../config/graph/person.graphql");
+const TEAM_GRAPHQL: &str = include_str!("../config/graph/team.graphql");
+const TEAM_MEMBER_GRAPHQL: &str = include_str!("../config/graph/team_member.graphql");
+const WORK_ORDER_GRAPHQL: &str = include_str!("../config/graph/work_order.graphql");
+
+// ── In-process Union HTTP server (REST + GraphQL) ────────────────────────────
 
 async fn make_pool() -> sqlx::SqlitePool {
     SqlitePoolOptions::new()
@@ -36,14 +43,15 @@ async fn make_pool() -> sqlx::SqlitePool {
 
 struct TestEntity {
     repo: Arc<dyn meshql_core::Repository>,
+    searcher: Arc<dyn meshql_core::Searcher>,
 }
 
 async fn make_entity() -> TestEntity {
     let pool = make_pool().await;
     let repo = Arc::new(SqliteRepository::new_with_pool(pool.clone()).await.unwrap());
-    let _searcher: Arc<dyn meshql_core::Searcher> =
+    let searcher: Arc<dyn meshql_core::Searcher> =
         Arc::new(SqliteSearcher::new_with_pool(pool).await.unwrap());
-    TestEntity { repo }
+    TestEntity { repo, searcher }
 }
 
 fn validator_for(schema_str: &str) -> ValidatorFn {
@@ -77,7 +85,7 @@ async fn build_server() -> String {
 
     let person_restlette = meshql_server::build_restlette_router_ext(
         "/person/api",
-        person.repo,
+        person.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/person.schema.json"))),
@@ -86,7 +94,7 @@ async fn build_server() -> String {
     );
     let team_restlette = meshql_server::build_restlette_router_ext(
         "/team/api",
-        team.repo,
+        team.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/team.schema.json"))),
@@ -95,7 +103,7 @@ async fn build_server() -> String {
     );
     let team_member_restlette = meshql_server::build_restlette_router_ext(
         "/team_member/api",
-        team_member.repo,
+        team_member.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/team_member.schema.json"))),
@@ -104,7 +112,7 @@ async fn build_server() -> String {
     );
     let work_order_restlette = meshql_server::build_restlette_router_ext(
         "/work_order/api",
-        work_order.repo,
+        work_order.repo.clone(),
         auth.clone(),
         None,
         Some(validator_for(include_str!("../config/json/work_order.schema.json"))),
@@ -118,9 +126,66 @@ async fn build_server() -> String {
         .merge(team_member_restlette)
         .merge(work_order_restlette);
 
+    // GraphQL surfaces for the four entities. Templates mirror union's
+    // production main.rs (minus the federated singleton resolvers on work_order,
+    // which would require running Groundwork/Cityhall sidecars in the harness).
+    let person_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .build();
+    let team_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByName", r#"{"payload.name": "{{name}}"}"#)
+        .vector("getByKind", r#"{"payload.kind": "{{kind}}"}"#)
+        .build();
+    let team_member_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByPersonId", r#"{"payload.person_id": "{{person_id}}"}"#)
+        .vector("getByTeamId", r#"{"payload.team_id": "{{team_id}}"}"#)
+        .build();
+    let work_order_gql = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector("getByTeamId", r#"{"payload.team_id": "{{team_id}}"}"#)
+        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
+        .vector(
+            "getByChangeRequestId",
+            r#"{"payload.change_request_id": "{{change_request_id}}"}"#,
+        )
+        .vector("getByStatus", r#"{"payload.status": "{{status}}"}"#)
+        .build();
+
     let server_config = ServerConfig {
         port: 0,
-        graphlettes: vec![],
+        graphlettes: vec![
+            GraphletteConfig {
+                path: "/person/graph".into(),
+                schema_text: PERSON_GRAPHQL.into(),
+                root_config: person_gql,
+                searcher: person.searcher,
+            },
+            GraphletteConfig {
+                path: "/team/graph".into(),
+                schema_text: TEAM_GRAPHQL.into(),
+                root_config: team_gql,
+                searcher: team.searcher,
+            },
+            GraphletteConfig {
+                path: "/team_member/graph".into(),
+                schema_text: TEAM_MEMBER_GRAPHQL.into(),
+                root_config: team_member_gql,
+                searcher: team_member.searcher,
+            },
+            GraphletteConfig {
+                path: "/work_order/graph".into(),
+                schema_text: WORK_ORDER_GRAPHQL.into(),
+                root_config: work_order_gql,
+                searcher: work_order.searcher,
+            },
+        ],
         restlettes: vec![],
     };
 
@@ -248,13 +313,18 @@ impl McpWorld {
 
     fn structured_array(&self) -> Vec<Value> {
         let r = self.structured_result();
+        for key in ["getAll", "getByName", "getByKind", "getByTeamId", "getByPersonId"] {
+            if let Some(arr) = r.get(key).and_then(|v| v.as_array()) {
+                return arr.clone();
+            }
+        }
         if let Some(arr) = r.as_array() {
             return arr.clone();
         }
         if let Some(arr) = r.get("result").and_then(|v| v.as_array()) {
             return arr.clone();
         }
-        panic!("expected array (raw or wrapped under 'result'), got: {r}");
+        panic!("expected array (raw or GraphQL-wrapped under getAll/etc), got: {r}");
     }
 }
 

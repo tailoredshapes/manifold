@@ -16,21 +16,22 @@ Feature: Union MCP server
     And I have filed work order "ship-pay" for team "Platform" worth 8 points with status "proposed"
     And I have filed work order "old-cleanup" for team "Platform" worth 13 points with status "done"
 
-  Scenario: tools/list returns the catalogue + custom tools
+  Scenario: tools/list returns the auto-derived catalogue + custom capabilities
     When I send MCP request "tools/list"
-    Then the response should include tool "catalog.list"
-    And the response should include tool "catalog.get"
-    And the response should include tool "catalog.search"
-    And the response should include tool "team.capacity"
-    And the response should include tool "team.members"
-    And the response should include tool "person.assignments"
+    Then the response should include tool "list_teams"
+    And the response should include tool "list_persons"
+    And the response should include tool "get_team_by_id"
+    And the response should include tool "find_teams_by_name"
+    And the response should include tool "team_capacity"
+    And the response should include tool "members_of_team"
+    And the response should include tool "assignments_for_person"
 
-  Scenario: catalog.list returns teams
-    When I call MCP tool "catalog.list" with arguments {"entity": "team"}
+  Scenario: list_teams returns seeded teams
+    When I call MCP tool "list_teams" with arguments {}
     Then the tool result should be a JSON array of at least 5 records
 
-  Scenario: team.capacity sums open story points
-    When I call MCP tool "team.capacity" with arguments {"team_id": "<ids.Platform>"}
+  Scenario: team_capacity sums open story points
+    When I call MCP tool "team_capacity" with arguments {"team_id": "<ids.Platform>"}
     Then the tool result should report points_in_flight 13
     And the tool result should report open_work_order_count 2
     And the tool result should report member_count 2
