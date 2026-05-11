@@ -48,6 +48,11 @@ name = "union_cert"
 path = "tests/union_cert.rs"
 harness = false
 
+[[test]]
+name = "mcp_harness"
+path = "tests/mcp_harness.rs"
+harness = false
+
 [features]
 default  = ["sqlite"]
 mongo    = ["dep:meshql-mongo"]
