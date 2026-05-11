@@ -925,12 +925,16 @@ function applyGraphFilters() {
   const teamSel = document.getElementById('filter-team');
   const team = teamSel ? teamSel.value : '';
 
-  cy.edges().forEach(e => {
-    const crit = e.data('criticality') || 'medium';
-    e.style('display', enabledCrit.has(crit) ? 'element' : 'none');
-  });
   cy.nodes().forEach(n => {
     n.style('display', !team || n.data('team') === team ? 'element' : 'none');
+  });
+  // Cytoscape doesn't auto-hide edges whose endpoints are hidden; without
+  // this pass, filtering by team leaves orphan arrows pointing at empty space.
+  cy.edges().forEach(e => {
+    const critOk = enabledCrit.has(e.data('criticality') || 'medium');
+    const endpointsVisible = e.source().style('display') !== 'none'
+                          && e.target().style('display') !== 'none';
+    e.style('display', critOk && endpointsVisible ? 'element' : 'none');
   });
 }
 
@@ -1322,7 +1326,9 @@ async function init() {
     setError(err.message);
   }
 
-  renderList();
+  // Route through setActiveEntity so a cold-load at #graph takes the graph
+  // branch — renderList() would crash because ENTITIES['graph'] is undefined.
+  setActiveEntity(state.activeEntity);
   document.getElementById('search').focus();
 }
 
