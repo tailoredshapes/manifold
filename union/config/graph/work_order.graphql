@@ -6,6 +6,7 @@ type WorkOrder {
     change_request_id: String
     status: String
     priority: String
+    story_points: Int
     deployable: Deployable
     change_request: ChangeRequest
 }
