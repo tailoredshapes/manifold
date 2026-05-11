@@ -5,6 +5,7 @@ type Deployable {
     repo_url: String
     team_id: String
     team: Team
+    deployment_status: String
 }
 type Team {
     id: ID
