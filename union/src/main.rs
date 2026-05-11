@@ -142,6 +142,18 @@ async fn main() -> anyhow::Result<()> {
     let cityhall_url =
         std::env::var("CITYHALL_URL").unwrap_or_else(|_| "http://localhost:3002".into());
 
+    // Cross-app public URLs — published via /config.json for the frontend.
+    let groundwork_public_url = std::env::var("GROUNDWORK_PUBLIC_URL")
+        .unwrap_or_else(|_| "https://groundwork.tildarc.com".into());
+    let cityhall_public_url = std::env::var("CITYHALL_PUBLIC_URL")
+        .unwrap_or_else(|_| "https://cityhall.tildarc.com".into());
+
+    let config_body = serde_json::json!({
+        "groundwork_public_url": groundwork_public_url,
+        "cityhall_public_url":   cityhall_public_url,
+    })
+    .to_string();
+
     std::fs::create_dir_all(&data_dir)?;
 
     let person = make_entity(&data_dir, "person").await;
@@ -273,10 +285,25 @@ async fn main() -> anyhow::Result<()> {
         None,
     );
 
+    let config_route = Router::new().route(
+        "/config.json",
+        get(move || {
+            let body = config_body.clone();
+            async move {
+                (
+                    [(header::CONTENT_TYPE, "application/json")],
+                    body,
+                )
+                    .into_response()
+            }
+        }),
+    );
+
     let extra = Router::new()
         .route("/", get(serve_index))
         .route("/static/app.js", get(serve_app_js))
         .route("/health", get(health_check))
+        .merge(config_route)
         .merge(person_restlette)
         .merge(team_restlette)
         .merge(team_member_restlette)

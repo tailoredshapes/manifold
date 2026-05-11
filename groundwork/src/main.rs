@@ -113,6 +113,23 @@ async fn main() -> anyhow::Result<()> {
     let union_url =
         std::env::var("UNION_URL").unwrap_or_else(|_| "http://localhost:3001".into());
 
+    // Cross-app public URLs — published via /config.json for the frontend to
+    // build cross-app <a href>s. These are *config*, not data. See memory
+    // feedback_use_the_graph.md.
+    let union_public_url =
+        std::env::var("UNION_PUBLIC_URL").unwrap_or_else(|_| "https://union.tildarc.com".into());
+    let cityhall_public_url = std::env::var("CITYHALL_PUBLIC_URL")
+        .unwrap_or_else(|_| "https://cityhall.tildarc.com".into());
+    let yard_public_url =
+        std::env::var("YARD_PUBLIC_URL").unwrap_or_else(|_| "https://yard.tildarc.com".into());
+
+    let config_body = serde_json::json!({
+        "union_public_url":    union_public_url,
+        "cityhall_public_url": cityhall_public_url,
+        "yard_public_url":     yard_public_url,
+    })
+    .to_string();
+
     std::fs::create_dir_all(&data_dir)?;
 
     let deployable = make_entity(&data_dir, "deployable").await;
@@ -285,10 +302,25 @@ async fn main() -> anyhow::Result<()> {
         None,
     );
 
+    let config_route = Router::new().route(
+        "/config.json",
+        get(move || {
+            let body = config_body.clone();
+            async move {
+                (
+                    [(header::CONTENT_TYPE, "application/json")],
+                    body,
+                )
+                    .into_response()
+            }
+        }),
+    );
+
     let extra = Router::new()
         .route("/", get(serve_index))
         .route("/static/app.js", get(serve_app_js))
         .route("/health", get(health_check))
+        .merge(config_route)
         .merge(deployable_restlette)
         .merge(service_restlette)
         .merge(dependency_restlette)

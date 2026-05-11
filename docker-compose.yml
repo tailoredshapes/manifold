@@ -16,6 +16,9 @@ services:
       - PORT=3000
       - DATA_DIR=/data
       - UNION_URL=http://union:3000
+      - UNION_PUBLIC_URL=${UNION_PUBLIC_URL:-https://union.tildarc.com}
+      - CITYHALL_PUBLIC_URL=${CITYHALL_PUBLIC_URL:-https://cityhall.tildarc.com}
+      - YARD_PUBLIC_URL=${YARD_PUBLIC_URL:-https://yard.tildarc.com}
 
   union:
     build:
@@ -35,6 +38,8 @@ services:
       - DATA_DIR=/data
       - GROUNDWORK_URL=http://groundwork:3000
       - CITYHALL_URL=http://cityhall:3000
+      - GROUNDWORK_PUBLIC_URL=${GROUNDWORK_PUBLIC_URL:-https://groundwork.tildarc.com}
+      - CITYHALL_PUBLIC_URL=${CITYHALL_PUBLIC_URL:-https://cityhall.tildarc.com}
 
   cityhall:
     build:
@@ -59,6 +64,8 @@ services:
       - UNION_URL=http://union:3000
       - CITYHALL_URL=http://cityhall:3000
       - YARD_URL=http://yard:3000
+      - GROUNDWORK_PUBLIC_URL=${GROUNDWORK_PUBLIC_URL:-https://groundwork.tildarc.com}
+      - UNION_PUBLIC_URL=${UNION_PUBLIC_URL:-https://union.tildarc.com}
 
   yard:
     build:
@@ -84,6 +91,9 @@ services:
       - UNION_URL=http://union:3000
       - CITYHALL_URL=http://cityhall:3000
       - YARD_SELF_URL=http://yard:3000
+      - GROUNDWORK_PUBLIC_URL=${GROUNDWORK_PUBLIC_URL:-https://groundwork.tildarc.com}
+      - UNION_PUBLIC_URL=${UNION_PUBLIC_URL:-https://union.tildarc.com}
+      - CITYHALL_PUBLIC_URL=${CITYHALL_PUBLIC_URL:-https://cityhall.tildarc.com}
 
 volumes:
   groundwork-data:
