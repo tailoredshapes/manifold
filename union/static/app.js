@@ -34,7 +34,35 @@ const state = {
   expandedTeamId: null,
   modalOpen: false,
   modalKind: null, // 'team' | 'person' | 'member' | 'work_order'
+  config: {},     // populated from /config.json: cross-app public URLs
 };
+
+// ── Cross-app linking ────────────────────────────────────────────────────────
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/config.json');
+    if (res.ok) state.config = await res.json();
+  } catch {
+    state.config = {};
+  }
+}
+
+// Build a cross-app anchor pointing at <base>#<screen>[/<id>], or fall back
+// to plain escaped text when the target app's public URL is unknown. The
+// receiving end may not yet honour the id segment — that's deferred.
+function crossLink(appKey, screen, id, label) {
+  const base = state.config?.[`${appKey}_public_url`];
+  if (!base) return esc(label);
+  const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
+  return `<a href="${esc(base.replace(/\/$/, ''))}${hash}">${esc(label)}</a>`;
+}
+
+// Build an intra-app anchor pointing at #<screen>[/<id>].
+function intraLink(screen, id, label) {
+  const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
+  return `<a href="${hash}">${esc(label)}</a>`;
+}
 
 // ── API helpers ───────────────────────────────────────────────────────────────
 
@@ -257,7 +285,10 @@ function renderTeamCard(t) {
   const memberItems = members.map(m => {
     const pname = personName(m.person_id);
     const role = m.role ? ` · ${esc(m.role)}` : '';
-    return `<li>${esc(pname)}${role}</li>`;
+    // Intra-app link to People screen — selection-level routing not yet wired,
+    // so for now the link just lands on the list.
+    const nameHtml = m.person_id ? intraLink('people', m.person_id, pname) : esc(pname);
+    return `<li>${nameHtml}${role}</li>`;
   }).join('') || '<li style="color:var(--muted)">No members yet</li>';
 
   const detail = expanded ? `
@@ -525,7 +556,15 @@ function woCardHtml(wo) {
   const pr = wo.priority || '';
   const cls = pr === 'urgent' ? 'danger' : pr === 'high' ? 'warn' : pr === 'medium' ? 'primary' : '';
   const depLabel = wo.deployable?.name || wo.deployable_id;
-  const dep = depLabel ? `<div class="wo-deployable">deployable: ${esc(depLabel)}</div>` : '';
+  // Cross-app link to Groundwork — deployable detail lives there. Receiving
+  // end may not yet focus the entity; the URL is still informative.
+  const depHtml = depLabel && wo.deployable_id
+    ? crossLink('groundwork', 'deployables', wo.deployable_id, depLabel)
+    : (depLabel ? esc(depLabel) : '');
+  const dep = depLabel ? `<div class="wo-deployable">deployable: ${depHtml}</div>` : '';
+  const crHtml = wo.change_request_id
+    ? `<div class="wo-deployable">change: ${crossLink('cityhall', 'changes', wo.change_request_id, wo.change_request_id.slice(0, 8))}</div>`
+    : '';
   return `
     <div class="wo-card" draggable="true" data-id="${esc(wo.id)}">
       <div class="wo-summary">${esc(wo.summary || '(no summary)')}</div>
@@ -534,6 +573,7 @@ function woCardHtml(wo) {
         ${pr ? `<span class="pill ${cls}">${esc(pr)}</span>` : ''}
       </div>
       ${dep}
+      ${crHtml}
     </div>
   `;
 }
@@ -876,6 +916,10 @@ async function init() {
   initModal();
   initKeyboard();
   initHashRouting();
+
+  // /config.json publishes cross-app public URLs; needed before first render
+  // so cross-app anchors land with the right base.
+  await loadConfig();
 
   try {
     await loadAll();
