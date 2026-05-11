@@ -864,7 +864,7 @@ function renderRuns(root) {
     tbody.appendChild(row);
 
     if (expanded) {
-      const syncs = syncByTargetEnv.get(p.test_environment_id) || [];
+      const syncs = syncByTargetEnv.get(r.test_environment_id) || [];
       const detailCell = el('td', { colSpan: 7 });
 
       // Editable run form
