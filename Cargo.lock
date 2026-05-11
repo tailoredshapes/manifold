@@ -1295,6 +1295,7 @@ dependencies = [
  "cucumber",
  "meshql-core",
  "meshql-graphlette",
+ "meshql-mcp",
  "meshql-merkql",
  "meshql-mongo",
  "meshql-restlette",
@@ -2027,6 +2028,18 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "url",
+]
+
+[[package]]
+name = "meshql-mcp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
