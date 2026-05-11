@@ -847,7 +847,11 @@ function renderRuns(root) {
 
     const row = el('tr', {
       class: expanded ? 'expanded' : '',
-      onClick: () => { state.expandedRunId = expanded ? null : r.id; render(); },
+      onClick: (e) => {
+        if (e.target.closest('a')) return;
+        state.expandedRunId = expanded ? null : r.id;
+        render();
+      },
     },
       el('td', {}, envName),
       el('td', {}, el('span', { class: 'badge s-' + status }, status)),
