@@ -30,6 +30,11 @@ const state = {
   screen: 'org',
   data: { orgNodes: [], bylaws: [], changeRequests: [], plans: [], gantts: [] },
   config: {},     // populated from /config.json: cross-app public URLs
+  lookups: {      // cached id→name maps from sibling apps, via their /graph
+    deployables: new Map(),
+    people: new Map(),
+    teams: new Map(),
+  },
   org: {
     expanded: new Set(),     // node ids expanded in tree
     effective: new Map(),    // node id -> array of effective bylaws
@@ -83,6 +88,74 @@ function looksLikeId(s) {
   return typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 }
 
+// Fetch id→name maps from sibling apps' /graph endpoints (read-side of CQRS).
+// CORS is open on meshql-server, so cross-origin POST works. Failures are
+// non-fatal — render code falls back to formatId() when a name is missing.
+async function loadCrossAppLookups() {
+  const gw = state.config?.groundwork_public_url;
+  const un = state.config?.union_public_url;
+  const fetches = [];
+  if (gw) {
+    fetches.push(
+      gqlQuery(`${gw.replace(/\/$/, '')}/deployable/graph`, '{ getAll { id name } }')
+        .then(d => {
+          for (const dep of d.getAll || []) {
+            if (dep?.id) state.lookups.deployables.set(dep.id, dep.name || dep.id);
+          }
+        })
+        .catch(() => { /* fall through to formatId */ })
+    );
+  }
+  if (un) {
+    const base = un.replace(/\/$/, '');
+    fetches.push(
+      gqlQuery(`${base}/person/graph`, '{ getAll { id name } }')
+        .then(d => {
+          for (const p of d.getAll || []) {
+            if (p?.id) state.lookups.people.set(p.id, p.name || p.id);
+          }
+        })
+        .catch(() => {})
+    );
+    fetches.push(
+      gqlQuery(`${base}/team/graph`, '{ getAll { id name } }')
+        .then(d => {
+          for (const t of d.getAll || []) {
+            if (t?.id) state.lookups.teams.set(t.id, t.name || t.id);
+          }
+        })
+        .catch(() => {})
+    );
+  }
+  await Promise.all(fetches);
+}
+
+// Render a deployable id as its name (preferred) or a stable short form.
+function deployableName(id) {
+  if (!id) return '';
+  return state.lookups.deployables.get(id) || formatId(id);
+}
+
+// Render a person id as their name (preferred) or a stable short form.
+function personName(id) {
+  if (!id) return '';
+  return state.lookups.people.get(id) || formatId(id);
+}
+
+// Render a team id as its name (preferred) or a stable short form.
+function teamName(id) {
+  if (!id) return '';
+  return state.lookups.teams.get(id) || formatId(id);
+}
+
+// When no name is available, fall back to an unambiguous-but-shorter form.
+// For UUIDs this strips them to the first segment; non-UUID strings pass
+// through (so emails/handles in requested_by stay readable).
+function formatId(s) {
+  if (typeof s !== 'string') return String(s);
+  return looksLikeId(s) ? `${s.slice(0, 8)}…` : s;
+}
+
 // ── Tiny DOM helpers ──────────────────────────────────────────────────────────
 
 const $  = (sel, root = document) => root.querySelector(sel);
@@ -107,6 +180,16 @@ function el(tag, props = {}, children = []) {
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')
     .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Format an ISO timestamp like "2026-04-29T00:00:00Z" as "2026-04-29 00:00 UTC".
+// Falls back to the raw string if it can't be parsed.
+function formatTimestamp(s) {
+  if (!s) return '';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return String(s);
+  const iso = d.toISOString();
+  return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
 // ── API ───────────────────────────────────────────────────────────────────────
@@ -357,8 +440,8 @@ function buildTreeNode(node, byParent, needle) {
   if (isLeaf && node.team_id) {
     // Cross-app deeplink to the Union team. Stop propagation so clicking the
     // link doesn't also toggle the tree node.
-    const teamSpan = el('span', { class: 'mono' });
-    teamSpan.innerHTML = crossLink('union', 'teams', node.team_id, node.team_id);
+    const teamSpan = el('span', {});
+    teamSpan.innerHTML = crossLink('union', 'teams', node.team_id, teamName(node.team_id));
     teamSpan.addEventListener('click', e => e.stopPropagation());
     row.append(el('span', { class: 'tree-team' }, [`team: `, teamSpan]));
   } else if (isLeaf) {
@@ -507,10 +590,12 @@ function renderChangeRequests() {
       targetsCell.appendChild(el('span', {}, '—'));
     } else {
       // Cross-app deeplinks to Groundwork's Deployables screen. Cap at 3 to
-      // keep the row from sprawling; surplus collapses to "+N more".
+      // keep the row from sprawling; surplus collapses to "+N more". Labels
+      // use the deployable name from state.lookups (populated lazily from
+      // Groundwork's /graph), falling back to a UUID prefix until resolved.
       const shown = targets.slice(0, 3);
       const html = shown
-        .map(t => crossLink('groundwork', 'deployables', t, t.slice(0, 8)))
+        .map(t => crossLink('groundwork', 'deployables', t, deployableName(t)))
         .join(', ');
       const extra = targets.length > 3 ? ` +${targets.length - 3} more` : '';
       targetsCell.innerHTML = html + esc(extra);
@@ -518,15 +603,16 @@ function renderChangeRequests() {
 
     // Optional requested_by link (only when it looks like a UUID — free-text
     // emails/handles stay as plain text since /people doesn't accept them).
+    // Label uses the person name from state.lookups, falling back to a UUID
+    // prefix when the lookup hasn't populated yet.
     const requestedByHtml = cr.requested_by
       ? (looksLikeId(cr.requested_by)
-          ? crossLink('union', 'people', cr.requested_by, cr.requested_by.slice(0, 8))
+          ? crossLink('union', 'people', cr.requested_by, personName(cr.requested_by))
           : esc(cr.requested_by))
       : '';
 
     const summaryCell = el('td', {});
     summaryCell.appendChild(el('div', {}, cr.summary || '(no summary)'));
-    summaryCell.appendChild(el('div', { class: 'mono' }, cr.id?.slice(0, 8) || ''));
     if (requestedByHtml) {
       const r = el('div', { class: 'mono muted', style: 'font-size: 11px;' });
       r.innerHTML = `by ${requestedByHtml}`;
@@ -746,36 +832,58 @@ function renderPlanDetail(envelope) {
     wrap.appendChild(el('div', { class: 'muted', style: 'font-size: 13px;' }, 'Plan computed with no steps.'));
   }
 
-  // Group steps by deployable
+  // Group steps by deployable, keeping the deployable's name (from the plan
+  // step's own `deployable_name` field — the planner already resolves this
+  // when it queries Groundwork during computation, so the name travels with
+  // the step and no cross-app lookup is needed here).
   const groups = new Map();
   for (const s of steps) {
-    const key = s.deployable_id || s.deployable || 'general';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(s);
+    const key = s.deployable_id || 'general';
+    if (!groups.has(key)) groups.set(key, { name: s.deployable_name || key, steps: [] });
+    groups.get(key).steps.push(s);
   }
-  for (const [deployable, list] of groups) {
-    const group = el('div', { class: 'plan-group' });
-    // Cross-app deeplink to the Deployable in Groundwork — the "general"
-    // synthetic bucket has no id, so leave it as plain text.
+  for (const [deployableId, group] of groups) {
+    const groupEl = el('div', { class: 'plan-group' });
+    // Cross-app deeplink to the Deployable in Groundwork. Label is the name
+    // resolved during planning, not the UUID. "general" synthetic bucket has
+    // no real id, so leave it as plain text.
     const heading = el('h4', {});
-    if (deployable && deployable !== 'general') {
-      heading.innerHTML = crossLink('groundwork', 'deployables', deployable, deployable);
+    if (deployableId && deployableId !== 'general') {
+      heading.innerHTML = crossLink('groundwork', 'deployables', deployableId, group.name);
     } else {
-      heading.textContent = deployable;
+      heading.textContent = group.name;
     }
-    group.appendChild(heading);
+    groupEl.appendChild(heading);
     const stepsList = el('div', { class: 'plan-steps' });
-    for (const s of list) {
-      stepsList.appendChild(el('div', { class: 'plan-step-item' }, [
-        el('span', { class: 'pill primary' }, s.gate_type || s.kind || 'step'),
-        el('div', { class: 'grow' }, [
-          el('div', {}, s.description || s.label || s.name || '(step)'),
-          el('div', { class: 'gate-name' }, s.bylaw_id ? `bylaw ${s.bylaw_id}` : (s.org_node_id ? `node ${s.org_node_id}` : '')),
-        ]),
+    for (const step of group.steps) {
+      const item = el('div', { class: 'plan-step-item' });
+      // Step header: "deploy <name> · 10 min"
+      item.appendChild(el('div', { class: 'plan-step-header' }, [
+        el('span', { class: 'pill primary' }, step.action || 'step'),
+        el('span', { class: 'plan-step-name' }, step.deployable_name || ''),
+        el('span', { class: 'muted plan-step-eta' },
+          typeof step.estimated_minutes === 'number' ? `${step.estimated_minutes} min` : ''),
       ]));
+      // Gates: each gate has gate_type + source_org_node + optional description
+      const gates = Array.isArray(step.gates) ? step.gates : [];
+      if (gates.length) {
+        const gatesList = el('div', { class: 'plan-step-gates' });
+        for (const gate of gates) {
+          const row = el('div', { class: 'plan-step-gate' }, [
+            el('span', { class: 'pill' }, gate.gate_type || 'gate'),
+            el('span', { class: 'gate-source' }, gate.source_org_node ? `from ${gate.source_org_node}` : ''),
+          ]);
+          if (gate.description) {
+            row.appendChild(el('span', { class: 'muted gate-detail' }, ` · ${gate.description}`));
+          }
+          gatesList.appendChild(row);
+        }
+        item.appendChild(gatesList);
+      }
+      stepsList.appendChild(item);
     }
-    group.appendChild(stepsList);
-    wrap.appendChild(group);
+    groupEl.appendChild(stepsList);
+    wrap.appendChild(groupEl);
   }
 
   if (blockers.length) {
@@ -794,7 +902,8 @@ function renderReviewPane() {
   host.innerHTML = '';
   const f = state.cr.fields;
 
-  // Targets: cross-app links to Groundwork.
+  // Targets: cross-app links to Groundwork. Labels are deployable names from
+  // state.lookups (fall back to UUID prefix until the lookup populates).
   const targetsRow = el('div', { style: 'margin-top: 6px;' });
   targetsRow.appendChild(el('strong', {}, 'Targets: '));
   if (!state.cr.targets.length) {
@@ -802,19 +911,19 @@ function renderReviewPane() {
   } else {
     const span = el('span', {});
     span.innerHTML = state.cr.targets
-      .map(t => crossLink('groundwork', 'deployables', t, t))
+      .map(t => crossLink('groundwork', 'deployables', t, deployableName(t)))
       .join(', ');
     targetsRow.appendChild(span);
   }
 
-  // Requested by: only link if it looks like an id.
+  // Requested by: only link if it looks like an id; label is the person name.
   const requestedRow = el('div', { style: 'margin-top: 6px;' });
   requestedRow.appendChild(el('strong', {}, 'Requested by: '));
   if (!f.requested_by) {
     requestedRow.appendChild(document.createTextNode('(unspecified)'));
   } else if (looksLikeId(f.requested_by)) {
     const span = el('span', {});
-    span.innerHTML = crossLink('union', 'people', f.requested_by, f.requested_by);
+    span.innerHTML = crossLink('union', 'people', f.requested_by, personName(f.requested_by));
     requestedRow.appendChild(span);
   } else {
     requestedRow.appendChild(document.createTextNode(f.requested_by));
@@ -890,11 +999,9 @@ function buildPlanCard(plan) {
   const head = el('div', { class: 'plan-card-head', onclick: () => togglePlan(id) });
   head.append(
     el('div', {}, [
-      el('div', { class: 'plan-card-title' }, plan.summary || `Plan for ${(plan.change_request_id || '').slice(0, 8) || 'unknown'}`),
-      el('div', { class: 'plan-card-id' }, [
-        `${id?.slice(0, 8) || ''} · `,
-        plan.computed_at ? `computed ${plan.computed_at}` : 'no timestamp',
-      ]),
+      el('div', { class: 'plan-card-title' }, plan.summary || 'Plan (no summary)'),
+      el('div', { class: 'plan-card-id' },
+        plan.computed_at ? `computed ${formatTimestamp(plan.computed_at)}` : 'no timestamp'),
     ]),
     el('div', { class: 'row' }, [
       blockers.length ? el('span', { class: 'pill danger' }, `${blockers.length} blockers`) : el('span', { class: 'pill success' }, 'clear'),
@@ -1181,6 +1288,14 @@ async function init() {
   } catch (err) {
     flash(err.message, 'error', 6000);
   }
+
+  // Cross-app id→name lookups (Groundwork deployables, Union people) are
+  // best-effort and run alongside the first render — if they're slow the UI
+  // still works (names show as id prefixes until the lookup resolves).
+  loadCrossAppLookups().then(() => {
+    if (state.screen === 'changes' || state.screen === 'plans') setScreen(state.screen);
+  });
+
   setScreen(state.screen);
   updateFooterMeta();
 }
