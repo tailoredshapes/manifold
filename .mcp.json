@@ -1,0 +1,36 @@
+{
+  "mcpServers": {
+    "groundwork": {
+      "type": "stdio",
+      "command": "target/debug/groundwork-mcp",
+      "args": [],
+      "env": {
+        "GROUNDWORK_URL": "http://localhost:3050"
+      }
+    },
+    "union": {
+      "type": "stdio",
+      "command": "target/debug/union-mcp",
+      "args": [],
+      "env": {
+        "UNION_URL": "http://localhost:3051"
+      }
+    },
+    "cityhall": {
+      "type": "stdio",
+      "command": "target/debug/cityhall-mcp",
+      "args": [],
+      "env": {
+        "CITYHALL_URL": "http://localhost:3052"
+      }
+    },
+    "yard": {
+      "type": "stdio",
+      "command": "target/debug/yard-mcp",
+      "args": [],
+      "env": {
+        "YARD_URL": "http://localhost:3053"
+      }
+    }
+  }
+}
