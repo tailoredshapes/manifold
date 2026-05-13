@@ -1,0 +1,17 @@
+[package]
+name = "yard-from-gitlab"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "yard-from-gitlab"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+manifold-adapter-common = { path = "../common" }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

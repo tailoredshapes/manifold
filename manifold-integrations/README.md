@@ -12,14 +12,20 @@ typically ~120 lines of source-system-specific code on top.
 
 ## Adapters shipped
 
-| Adapter | Source | Target | Status |
+| Adapter | Source | Target meshlette | Entities |
 |---|---|---|---|
-| [`catalog-from-github`](./catalog-from-github) | GitHub org / user repos | `groundwork.deployable` | ✓ working |
-| [`catalog-from-gitlab`](./catalog-from-gitlab) | GitLab group / user projects | `groundwork.deployable` | ✓ working |
+| [`catalog-from-github`](./catalog-from-github) | GitHub org / user repos | groundwork | `Deployable` |
+| [`catalog-from-gitlab`](./catalog-from-gitlab) | GitLab group / user projects | groundwork | `Deployable` |
+| [`yard-from-github`](./yard-from-github) | GitHub Actions workflows + runs | yard | `TestInfrastructure`, `TestEnvironment`, `TestSuite`, `TestRun` |
+| [`yard-from-gitlab`](./yard-from-gitlab) | GitLab CI pipelines | yard | `TestInfrastructure`, `TestEnvironment`, `TestSuite`, `TestRun` |
+| [`union-from-okta`](./union-from-okta) | Okta users + groups + memberships | union | `Person`, `Team`, `TeamMember` |
 
-Planned (not built yet): `yard-from-github` / `yard-from-gitlab` (Actions /
-Pipelines → `yard.test_run`), `union-from-okta` (users / groups →
-`union.team`), one-shot agent-driven importers for Docker Compose / Helm /
+The yard adapters look up the deployable for each repo via `manifold-ingest`'s
+`(github|gitlab, owner/repo)` records — if you run `catalog-from-*` first
+the yard records get linked to deployables; otherwise the `deployable_id`
+fields are left empty.
+
+Planned: one-shot agent-driven importers for Docker Compose / Helm /
 Kustomize (run as MCP-driven skills, no separate binary).
 
 ## Operating model
@@ -56,20 +62,39 @@ canonical id; if not, it POSTs a new record and writes a provenance row.
 ## Running an adapter
 
 ```bash
-# GitHub
-export GITHUB_TOKEN=ghp_…
-export MANIFOLD_USER_ID=alice@example.dev
-export MANIFOLD_USER_GROUPS=automation:github-sync
+# Common
+export MANIFOLD_USER_ID=alice@example.dev          # the human behind the run
 export MANIFOLD_GROUNDWORK_URL=http://localhost:3050
+export MANIFOLD_UNION_URL=http://localhost:3051
+export MANIFOLD_YARD_URL=http://localhost:3053
 export MANIFOLD_INGEST_URL=http://localhost:3054
+
+# GitHub repos → Groundwork
+export GITHUB_TOKEN=ghp_…
+export MANIFOLD_USER_GROUPS=automation:github-sync
 cargo run -p catalog-from-github -- --target tailoredshapes
 
-# GitLab
+# GitLab projects → Groundwork
 export GITLAB_TOKEN=glpat-…
 export MANIFOLD_USER_GROUPS=automation:gitlab-sync
 cargo run -p catalog-from-gitlab -- --group my-team
 # self-hosted GitLab:
 cargo run -p catalog-from-gitlab -- --base-url https://gitlab.internal --group …
+
+# GitHub Actions runs → Yard (run catalog-from-github first to link deployables)
+export GITHUB_TOKEN=ghp_…
+export MANIFOLD_USER_GROUPS=automation:github-yard-sync
+cargo run -p yard-from-github -- --target tailoredshapes
+
+# GitLab CI pipelines → Yard
+export GITLAB_TOKEN=glpat-…
+export MANIFOLD_USER_GROUPS=automation:gitlab-yard-sync
+cargo run -p yard-from-gitlab -- --group my-team
+
+# Okta users + groups → Union
+export OKTA_TOKEN=00…
+export MANIFOLD_USER_GROUPS=automation:okta-sync
+cargo run -p union-from-okta -- --okta-domain my-org.okta.com
 ```
 
 Re-running is safe — already-imported records are updated in place.

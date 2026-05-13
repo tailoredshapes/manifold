@@ -4,7 +4,7 @@
   "required": ["name", "provider"],
   "properties": {
     "name":          { "type": "string" },
-    "provider":      { "type": "string", "enum": ["docker", "aws_ec2", "aws_ecs", "azure_container", "gcp_gke", "kubernetes", "external_saas", "local"] },
+    "provider":      { "type": "string", "enum": ["docker", "aws_ec2", "aws_ecs", "azure_container", "gcp_gke", "kubernetes", "external_saas", "local", "github_actions", "gitlab_pipelines"] },
     "region":        { "type": "string" },
     "instance_type": { "type": "string" },
     "cost_per_hour": { "type": "string" },

@@ -4,7 +4,7 @@
   "required": ["name", "kind"],
   "properties": {
     "name":                 { "type": "string" },
-    "kind":                 { "type": "string", "enum": ["mock", "stub", "sandbox", "isolated", "multi-tenant", "external"] },
+    "kind":                 { "type": "string", "enum": ["mock", "stub", "sandbox", "isolated", "multi-tenant", "external", "ci"] },
     "deployable_id":        { "type": "string" },
     "service_id":           { "type": "string" },
     "infrastructure_id":    { "type": "string" },

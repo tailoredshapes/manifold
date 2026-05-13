@@ -9,6 +9,9 @@ members = [
     "manifold-integrations/common",
     "manifold-integrations/catalog-from-github",
     "manifold-integrations/catalog-from-gitlab",
+    "manifold-integrations/yard-from-github",
+    "manifold-integrations/yard-from-gitlab",
+    "manifold-integrations/union-from-okta",
 ]
 resolver = "2"
 

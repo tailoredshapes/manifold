@@ -113,7 +113,8 @@ async fn main() -> Result<()> {
                 "html_url": repo.html_url,
             });
             let res = manifold
-                .upsert_in_groundwork(
+                .upsert(
+                    "groundwork",
                     "/deployable/api",
                     "groundwork.deployable",
                     "github",

@@ -21,8 +21,14 @@ use serde_json::{json, Value};
 
 /// Configured adapter client. Construct once via [`ManifoldClient::from_env`]
 /// and reuse across all upserts.
+///
+/// Holds the base URL of every primary-domain meshlette the adapter might
+/// write to. `upsert(primary, …)` picks the right one — adapters that only
+/// touch one domain (e.g. catalog-from-github) just always pass
+/// `"groundwork"`; multi-domain adapters (e.g. union-from-okta writing to
+/// multiple union entities) reuse the same client.
 pub struct ManifoldClient {
-    groundwork_url: String,
+    primary_urls: std::collections::HashMap<&'static str, String>,
     ingest_url: String,
     user_id: String,
     groups: String,
@@ -41,6 +47,9 @@ impl ManifoldClient {
     /// Read configuration from the environment:
     ///
     /// - `MANIFOLD_GROUNDWORK_URL`  (default `http://localhost:3050`)
+    /// - `MANIFOLD_UNION_URL`       (default `http://localhost:3051`)
+    /// - `MANIFOLD_CITYHALL_URL`    (default `http://localhost:3052`)
+    /// - `MANIFOLD_YARD_URL`        (default `http://localhost:3053`)
     /// - `MANIFOLD_INGEST_URL`      (default `http://localhost:3054`)
     /// - `MANIFOLD_USER_ID`         **required** — the human on whose behalf
     ///                              the adapter is running
@@ -48,8 +57,26 @@ impl ManifoldClient {
     ///                              include the adapter's automation role
     ///                              (e.g. `automation:github-sync`)
     pub fn from_env() -> Result<Self> {
-        let groundwork_url = std::env::var("MANIFOLD_GROUNDWORK_URL")
-            .unwrap_or_else(|_| "http://localhost:3050".into());
+        let mut primary_urls = std::collections::HashMap::new();
+        primary_urls.insert(
+            "groundwork",
+            std::env::var("MANIFOLD_GROUNDWORK_URL")
+                .unwrap_or_else(|_| "http://localhost:3050".into()),
+        );
+        primary_urls.insert(
+            "union",
+            std::env::var("MANIFOLD_UNION_URL").unwrap_or_else(|_| "http://localhost:3051".into()),
+        );
+        primary_urls.insert(
+            "cityhall",
+            std::env::var("MANIFOLD_CITYHALL_URL")
+                .unwrap_or_else(|_| "http://localhost:3052".into()),
+        );
+        primary_urls.insert(
+            "yard",
+            std::env::var("MANIFOLD_YARD_URL").unwrap_or_else(|_| "http://localhost:3053".into()),
+        );
+
         let ingest_url =
             std::env::var("MANIFOLD_INGEST_URL").unwrap_or_else(|_| "http://localhost:3054".into());
         let user_id = std::env::var("MANIFOLD_USER_ID").with_context(|| {
@@ -57,7 +84,7 @@ impl ManifoldClient {
         })?;
         let groups = std::env::var("MANIFOLD_USER_GROUPS").unwrap_or_default();
         Ok(Self {
-            groundwork_url,
+            primary_urls,
             ingest_url,
             user_id,
             groups,
@@ -65,15 +92,24 @@ impl ManifoldClient {
         })
     }
 
-    /// Construct explicitly. Mostly useful for tests.
-    pub fn new(
-        groundwork_url: impl Into<String>,
+    /// Construct explicitly with a `primary => base_url` map. Mostly useful
+    /// for tests.
+    pub fn new<I, K, V>(
+        primaries: I,
         ingest_url: impl Into<String>,
         user_id: impl Into<String>,
         groups: impl Into<String>,
-    ) -> Self {
+    ) -> Self
+    where
+        I: IntoIterator<Item = (K, V)>,
+        K: Into<&'static str>,
+        V: Into<String>,
+    {
         Self {
-            groundwork_url: groundwork_url.into(),
+            primary_urls: primaries
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
             ingest_url: ingest_url.into(),
             user_id: user_id.into(),
             groups: groups.into(),
@@ -141,13 +177,15 @@ impl ManifoldClient {
 
     /// Idempotently upsert a record into a primary-domain meshlette.
     ///
-    /// `target_domain` is e.g. `"groundwork.deployable"`. `entity_path` is
-    /// the meshlette's REST root, e.g. `"/deployable/api"`. The base URL is
-    /// pulled from `MANIFOLD_GROUNDWORK_URL` (other meshlettes would need
-    /// their own URL env vars — kept narrow for v1 because the only
-    /// adapters we ship today target groundwork).
-    pub async fn upsert_in_groundwork(
+    /// - `primary` selects the base URL: `"groundwork"`, `"union"`,
+    ///   `"cityhall"`, or `"yard"`.
+    /// - `entity_path` is the meshlette's REST root for the entity, e.g.
+    ///   `"/deployable/api"`, `"/team/api"`, `"/test_run/api"`.
+    /// - `target_domain` is the value written to the provenance row,
+    ///   e.g. `"groundwork.deployable"`.
+    pub async fn upsert(
         &self,
+        primary: &str,
         entity_path: &str,
         target_domain: &str,
         external_system: &str,
@@ -156,8 +194,18 @@ impl ManifoldClient {
         payload: Value,
         raw: Value,
     ) -> Result<UpsertResult> {
+        let primary_base = self
+            .primary_urls
+            .get(primary)
+            .ok_or_else(|| {
+                anyhow!(
+                    "unknown primary domain `{primary}` — expected one of {:?}",
+                    self.primary_urls.keys().collect::<Vec<_>>()
+                )
+            })?
+            .trim_end_matches('/')
+            .to_string();
         let existing = self.find_canonical_id(external_system, external_id).await?;
-        let primary_base = self.groundwork_url.trim_end_matches('/').to_string();
 
         if let Some(canonical_id) = existing {
             let url = format!("{primary_base}{entity_path}/{canonical_id}");
