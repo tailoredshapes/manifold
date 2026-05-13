@@ -95,8 +95,29 @@ services:
       - UNION_PUBLIC_URL=${UNION_PUBLIC_URL:-https://union.tildarc.com}
       - CITYHALL_PUBLIC_URL=${CITYHALL_PUBLIC_URL:-https://cityhall.tildarc.com}
 
+  # Edge gateway. Injects synthetic identity headers in dev; in production
+  # the customer's Caddyfile (see caddy/Caddyfile.azure-entra.example) maps
+  # the customer's IdP into the canonical Manifold headers.
+  edge:
+    image: caddy:2-alpine
+    container_name: manifold-edge
+    restart: unless-stopped
+    depends_on:
+      - groundwork
+      - union
+      - cityhall
+      - yard
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
 volumes:
   groundwork-data:
   union-data:
   cityhall-data:
   yard-data:
+  caddy-data:
+  caddy-config:

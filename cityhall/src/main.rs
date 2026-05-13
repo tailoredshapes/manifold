@@ -8,7 +8,9 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use meshql_core::{GraphletteConfig, NoAuth, Repository, RootConfig, ServerConfig};
+use manifold_edge::{with_header_identity, HeaderConfig};
+use meshql_casbin::CasbinAuth;
+use meshql_core::{Auth, GraphletteConfig, Repository, RootConfig, ServerConfig, StashKeyAuth};
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::str::FromStr;
@@ -21,6 +23,8 @@ const DEPLOYMENT_PLAN_GRAPHQL: &str = include_str!("../config/graph/deployment_p
 const GANTT_OUTPUT_GRAPHQL: &str = include_str!("../config/graph/gantt_output.graphql");
 const INDEX_HTML: &str = include_str!("../static/index.html");
 const APP_JS: &str = include_str!("../static/app.js");
+const AUTH_MODEL: &str = include_str!("../config/auth/model.conf");
+const AUTH_POLICY: &str = include_str!("../config/auth/policy.csv");
 
 // ── Static handlers ───────────────────────────────────────────────────────────
 
@@ -500,7 +504,10 @@ async fn main() -> anyhow::Result<()> {
         restlettes: vec![],
     };
 
-    let auth = Arc::new(NoAuth);
+    // Edge-header auth — see specs/2026-05-12-trusted-header-auth-design.md.
+    let auth: Arc<dyn Auth> = Arc::new(
+        CasbinAuth::from_strings(AUTH_MODEL, AUTH_POLICY, StashKeyAuth::new("user_id")).await?,
+    );
 
     let org_node_restlette = meshql_server::build_restlette_router_ext(
         "/org_node/api",
@@ -581,5 +588,10 @@ async fn main() -> anyhow::Result<()> {
         .merge(gantt_output_restlette)
         .merge(custom_routes);
 
-    meshql_server::run_ext(config, extra).await
+    let app = meshql_server::build_app_with_auth(config, auth, extra).await?;
+    let app = with_header_identity(app, HeaderConfig::from_env());
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
+    println!("cityhall listening on port {port}");
+    axum::serve(listener, app).await?;
+    Ok(())
 }

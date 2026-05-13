@@ -6,9 +6,9 @@ use axum::{
     routing::get,
     Router,
 };
-use meshql_core::{
-    GraphletteConfig, NoAuth, RootConfig, ServerConfig, Stash,
-};
+use manifold_edge::{with_header_identity, HeaderConfig};
+use meshql_casbin::CasbinAuth;
+use meshql_core::{Auth, GraphletteConfig, RootConfig, ServerConfig, Stash, StashKeyAuth};
 use meshql_server::{ValidatorContext, ValidatorFn};
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
@@ -23,6 +23,8 @@ const CONTRACT_GRAPHQL: &str = include_str!("../config/graph/contract.graphql");
 const SLA_GRAPHQL: &str = include_str!("../config/graph/sla.graphql");
 const INDEX_HTML: &str = include_str!("../static/index.html");
 const APP_JS: &str = include_str!("../static/app.js");
+const AUTH_MODEL: &str = include_str!("../config/auth/model.conf");
+const AUTH_POLICY: &str = include_str!("../config/auth/policy.csv");
 // Vendored library, version-pinned at vendor time (cytoscape@3.30.2). Served
 // with immutable cache headers — the URL only changes when we bump the file.
 const CYTOSCAPE_JS: &str = include_str!("../static/vendor/cytoscape.min.js");
@@ -259,7 +261,12 @@ async fn main() -> anyhow::Result<()> {
         restlettes: vec![],
     };
 
-    let auth = Arc::new(NoAuth);
+    // Edge-header auth: Caddy injects trusted identity headers, manifold-edge
+    // middleware lifts them into the request Stash, and CasbinAuth resolves
+    // roles via the embedded policy. See specs/2026-05-12-trusted-header-auth-design.md.
+    let auth: Arc<dyn Auth> = Arc::new(
+        CasbinAuth::from_strings(AUTH_MODEL, AUTH_POLICY, StashKeyAuth::new("user_id")).await?,
+    );
 
     let deployable_restlette = meshql_server::build_restlette_router_ext(
         "/deployable/api",
@@ -343,5 +350,13 @@ async fn main() -> anyhow::Result<()> {
         .merge(contract_restlette)
         .merge(sla_restlette);
 
-    meshql_server::run_ext(config, extra).await
+    let app = meshql_server::build_app_with_auth(config, auth, extra).await?;
+    // Apply the header-identity middleware to the FULL app so it covers
+    // graphlette + restlette routes alike.
+    let app = with_header_identity(app, HeaderConfig::from_env());
+
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
+    println!("groundwork listening on port {port}");
+    axum::serve(listener, app).await?;
+    Ok(())
 }

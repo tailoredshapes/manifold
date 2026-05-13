@@ -1,0 +1,66 @@
+# Dev Caddyfile for Manifold.
+#
+# Caddy listens on :8080 and reverse-proxies the four Manifold services. No
+# real IdP is wired in for dev — every request is decorated with a synthetic
+# identity matching the dev policy:
+#
+#   X-Manifold-User-Id: alice@example.dev
+#   X-Manifold-User-Groups: admin
+#
+# This is the same shape a production Caddyfile would inject after a real
+# authentication handshake. Header names match each service's default
+# manifold-edge `HeaderConfig`.
+
+{
+	# disable the default auto-HTTPS for dev
+	auto_https off
+	admin off
+}
+
+:8080 {
+	# Inject synthetic identity headers on every upstream request.
+	header_up X-Manifold-User-Id "alice@example.dev"
+	header_up X-Manifold-User-Groups "admin"
+
+	# Manifold landing page (public — links to the four apps).
+	handle /manifold/* {
+		uri strip_prefix /manifold
+		reverse_proxy host.docker.internal:3000
+	}
+
+	# Per-app proxies. Path-prefix-style so all four are reachable from
+	# a single dev origin.
+	handle /groundwork/* {
+		uri strip_prefix /groundwork
+		reverse_proxy groundwork:3000 {
+			header_up X-Manifold-User-Id "alice@example.dev"
+			header_up X-Manifold-User-Groups "admin"
+		}
+	}
+	handle /union/* {
+		uri strip_prefix /union
+		reverse_proxy union:3000 {
+			header_up X-Manifold-User-Id "alice@example.dev"
+			header_up X-Manifold-User-Groups "admin"
+		}
+	}
+	handle /cityhall/* {
+		uri strip_prefix /cityhall
+		reverse_proxy cityhall:3000 {
+			header_up X-Manifold-User-Id "alice@example.dev"
+			header_up X-Manifold-User-Groups "admin"
+		}
+	}
+	handle /yard/* {
+		uri strip_prefix /yard
+		reverse_proxy yard:3000 {
+			header_up X-Manifold-User-Id "alice@example.dev"
+			header_up X-Manifold-User-Groups "admin"
+		}
+	}
+
+	# Health check pass-through
+	handle /health {
+		respond "ok" 200
+	}
+}

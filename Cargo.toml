@@ -4,6 +4,7 @@ members = [
     "union",
     "cityhall",
     "yard",
+    "manifold-edge",
 ]
 resolver = "2"
 

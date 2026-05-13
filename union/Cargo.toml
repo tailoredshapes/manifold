@@ -22,6 +22,8 @@ meshql-graphlette = { path = "../../meshql-rs/meshql-graphlette" }
 meshql-restlette = { path = "../../meshql-rs/meshql-restlette" }
 meshql-server    = { path = "../../meshql-rs/meshql-server" }
 meshql-mcp       = { path = "../../meshql-rs/meshql-mcp" }
+meshql-casbin    = { path = "../../meshql-rs/meshql-casbin" }
+manifold-edge    = { path = "../manifold-edge" }
 meshql-mongo     = { path = "../../meshql-rs/meshql-mongo", optional = true }
 meshql-merkql    = { path = "../../meshql-rs/meshql-merkql", optional = true }
 meshql-sqlite    = { path = "../../meshql-rs/meshql-sqlite", optional = true }

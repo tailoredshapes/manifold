@@ -1,0 +1,16 @@
+# Groundwork authorization policy
+#
+# Roles:
+#   admin   — full read/write on every record
+#   editor  — read and write
+#   viewer  — read only
+#
+# Permissions (p): role, object glob, action
+p, admin,  /*, *
+p, editor, /*, read
+p, editor, /*, write
+p, viewer, /*, read
+
+# Group bindings (g): user -> role
+# Dev synthetic identity; production customers populate via their Caddyfile.
+g, alice@example.dev, admin

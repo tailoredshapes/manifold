@@ -1,0 +1,63 @@
+# Example production Caddyfile for an Azure deployment fronted by
+# Entra ID (formerly Azure AD) "Easy Auth" / App Service authentication.
+#
+# Easy Auth, when enabled on the App Service, terminates the OIDC handshake
+# and forwards a small set of well-known headers to the upstream — including
+# `X-MS-CLIENT-PRINCIPAL-NAME` (the user's UPN/email) and the JSON-encoded
+# `X-MS-CLIENT-PRINCIPAL` blob containing claims (groups/roles).
+#
+# This Caddyfile translates those headers into the canonical Manifold
+# contract (`X-Manifold-User-Id` / `X-Manifold-User-Groups`) so the services
+# see a uniform identity contract regardless of the customer's IdP.
+#
+# Adapt this to your customer's edge auth. The Manifold services only care
+# that the canonical headers arrive.
+
+{
+	# Real TLS terminates at Azure Front Door / App Service Gateway; Caddy
+	# here listens on :80 inside the trust boundary.
+	auto_https off
+}
+
+:80 {
+	@authenticated header X-MS-CLIENT-PRINCIPAL-NAME *
+
+	# Reject unauthenticated requests early. (Easy Auth normally already
+	# does this; this is belt-and-braces in case Easy Auth is disabled
+	# upstream.)
+	@unauthenticated not header X-MS-CLIENT-PRINCIPAL-NAME *
+	handle @unauthenticated {
+		respond "unauthorized" 401
+	}
+
+	handle @authenticated {
+		# Pull Entra's claims into the canonical Manifold headers.
+		# X-MS-CLIENT-PRINCIPAL-NAME ≈ user.userPrincipalName.
+		header_up X-Manifold-User-Id {http.request.header.X-MS-CLIENT-PRINCIPAL-NAME}
+
+		# Easy Auth doesn't forward group memberships directly — they
+		# live inside the base64 JSON in X-MS-CLIENT-PRINCIPAL. Either
+		# add a Caddy plugin that decodes that header, or pre-populate
+		# this map via a custom claims-mapping rule in your Entra app
+		# registration that surfaces a `roles` claim into a dedicated
+		# header (recommended).
+		header_up X-Manifold-User-Groups {http.request.header.X-Manifold-Roles}
+
+		handle /groundwork/* {
+			uri strip_prefix /groundwork
+			reverse_proxy groundwork:3000
+		}
+		handle /union/* {
+			uri strip_prefix /union
+			reverse_proxy union:3000
+		}
+		handle /cityhall/* {
+			uri strip_prefix /cityhall
+			reverse_proxy cityhall:3000
+		}
+		handle /yard/* {
+			uri strip_prefix /yard
+			reverse_proxy yard:3000
+		}
+	}
+}

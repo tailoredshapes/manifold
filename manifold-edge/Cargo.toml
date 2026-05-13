@@ -1,0 +1,17 @@
+[package]
+name = "manifold-edge"
+version = "0.1.0"
+edition = "2021"
+description = "Edge plumbing for Manifold services — middleware that lifts trusted identity headers into the meshql request Stash"
+
+[dependencies]
+meshql-core      = { path = "../../meshql-rs/meshql-core" }
+axum             = "0.7"
+tower            = "0.5"
+http             = "1"
+serde_json       = { workspace = true }
+
+[dev-dependencies]
+tokio          = { workspace = true }
+tower          = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

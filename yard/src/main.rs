@@ -7,7 +7,11 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use meshql_core::{GraphletteConfig, NoAuth, Repository, RootConfig, ServerConfig, Stash};
+use manifold_edge::{with_header_identity, HeaderConfig};
+use meshql_casbin::CasbinAuth;
+use meshql_core::{
+    Auth, GraphletteConfig, Repository, RootConfig, ServerConfig, Stash, StashKeyAuth,
+};
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::collections::HashMap;
@@ -25,6 +29,8 @@ const TEST_RUN_GRAPHQL: &str = include_str!("../config/graph/test_run.graphql");
 const TEST_SUITE_GRAPHQL: &str = include_str!("../config/graph/test_suite.graphql");
 const INDEX_HTML: &str = include_str!("../static/index.html");
 const APP_JS: &str = include_str!("../static/app.js");
+const AUTH_MODEL: &str = include_str!("../config/auth/model.conf");
+const AUTH_POLICY: &str = include_str!("../config/auth/policy.csv");
 
 // ── Static handlers ───────────────────────────────────────────────────────────
 
@@ -490,7 +496,10 @@ async fn main() -> anyhow::Result<()> {
         restlettes: vec![],
     };
 
-    let auth = Arc::new(NoAuth);
+    // Edge-header auth — see specs/2026-05-12-trusted-header-auth-design.md.
+    let auth: Arc<dyn Auth> = Arc::new(
+        CasbinAuth::from_strings(AUTH_MODEL, AUTH_POLICY, StashKeyAuth::new("user_id")).await?,
+    );
 
     let test_environment_restlette = meshql_server::build_restlette_router_ext(
         "/test_environment/api",
@@ -600,7 +609,12 @@ async fn main() -> anyhow::Result<()> {
         .merge(test_suite_restlette)
         .merge(custom_routes);
 
-    meshql_server::run_ext(config, extra).await
+    let app = meshql_server::build_app_with_auth(config, auth, extra).await?;
+    let app = with_header_identity(app, HeaderConfig::from_env());
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
+    println!("yard listening on port {port}");
+    axum::serve(listener, app).await?;
+    Ok(())
 }
 
 /// URL the in-process graphlette resolvers should use when they need to
