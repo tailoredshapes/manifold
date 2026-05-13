@@ -18,8 +18,7 @@ use meshql_mcp::{CapabilitiesBuilder, McpServerConfig, MeshqlClient, MeshqlMcpSe
 use std::sync::Arc;
 use yard::mcp::custom_capabilities;
 
-const TEST_ENVIRONMENT_GRAPHQL: &str =
-    include_str!("../../config/graph/test_environment.graphql");
+const TEST_ENVIRONMENT_GRAPHQL: &str = include_str!("../../config/graph/test_environment.graphql");
 const TEST_INFRASTRUCTURE_GRAPHQL: &str =
     include_str!("../../config/graph/test_infrastructure.graphql");
 const MOCK_SOURCE_GRAPHQL: &str = include_str!("../../config/graph/mock_source.graphql");

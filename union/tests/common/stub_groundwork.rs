@@ -44,10 +44,7 @@ impl DeployableRegistry {
     }
 }
 
-async fn handle_graph(
-    State(reg): State<DeployableRegistry>,
-    Json(body): Json<Value>,
-) -> Response {
+async fn handle_graph(State(reg): State<DeployableRegistry>, Json(body): Json<Value>) -> Response {
     let query = body.get("query").and_then(|v| v.as_str()).unwrap_or("");
     let id = extract_string_arg(query, "id").unwrap_or_default();
 

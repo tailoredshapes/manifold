@@ -39,10 +39,7 @@ pub struct ChangeRequestSummary {
 
 #[async_trait]
 pub trait ChangeRequestLookup: Send + Sync {
-    async fn get_change_request(
-        &self,
-        id: &str,
-    ) -> anyhow::Result<Option<ChangeRequestSummary>>;
+    async fn get_change_request(&self, id: &str) -> anyhow::Result<Option<ChangeRequestSummary>>;
 }
 
 // ── Output shape ─────────────────────────────────────────────────────────────
@@ -140,7 +137,11 @@ pub async fn compute_estimate(inputs: EstimateInputs<'_>) -> anyhow::Result<Comp
 
     let mut env_for_dep: BTreeMap<String, EnvForDep> = BTreeMap::new();
     for env in &test_envs {
-        let dep_id = env.payload.get("deployable_id").and_then(|v| v.as_str()).unwrap_or("");
+        let dep_id = env
+            .payload
+            .get("deployable_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         if dep_id.is_empty() {
             continue;
         }
@@ -206,7 +207,9 @@ pub async fn compute_estimate(inputs: EstimateInputs<'_>) -> anyhow::Result<Comp
     let mut tasks: Vec<EstimateTask> = Vec::new();
     let mut infra_task_id_for_dep: BTreeMap<String, String> = BTreeMap::new();
     for dep_id in &order {
-        let Some(env) = env_for_dep.get(dep_id) else { continue };
+        let Some(env) = env_for_dep.get(dep_id) else {
+            continue;
+        };
         let summary = &summaries[dep_id];
         let predecessor_envs: Vec<String> = summary
             .depends_on
@@ -234,10 +237,14 @@ pub async fn compute_estimate(inputs: EstimateInputs<'_>) -> anyhow::Result<Comp
         .await
         .context("listing data_syncs")?;
     for dep_id in &order {
-        let Some(target_env) = env_for_dep.get(dep_id) else { continue };
+        let Some(target_env) = env_for_dep.get(dep_id) else {
+            continue;
+        };
         let summary = &summaries[dep_id];
         for upstream_id in &summary.depends_on {
-            let Some(source_env) = env_for_dep.get(upstream_id) else { continue };
+            let Some(source_env) = env_for_dep.get(upstream_id) else {
+                continue;
+            };
 
             let edge = classify_dep_edge(summary, upstream_id);
             let recommended = recommend_sync(edge);
@@ -249,9 +256,7 @@ pub async fn compute_estimate(inputs: EstimateInputs<'_>) -> anyhow::Result<Comp
                 kind: "data".into(),
                 label: format!(
                     "sync {} → {} ({})",
-                    source_env.env_name,
-                    target_env.env_name,
-                    recommended.kind,
+                    source_env.env_name, target_env.env_name, recommended.kind,
                 ),
                 deployable_id: Some(dep_id.clone()),
                 test_environment_id: Some(target_env.env_id.clone()),
@@ -259,7 +264,9 @@ pub async fn compute_estimate(inputs: EstimateInputs<'_>) -> anyhow::Result<Comp
                 estimated_cost: 0.0,
                 predecessors: vec![format!("infra-{}", source_env.env_id)],
             });
-            *sync_total_minutes.entry(target_env.env_id.clone()).or_insert(0) += estimated_minutes;
+            *sync_total_minutes
+                .entry(target_env.env_id.clone())
+                .or_insert(0) += estimated_minutes;
         }
     }
 
@@ -291,8 +298,8 @@ pub async fn compute_estimate(inputs: EstimateInputs<'_>) -> anyhow::Result<Comp
             .get("deployable_id")
             .and_then(|v| v.as_str())
             .unwrap_or("");
-        let serves_affected_deployable = !env_dep_id.is_empty()
-            && summaries.contains_key(env_dep_id);
+        let serves_affected_deployable =
+            !env_dep_id.is_empty() && summaries.contains_key(env_dep_id);
         let used_as_target = sync_total_minutes.contains_key(&env_id)
             || env_for_dep.values().any(|e| e.env_id == env_id)
             || serves_affected_deployable;
@@ -303,7 +310,10 @@ pub async fn compute_estimate(inputs: EstimateInputs<'_>) -> anyhow::Result<Comp
             kind: "coordination".into(),
             label: format!(
                 "wait for {} rate-limit window ({})",
-                env.payload.get("name").and_then(|v| v.as_str()).unwrap_or(""),
+                env.payload
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or(""),
                 rate_limit
             ),
             deployable_id: None,
@@ -372,8 +382,16 @@ fn find_existing_sync_minutes(
     target_env_id: &str,
 ) -> Option<u32> {
     for env in syncs {
-        let s = env.payload.get("source_env_id").and_then(|v| v.as_str()).unwrap_or("");
-        let t = env.payload.get("target_env_id").and_then(|v| v.as_str()).unwrap_or("");
+        let s = env
+            .payload
+            .get("source_env_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
+        let t = env
+            .payload
+            .get("target_env_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         if s == source_env_id && t == target_env_id {
             if let Some(m) = env
                 .payload

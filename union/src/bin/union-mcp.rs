@@ -20,10 +20,7 @@ const WORK_ORDER_GRAPHQL: &str = include_str!("../../config/graph/work_order.gra
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let client = Arc::new(MeshqlClient::from_env(
-        "UNION_URL",
-        "http://localhost:3001",
-    ));
+    let client = Arc::new(MeshqlClient::from_env("UNION_URL", "http://localhost:3001"));
 
     let capabilities = CapabilitiesBuilder::new()
         .auto_from_schemas(&[

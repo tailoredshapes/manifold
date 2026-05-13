@@ -1,0 +1,15 @@
+# manifold-ingest authorization policy.
+#
+# This is the provenance ledger — every write to a primary domain SHOULD be
+# accompanied by an ingestion record. The role set is intentionally narrow:
+#
+#   admin       — full read/write (humans inspecting audit)
+#   automation  — write-only is fine, but read/write keeps this simple
+#   viewer      — read only (BI / audit dashboards)
+
+p, admin,      /*, *
+p, automation, /*, *
+p, viewer,     /*, read
+
+# Dev synthetic identity — production customers override via Caddyfile.
+g, alice@example.dev, admin

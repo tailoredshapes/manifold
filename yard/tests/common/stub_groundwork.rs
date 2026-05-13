@@ -36,14 +36,18 @@ pub struct DeployableRegistry {
 }
 
 impl DeployableRegistry {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
     pub fn insert(&self, dep: StubDeployable) {
         self.inner.lock().unwrap().insert(dep.id.clone(), dep);
     }
     pub fn get(&self, id: &str) -> Option<StubDeployable> {
         self.inner.lock().unwrap().get(id).cloned()
     }
-    pub fn clear(&self) { self.inner.lock().unwrap().clear(); }
+    pub fn clear(&self) {
+        self.inner.lock().unwrap().clear();
+    }
 
     /// Convenience: register `id`+`name` plus a list of upstream deployable IDs.
     /// Internally we synthesise a per-upstream service ID `svc-<dep>` so the
@@ -89,10 +93,7 @@ impl DeployableRegistry {
     }
 }
 
-async fn get_deployable(
-    State(reg): State<DeployableRegistry>,
-    Path(id): Path<String>,
-) -> Response {
+async fn get_deployable(State(reg): State<DeployableRegistry>, Path(id): Path<String>) -> Response {
     let Some(dep) = reg.get(&id) else {
         return (axum::http::StatusCode::NOT_FOUND, "not found").into_response();
     };
@@ -169,10 +170,7 @@ async fn dependency_graph(
     json_resp(json!({ "data": { "getByDeployableId": arr }, "errors": null }))
 }
 
-async fn exposes_graph(
-    State(reg): State<DeployableRegistry>,
-    Json(body): Json<Value>,
-) -> Response {
+async fn exposes_graph(State(reg): State<DeployableRegistry>, Json(body): Json<Value>) -> Response {
     // getByServiceId(service_id: "<id>") → [{ deployable_id }]
     let query = body.get("query").and_then(|v| v.as_str()).unwrap_or("");
     let svc_id = extract_string_arg(query, "service_id").unwrap_or_default();

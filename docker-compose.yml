@@ -95,6 +95,23 @@ services:
       - UNION_PUBLIC_URL=${UNION_PUBLIC_URL:-https://union.tildarc.com}
       - CITYHALL_PUBLIC_URL=${CITYHALL_PUBLIC_URL:-https://cityhall.tildarc.com}
 
+  manifold-ingest:
+    build:
+      context: /tank/repos/tailoredshapes
+      dockerfile: manifold/Dockerfile
+      target: runtime
+      args:
+        APP: manifold-ingest
+    container_name: manifold-ingest
+    restart: unless-stopped
+    ports:
+      - "3054:3000"
+    volumes:
+      - manifold-ingest-data:/data
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+
   # Edge gateway. Injects synthetic identity headers in dev; in production
   # the customer's Caddyfile (see caddy/Caddyfile.azure-entra.example) maps
   # the customer's IdP into the canonical Manifold headers.
@@ -119,5 +136,6 @@ volumes:
   union-data:
   cityhall-data:
   yard-data:
+  manifold-ingest-data:
   caddy-data:
   caddy-config:

@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "external_system",
+    "external_id",
+    "target_domain",
+    "canonical_id",
+    "on_behalf_of"
+  ],
+  "properties": {
+    "external_system": { "type": "string" },
+    "external_id":     { "type": "string" },
+    "target_domain":   { "type": "string" },
+    "canonical_id":    { "type": "string" },
+    "on_behalf_of":    { "type": "string" },
+    "via_role":        { "type": "string" },
+    "raw":             { "type": "string" }
+  },
+  "additionalProperties": true
+}

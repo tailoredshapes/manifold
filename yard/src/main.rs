@@ -41,7 +41,10 @@ async fn serve_index() -> Html<&'static str> {
 async fn serve_app_js() -> Response {
     (
         [
-            (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
             (header::CACHE_CONTROL, "no-cache, must-revalidate"),
         ],
         APP_JS,
@@ -200,12 +203,8 @@ async fn get_test_environment_availability(
     Path(env_id): Path<String>,
     Query(_q): Query<HashMap<String, String>>,
 ) -> Response {
-    match history::availability_for_env(
-        &state.test_environment.repo,
-        &state.test_run.repo,
-        &env_id,
-    )
-    .await
+    match history::availability_for_env(&state.test_environment.repo, &state.test_run.repo, &env_id)
+        .await
     {
         Ok(a) => (
             axum::http::StatusCode::OK,
@@ -234,8 +233,7 @@ async fn main() -> anyhow::Result<()> {
         std::env::var("GROUNDWORK_URL").unwrap_or_else(|_| "http://localhost:3000".into());
     let cityhall_url =
         std::env::var("CITYHALL_URL").unwrap_or_else(|_| "http://localhost:3002".into());
-    let union_url =
-        std::env::var("UNION_URL").unwrap_or_else(|_| "http://localhost:3001".into());
+    let union_url = std::env::var("UNION_URL").unwrap_or_else(|_| "http://localhost:3001".into());
 
     // Cross-app public URLs — published via /config.json for the frontend.
     let groundwork_public_url = std::env::var("GROUNDWORK_PUBLIC_URL")
@@ -262,10 +260,12 @@ async fn main() -> anyhow::Result<()> {
     let test_run = make_entity(&data_dir, "test_run").await;
     let test_suite = make_entity(&data_dir, "test_suite").await;
 
-    let groundwork: Arc<dyn estimator::GroundworkLookup> =
-        Arc::new(groundwork_client::HttpGroundworkClient::new(groundwork_url.clone()));
-    let cityhall: Arc<dyn estimator::ChangeRequestLookup> =
-        Arc::new(cityhall_client::HttpCityhallClient::new(cityhall_url.clone()));
+    let groundwork: Arc<dyn estimator::GroundworkLookup> = Arc::new(
+        groundwork_client::HttpGroundworkClient::new(groundwork_url.clone()),
+    );
+    let cityhall: Arc<dyn estimator::ChangeRequestLookup> = Arc::new(
+        cityhall_client::HttpCityhallClient::new(cityhall_url.clone()),
+    );
 
     let app_state = AppState {
         test_environment: test_environment.clone(),
@@ -282,9 +282,10 @@ async fn main() -> anyhow::Result<()> {
     let test_environment_schema_json: serde_json::Value =
         serde_json::from_str(include_str!("../config/json/test_environment.schema.json"))
             .expect("invalid test_environment schema JSON");
-    let test_infrastructure_schema_json: serde_json::Value =
-        serde_json::from_str(include_str!("../config/json/test_infrastructure.schema.json"))
-            .expect("invalid test_infrastructure schema JSON");
+    let test_infrastructure_schema_json: serde_json::Value = serde_json::from_str(include_str!(
+        "../config/json/test_infrastructure.schema.json"
+    ))
+    .expect("invalid test_infrastructure schema JSON");
     let mock_source_schema_json: serde_json::Value =
         serde_json::from_str(include_str!("../config/json/mock_source.schema.json"))
             .expect("invalid mock_source schema JSON");
@@ -306,8 +307,14 @@ async fn main() -> anyhow::Result<()> {
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector("getByKind", r#"{"payload.kind": "{{kind}}"}"#)
-        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
-        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
         .vector(
             "getByInfrastructureId",
             r#"{"payload.infrastructure_id": "{{infrastructure_id}}"}"#,
@@ -506,7 +513,9 @@ async fn main() -> anyhow::Result<()> {
         test_environment.repo.clone(),
         auth.clone(),
         None,
-        Some(validators::test_environment_validator(&test_environment_schema_json)),
+        Some(validators::test_environment_validator(
+            &test_environment_schema_json,
+        )),
         None,
         None,
     );
@@ -515,7 +524,9 @@ async fn main() -> anyhow::Result<()> {
         test_infrastructure.repo.clone(),
         auth.clone(),
         None,
-        Some(validators::base_schema_validator(&test_infrastructure_schema_json)),
+        Some(validators::base_schema_validator(
+            &test_infrastructure_schema_json,
+        )),
         None,
         None,
     );
@@ -585,13 +596,7 @@ async fn main() -> anyhow::Result<()> {
         "/config.json",
         get(move || {
             let body = config_body.clone();
-            async move {
-                (
-                    [(header::CONTENT_TYPE, "application/json")],
-                    body,
-                )
-                    .into_response()
-            }
+            async move { ([(header::CONTENT_TYPE, "application/json")], body).into_response() }
         }),
     );
 

@@ -4,8 +4,8 @@
 //! A snapshot is rebuilt per tool call (small data, simple semantics). If
 //! profiling later shows it's a hot path we can wrap it in a TTL cache.
 
-use meshql_mcp::MeshqlClient as GroundworkClient;
 use anyhow::Context;
+use meshql_mcp::MeshqlClient as GroundworkClient;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
@@ -98,10 +98,7 @@ impl Snapshot {
                 deployable_id: d.clone(),
                 service_id: s.clone(),
             });
-            snap.deployables_for_service
-                .entry(s)
-                .or_default()
-                .push(d);
+            snap.deployables_for_service.entry(s).or_default().push(d);
         }
         for row in get_all_rows(&dep_edges_v) {
             let d = string_field(row, "deployable_id");
@@ -117,10 +114,7 @@ impl Snapshot {
                 .entry(s.clone())
                 .or_default()
                 .push(d.clone());
-            snap.services_for_deployable
-                .entry(d)
-                .or_default()
-                .push(s);
+            snap.services_for_deployable.entry(d).or_default().push(s);
         }
 
         Ok(snap)
@@ -310,7 +304,8 @@ impl Snapshot {
         //    means consumer DEPENDS ON producer, so producer must come first.
         //    For Kahn's we need in-degree of each node = number of producers
         //    it consumes. Producers with in-degree 0 emit first.
-        let mut in_degree: BTreeMap<String, usize> = required.iter().map(|d| (d.clone(), 0)).collect();
+        let mut in_degree: BTreeMap<String, usize> =
+            required.iter().map(|d| (d.clone(), 0)).collect();
         let mut producers_to_consumers: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
         for d in &required {
@@ -330,10 +325,7 @@ impl Snapshot {
                         continue;
                     }
                     *in_degree.entry(d.clone()).or_insert(0) += 1;
-                    producers_to_consumers
-                        .entry(p)
-                        .or_default()
-                        .push(d.clone());
+                    producers_to_consumers.entry(p).or_default().push(d.clone());
                 }
             }
         }
@@ -460,7 +452,10 @@ pub struct PlanInputs {
 }
 
 fn string_field(env: &Value, key: &str) -> String {
-    env.get(key).and_then(|v| v.as_str()).unwrap_or("").to_string()
+    env.get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 /// Extract the rows under `data.getAll` from a `MeshqlClient::gql` response.
@@ -480,12 +475,24 @@ mod tests {
     fn fixture() -> Snapshot {
         Snapshot::synthetic(
             vec![
-                Deployable { id: "d-checkout".into(), name: "checkout".into() },
-                Deployable { id: "d-auth".into(), name: "auth".into() },
+                Deployable {
+                    id: "d-checkout".into(),
+                    name: "checkout".into(),
+                },
+                Deployable {
+                    id: "d-auth".into(),
+                    name: "auth".into(),
+                },
             ],
             vec![
-                Service { id: "s-auth-api".into(), name: "auth-api".into() },
-                Service { id: "s-stripe".into(), name: "stripe".into() },
+                Service {
+                    id: "s-auth-api".into(),
+                    name: "auth-api".into(),
+                },
+                Service {
+                    id: "s-stripe".into(),
+                    name: "stripe".into(),
+                },
             ],
             vec![Exposes {
                 deployable_id: "d-auth".into(),
@@ -508,7 +515,10 @@ mod tests {
     fn deployment_plan_orders_deps_first() {
         let snap = fixture();
         let plan = snap.deployment_plan("d-checkout");
-        let ord = plan.get("ordered_deployments").and_then(|v| v.as_array()).unwrap();
+        let ord = plan
+            .get("ordered_deployments")
+            .and_then(|v| v.as_array())
+            .unwrap();
         let names: Vec<&str> = ord
             .iter()
             .filter_map(|s| s.get("deployable_name").and_then(|n| n.as_str()))
@@ -535,7 +545,10 @@ mod tests {
     fn blast_radius_finds_dependents() {
         let snap = fixture();
         let blast = snap.blast_radius("s-auth-api", 5);
-        let direct = blast.get("direct_dependents").and_then(|v| v.as_array()).unwrap();
+        let direct = blast
+            .get("direct_dependents")
+            .and_then(|v| v.as_array())
+            .unwrap();
         assert_eq!(direct.len(), 1);
         assert_eq!(
             direct[0].get("deployable_name").and_then(|v| v.as_str()),

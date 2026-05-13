@@ -60,7 +60,12 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
     Arc::new(move |payload: &Stash, _ctx: &ValidatorContext| {
         for field in &required {
@@ -91,7 +96,9 @@ async fn build_server() -> String {
         deployable.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/deployable.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/deployable.schema.json"
+        ))),
         None,
         None,
     );
@@ -100,7 +107,9 @@ async fn build_server() -> String {
         service.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/service.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/service.schema.json"
+        ))),
         None,
         None,
     );
@@ -109,7 +118,9 @@ async fn build_server() -> String {
         dependency.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/dependency.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/dependency.schema.json"
+        ))),
         None,
         None,
     );
@@ -118,7 +129,9 @@ async fn build_server() -> String {
         exposes.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/exposes.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/exposes.schema.json"
+        ))),
         None,
         None,
     );
@@ -127,7 +140,9 @@ async fn build_server() -> String {
         contract.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/contract.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/contract.schema.json"
+        ))),
         None,
         None,
     );
@@ -136,7 +151,9 @@ async fn build_server() -> String {
         sla.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/sla.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/sla.schema.json"
+        ))),
         None,
         None,
     );
@@ -167,24 +184,42 @@ async fn build_server() -> String {
     let dependency_gql = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
-        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
         .build();
     let exposes_gql = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
-        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
         .build();
     let contract_gql = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
         .build();
     let sla_gql = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByContractId", r#"{"payload.contract_id": "{{contract_id}}"}"#)
+        .vector(
+            "getByContractId",
+            r#"{"payload.contract_id": "{{contract_id}}"}"#,
+        )
         .build();
 
     let server_config = ServerConfig {
@@ -486,7 +521,10 @@ async fn response_includes_tool(world: &mut McpWorld, name: String) {
         .or_else(|| resp.get("tools"))
         .and_then(|t| t.as_array())
         .expect("tools array");
-    let names: Vec<&str> = tools.iter().filter_map(|t| t.get("name").and_then(|n| n.as_str())).collect();
+    let names: Vec<&str> = tools
+        .iter()
+        .filter_map(|t| t.get("name").and_then(|n| n.as_str()))
+        .collect();
     assert!(
         names.iter().any(|n| *n == name),
         "tool {name} not in {names:?}"
@@ -558,9 +596,9 @@ async fn result_describes_dependent(world: &mut McpWorld, name: String) {
         .and_then(|v| v.as_array())
         .cloned()
         .unwrap_or_default();
-    let found = direct.iter().any(|e| {
-        e.get("deployable_name").and_then(|v| v.as_str()) == Some(name.as_str())
-    });
+    let found = direct
+        .iter()
+        .any(|e| e.get("deployable_name").and_then(|v| v.as_str()) == Some(name.as_str()));
     assert!(found, "no direct dependent named {name} in {r}");
 }
 
@@ -590,9 +628,9 @@ async fn plan_lists_external(world: &mut McpWorld, name: String) {
         .get("external_prerequisites")
         .and_then(|v| v.as_array())
         .expect("external_prerequisites");
-    let found = ext.iter().any(|s| {
-        s.get("service_name").and_then(|v| v.as_str()) == Some(name.as_str())
-    });
+    let found = ext
+        .iter()
+        .any(|s| s.get("service_name").and_then(|v| v.as_str()) == Some(name.as_str()));
     assert!(found, "{name} not an external prereq in {r}");
 }
 
@@ -604,9 +642,9 @@ async fn result_describes_dependency(world: &mut McpWorld, name: String) {
         .and_then(|v| v.as_array())
         .cloned()
         .unwrap_or_default();
-    let found = arr.iter().any(|e| {
-        e.get("deployable_name").and_then(|v| v.as_str()) == Some(name.as_str())
-    });
+    let found = arr
+        .iter()
+        .any(|e| e.get("deployable_name").and_then(|v| v.as_str()) == Some(name.as_str()));
     assert!(found, "no dependency named {name} in {r}");
 }
 

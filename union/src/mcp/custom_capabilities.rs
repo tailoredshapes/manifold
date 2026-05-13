@@ -18,7 +18,10 @@ use std::sync::Arc;
 
 /// Read `env.id` as a string.
 fn env_id(env: &Value) -> String {
-    env.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string()
+    env.get("id")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 /// Read either `env.payload.<key>` (nested) or `env.<key>` (flat) — meshql
@@ -29,7 +32,10 @@ fn payload_str(env: &Value, key: &str) -> String {
             return v.to_string();
         }
     }
-    env.get(key).and_then(|v| v.as_str()).unwrap_or("").to_string()
+    env.get(key)
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 /// Read `env.payload.<key>` (or flat fallback) as an i64. Treats missing /

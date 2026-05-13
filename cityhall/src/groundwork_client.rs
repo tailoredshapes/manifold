@@ -68,7 +68,11 @@ impl GroundworkLookup for HttpGroundworkClient {
             .and_then(|a| a.as_array())
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|d| d.get("service_id").and_then(|v| v.as_str()).map(String::from))
+                    .filter_map(|d| {
+                        d.get("service_id")
+                            .and_then(|v| v.as_str())
+                            .map(String::from)
+                    })
                     .collect()
             })
             .unwrap_or_default();
@@ -80,7 +84,12 @@ impl GroundworkLookup for HttpGroundworkClient {
                 format!("{{ getByServiceId(service_id: \"{svc_id}\") {{ deployable_id }} }}");
             let exposes_url = format!("{}/exposes/graph", self.base_url);
             let exposes_body = serde_json::json!({ "query": exposes_query });
-            let exposes_resp = self.http.post(&exposes_url).json(&exposes_body).send().await?;
+            let exposes_resp = self
+                .http
+                .post(&exposes_url)
+                .json(&exposes_body)
+                .send()
+                .await?;
             let v: serde_json::Value = exposes_resp.json().await?;
             if let Some(arr) = v
                 .get("data")

@@ -26,20 +26,21 @@ pub struct TeamRegistry {
 }
 
 impl TeamRegistry {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
     pub fn insert(&self, team: StubTeam) {
         self.inner.lock().unwrap().insert(team.id.clone(), team);
     }
     pub fn get(&self, id: &str) -> Option<StubTeam> {
         self.inner.lock().unwrap().get(id).cloned()
     }
-    pub fn clear(&self) { self.inner.lock().unwrap().clear(); }
+    pub fn clear(&self) {
+        self.inner.lock().unwrap().clear();
+    }
 }
 
-async fn team_graph(
-    State(reg): State<TeamRegistry>,
-    Json(body): Json<Value>,
-) -> Response {
+async fn team_graph(State(reg): State<TeamRegistry>, Json(body): Json<Value>) -> Response {
     let query = body.get("query").and_then(|v| v.as_str()).unwrap_or("");
     let id = extract_string_arg(query, "id").unwrap_or_default();
     let payload = match reg.get(&id) {

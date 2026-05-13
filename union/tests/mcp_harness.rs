@@ -59,7 +59,12 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
     Arc::new(move |payload: &Stash, _ctx: &ValidatorContext| {
         for field in &required {
@@ -88,7 +93,9 @@ async fn build_server() -> String {
         person.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/person.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/person.schema.json"
+        ))),
         None,
         None,
     );
@@ -97,7 +104,9 @@ async fn build_server() -> String {
         team.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/team.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/team.schema.json"
+        ))),
         None,
         None,
     );
@@ -106,7 +115,9 @@ async fn build_server() -> String {
         team_member.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/team_member.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/team_member.schema.json"
+        ))),
         None,
         None,
     );
@@ -115,7 +126,9 @@ async fn build_server() -> String {
         work_order.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/work_order.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/work_order.schema.json"
+        ))),
         None,
         None,
     );
@@ -150,7 +163,10 @@ async fn build_server() -> String {
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector("getByTeamId", r#"{"payload.team_id": "{{team_id}}"}"#)
-        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
         .vector(
             "getByChangeRequestId",
             r#"{"payload.change_request_id": "{{change_request_id}}"}"#,
@@ -313,7 +329,13 @@ impl McpWorld {
 
     fn structured_array(&self) -> Vec<Value> {
         let r = self.structured_result();
-        for key in ["getAll", "getByName", "getByKind", "getByTeamId", "getByPersonId"] {
+        for key in [
+            "getAll",
+            "getByName",
+            "getByKind",
+            "getByTeamId",
+            "getByPersonId",
+        ] {
             if let Some(arr) = r.get(key).and_then(|v| v.as_array()) {
                 return arr.clone();
             }

@@ -79,7 +79,10 @@ mod tests {
     fn parse_aliases() {
         assert_eq!(DependencyEdge::parse("Event"), Some(DependencyEdge::Event));
         assert_eq!(DependencyEdge::parse("rest"), Some(DependencyEdge::Api));
-        assert_eq!(DependencyEdge::parse("database"), Some(DependencyEdge::SharedDb));
+        assert_eq!(
+            DependencyEdge::parse("database"),
+            Some(DependencyEdge::SharedDb)
+        );
         assert_eq!(DependencyEdge::parse("smoke-signals"), None);
     }
 }

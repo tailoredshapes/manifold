@@ -70,14 +70,17 @@ impl cityhall::plan::GroundworkLookup for StubGroundwork {
         &self,
         id: &str,
     ) -> anyhow::Result<Option<cityhall::plan::DeployableSummary>> {
-        Ok(self.deployables.lock().unwrap().get(id).map(|d| {
-            cityhall::plan::DeployableSummary {
+        Ok(self
+            .deployables
+            .lock()
+            .unwrap()
+            .get(id)
+            .map(|d| cityhall::plan::DeployableSummary {
                 id: id.to_string(),
                 name: d.name.clone(),
                 team_id: d.team_id.clone(),
                 depends_on: d.depends_on.clone(),
-            }
-        }))
+            }))
     }
 }
 
@@ -114,7 +117,12 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
     let enums: BTreeMap<String, Vec<String>> = schema
         .get("properties")
@@ -126,7 +134,9 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
                     v.get("enum").and_then(|e| e.as_array()).map(|arr| {
                         (
                             k.clone(),
-                            arr.iter().filter_map(|x| x.as_str().map(String::from)).collect(),
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect(),
                         )
                     })
                 })
@@ -238,7 +248,12 @@ async fn post_change_request_plan(
         .to_string();
     let tier = req
         .tier
-        .or_else(|| env.payload.get("tier").and_then(|v| v.as_str()).map(String::from))
+        .or_else(|| {
+            env.payload
+                .get("tier")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+        })
         .unwrap_or_else(|| "dev".into());
     let target_str = env
         .payload
@@ -250,7 +265,11 @@ async fn post_change_request_plan(
     } else if let Ok(v) = serde_json::from_str::<Vec<String>>(target_str) {
         v
     } else {
-        target_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        target_str
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
     };
 
     let inputs = cityhall::plan::PlanInputs {
@@ -274,7 +293,10 @@ async fn post_change_request_plan(
     };
 
     let mut payload = Stash::new();
-    payload.insert("change_request_id".into(), Value::String(computed.change_request_id.clone()));
+    payload.insert(
+        "change_request_id".into(),
+        Value::String(computed.change_request_id.clone()),
+    );
     payload.insert("tier".into(), Value::String(computed.tier.clone()));
     payload.insert(
         "steps".into(),
@@ -284,8 +306,14 @@ async fn post_change_request_plan(
         "blockers".into(),
         Value::String(serde_json::to_string(&computed.blockers).unwrap_or_default()),
     );
-    payload.insert("computed_at".into(), Value::String(computed.computed_at.clone()));
-    payload.insert("summary".into(), Value::String(computed.change_request_summary.clone()));
+    payload.insert(
+        "computed_at".into(),
+        Value::String(computed.computed_at.clone()),
+    );
+    payload.insert(
+        "summary".into(),
+        Value::String(computed.change_request_summary.clone()),
+    );
     let envelope = meshql_core::Envelope::new(synthetic_id(&cr_id), payload, vec![]);
 
     match state.deployment_plan.repo.create(envelope, &[]).await {
@@ -324,18 +352,46 @@ async fn post_deployment_plan_gantt(
                 .into_response()
         }
     };
-    let steps_str = env.payload.get("steps").and_then(|v| v.as_str()).unwrap_or("[]");
-    let steps: Vec<cityhall::plan::PlanStep> =
-        serde_json::from_str(steps_str).unwrap_or_default();
-    let blockers_str = env.payload.get("blockers").and_then(|v| v.as_str()).unwrap_or("[]");
-    let blockers: Vec<cityhall::plan::Blocker> = serde_json::from_str(blockers_str).unwrap_or_default();
+    let steps_str = env
+        .payload
+        .get("steps")
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
+    let steps: Vec<cityhall::plan::PlanStep> = serde_json::from_str(steps_str).unwrap_or_default();
+    let blockers_str = env
+        .payload
+        .get("blockers")
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
+    let blockers: Vec<cityhall::plan::Blocker> =
+        serde_json::from_str(blockers_str).unwrap_or_default();
     let computed = cityhall::plan::ComputedPlan {
-        change_request_id: env.payload.get("change_request_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        change_request_summary: env.payload.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        tier: env.payload.get("tier").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        change_request_id: env
+            .payload
+            .get("change_request_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        change_request_summary: env
+            .payload
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        tier: env
+            .payload
+            .get("tier")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         steps,
         blockers,
-        computed_at: env.payload.get("computed_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        computed_at: env
+            .payload
+            .get("computed_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
     };
     let mermaid = cityhall::gantt::render_gantt(&computed);
 
@@ -370,7 +426,12 @@ async fn build_server() -> String {
     let stub = Arc::new(StubGroundwork::default());
     // The standard hierarchy below targets `dep-checkout` which depends on
     // `dep-auth`. Seed both so plan compilation has something to chew on.
-    stub.put("dep-checkout", "checkout", Some("team-checkout"), vec!["dep-auth".into()]);
+    stub.put(
+        "dep-checkout",
+        "checkout",
+        Some("team-checkout"),
+        vec!["dep-auth".into()],
+    );
     stub.put("dep-auth", "auth", Some("team-auth"), vec![]);
 
     let org_node = make_entity().await;
@@ -386,7 +447,9 @@ async fn build_server() -> String {
         org_node.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/org_node.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/org_node.schema.json"
+        ))),
         None,
         None,
     );
@@ -395,7 +458,9 @@ async fn build_server() -> String {
         bylaw_e.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/bylaw.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/bylaw.schema.json"
+        ))),
         None,
         None,
     );
@@ -404,7 +469,9 @@ async fn build_server() -> String {
         change_request.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/change_request.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/change_request.schema.json"
+        ))),
         None,
         None,
     );
@@ -413,7 +480,9 @@ async fn build_server() -> String {
         deployment_plan.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/deployment_plan.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/deployment_plan.schema.json"
+        ))),
         None,
         None,
     );
@@ -422,7 +491,9 @@ async fn build_server() -> String {
         gantt_output.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/gantt_output.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/gantt_output.schema.json"
+        ))),
         None,
         None,
     );
@@ -440,7 +511,10 @@ async fn build_server() -> String {
         .route("/org_node/:id/ancestors", get(get_ancestors))
         .route("/org_node/:id/effective_bylaws", get(get_effective_bylaws))
         .route("/change_request/:id/plan", post(post_change_request_plan))
-        .route("/deployment_plan/:id/gantt", post(post_deployment_plan_gantt))
+        .route(
+            "/deployment_plan/:id/gantt",
+            post(post_deployment_plan_gantt),
+        )
         .with_state(app_state);
 
     let extra = Router::new()
@@ -461,7 +535,10 @@ async fn build_server() -> String {
     let bylaw_gql = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByOrgNodeId", r#"{"payload.org_node_id": "{{org_node_id}}"}"#)
+        .vector(
+            "getByOrgNodeId",
+            r#"{"payload.org_node_id": "{{org_node_id}}"}"#,
+        )
         .vector("getByGateType", r#"{"payload.gate_type": "{{gate_type}}"}"#)
         .build();
     let change_request_gql = RootConfig::builder()
@@ -765,12 +842,7 @@ async fn standard_hierarchy(world: &mut McpWorld) {
 #[given(
     regex = r#"^I have registered enterprise bylaw "([^"]+)" of type "([^"]+)"(?: with (?:window|approvers|quiesce_for) "([^"]+)")?$"#
 )]
-async fn enterprise_bylaw(
-    world: &mut McpWorld,
-    label: String,
-    gate_type: String,
-    value: String,
-) {
+async fn enterprise_bylaw(world: &mut McpWorld, label: String, gate_type: String, value: String) {
     let node_id = world.ids.get("acme").cloned().expect("acme not registered");
     register_bylaw(world, &label, &node_id, &gate_type, &value).await;
 }
@@ -778,12 +850,7 @@ async fn enterprise_bylaw(
 #[given(
     regex = r#"^I have registered division bylaw "([^"]+)" of type "([^"]+)"(?: with (?:window|approvers|quiesce_for) "([^"]+)")?$"#
 )]
-async fn division_bylaw(
-    world: &mut McpWorld,
-    label: String,
-    gate_type: String,
-    value: String,
-) {
+async fn division_bylaw(world: &mut McpWorld, label: String, gate_type: String, value: String) {
     let node_id = world.ids.get("eng").cloned().expect("eng not registered");
     register_bylaw(world, &label, &node_id, &gate_type, &value).await;
 }
@@ -791,26 +858,24 @@ async fn division_bylaw(
 #[given(
     regex = r#"^I have registered domain bylaw "([^"]+)" of type "([^"]+)"(?: with (?:window|approvers|quiesce_for) "([^"]+)")?$"#
 )]
-async fn domain_bylaw(
-    world: &mut McpWorld,
-    label: String,
-    gate_type: String,
-    value: String,
-) {
-    let node_id = world.ids.get("payments").cloned().expect("payments not registered");
+async fn domain_bylaw(world: &mut McpWorld, label: String, gate_type: String, value: String) {
+    let node_id = world
+        .ids
+        .get("payments")
+        .cloned()
+        .expect("payments not registered");
     register_bylaw(world, &label, &node_id, &gate_type, &value).await;
 }
 
 #[given(
     regex = r#"^I have registered team bylaw "([^"]+)" of type "([^"]+)"(?: with (?:window|approvers|quiesce_for) "([^"]+)")?$"#
 )]
-async fn team_bylaw(
-    world: &mut McpWorld,
-    label: String,
-    gate_type: String,
-    value: String,
-) {
-    let node_id = world.ids.get("checkout").cloned().expect("checkout not registered");
+async fn team_bylaw(world: &mut McpWorld, label: String, gate_type: String, value: String) {
+    let node_id = world
+        .ids
+        .get("checkout")
+        .cloned()
+        .expect("checkout not registered");
     register_bylaw(world, &label, &node_id, &gate_type, &value).await;
 }
 
@@ -836,7 +901,9 @@ async fn register_bylaw(
         _ => None,
     };
     if let (Some(f), false) = (field, value.is_empty()) {
-        body.as_object_mut().unwrap().insert(f.into(), Value::String(value.to_string()));
+        body.as_object_mut()
+            .unwrap()
+            .insert(f.into(), Value::String(value.to_string()));
     }
     let id = post_for_id(world, "/bylaw/api", body).await;
     world.ids.insert(label.to_string(), id);
@@ -952,7 +1019,10 @@ async fn plan_has_steps_and_blockers(world: &mut McpWorld) {
         .unwrap_or_else(|| panic!("no payload.steps in {r}"));
     let steps: Value = serde_json::from_str(steps_str).expect("steps not JSON");
     let step_count = steps.as_array().map(|a| a.len()).unwrap_or(0);
-    assert!(step_count >= 1, "expected at least one step, got: {steps_str}");
+    assert!(
+        step_count >= 1,
+        "expected at least one step, got: {steps_str}"
+    );
 
     // blockers should at least be present (the seeded FreezePeriod bylaw
     // surfaces as a blocker for prod deployments).

@@ -2,7 +2,7 @@ mod common;
 
 use axum::{http::header, response::IntoResponse, routing::get, Router};
 use common::stub_union::{self, StubTeam, TeamRegistry};
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use meshql_core::{GraphletteConfig, NoAuth, RootConfig, ServerConfig, Stash};
 use meshql_server::{ValidatorContext, ValidatorFn};
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
@@ -104,7 +104,12 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
     Arc::new(move |payload: &Stash, _ctx: &ValidatorContext| {
         for field in &required {
@@ -305,13 +310,33 @@ async fn build_test_server() -> (String, TeamRegistry) {
     );
 
     let extra = Router::new()
-        .route("/", get(|| async { axum::response::Html(include_str!("../static/index.html")) }))
-        .route("/static/app.js", get(|| async {
-            ([(header::CONTENT_TYPE, "application/javascript; charset=utf-8")], include_str!("../static/app.js")).into_response()
-        }))
-        .route("/health", get(|| async {
-            ([(header::CONTENT_TYPE, "application/json")], r#"{"status":"ok"}"#).into_response()
-        }))
+        .route(
+            "/",
+            get(|| async { axum::response::Html(include_str!("../static/index.html")) }),
+        )
+        .route(
+            "/static/app.js",
+            get(|| async {
+                (
+                    [(
+                        header::CONTENT_TYPE,
+                        "application/javascript; charset=utf-8",
+                    )],
+                    include_str!("../static/app.js"),
+                )
+                    .into_response()
+            }),
+        )
+        .route(
+            "/health",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "application/json")],
+                    r#"{"status":"ok"}"#,
+                )
+                    .into_response()
+            }),
+        )
         .merge(deployable_restlette)
         .merge(service_restlette)
         .merge(dependency_restlette)
@@ -337,8 +362,14 @@ async fn do_request(world: &mut GroundworkWorld, method: &str, path: &str, body:
     let builder = match method {
         "GET" => world.client.get(&url),
         "DELETE" => world.client.delete(&url),
-        "POST" => world.client.post(&url).json(body.as_ref().unwrap_or(&Value::Null)),
-        "PUT" => world.client.put(&url).json(body.as_ref().unwrap_or(&Value::Null)),
+        "POST" => world
+            .client
+            .post(&url)
+            .json(body.as_ref().unwrap_or(&Value::Null)),
+        "PUT" => world
+            .client
+            .put(&url)
+            .json(body.as_ref().unwrap_or(&Value::Null)),
         _ => panic!("Unknown method: {method}"),
     };
     let resp = builder.send().await.expect("request failed");
@@ -457,7 +488,11 @@ async fn capture_timestamp(world: &mut GroundworkWorld, key: String) {
 
 #[given(regex = r#"^I update deployable "(.+)" with body (.+)$"#)]
 async fn update_deployable_given(world: &mut GroundworkWorld, name: String, body_str: String) {
-    let id = world.ids.get(&name).cloned().expect("deployable not registered");
+    let id = world
+        .ids
+        .get(&name)
+        .cloned()
+        .expect("deployable not registered");
     let path = format!("/deployable/api/{id}");
     let body: Value = serde_json::from_str(&body_str).expect("invalid JSON body");
     do_request(world, "PUT", &path, Some(body)).await;
@@ -538,7 +573,12 @@ async fn array_has_items(world: &mut GroundworkWorld, expected: usize) {
         .as_array()
         .expect("not an array")
         .clone();
-    assert_eq!(arr.len(), expected, "Expected {expected} items, got {}", arr.len());
+    assert_eq!(
+        arr.len(),
+        expected,
+        "Expected {expected} items, got {}",
+        arr.len()
+    );
 }
 
 #[then(regex = r#"^the response content-type should contain "(.+)"$"#)]

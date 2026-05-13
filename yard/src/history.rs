@@ -41,7 +41,12 @@ pub async fn history_for_env(
             continue;
         }
         count += 1;
-        match env.payload.get("status").and_then(|v| v.as_str()).unwrap_or("") {
+        match env
+            .payload
+            .get("status")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+        {
             "passed" => passed += 1,
             "failed" | "errored" => failed += 1,
             _ => {}

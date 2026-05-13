@@ -1,0 +1,16 @@
+type Ingestion {
+    id: ID
+    external_system: String!
+    external_id: String!
+    target_domain: String!
+    canonical_id: String!
+    on_behalf_of: String!
+    via_role: String
+    raw: String
+}
+type Query {
+    getById(id: ID, at: Float): Ingestion
+    getAll(at: Float): [Ingestion]
+    getByExternalSystem(external_system: String, at: Float): [Ingestion]
+    getByCanonicalId(canonical_id: String, at: Float): [Ingestion]
+}

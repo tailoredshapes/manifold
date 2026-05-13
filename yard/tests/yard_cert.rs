@@ -122,7 +122,8 @@ impl yard::estimator::GroundworkLookup for StubGroundworkClient {
         id: &str,
     ) -> anyhow::Result<Option<yard::estimator::DeployableSummary>> {
         // Mirror the production client's REST + GraphQL walk, against the stub.
-        let inner_client = yard::groundwork_client::HttpGroundworkClient::new(self.base_url.clone());
+        let inner_client =
+            yard::groundwork_client::HttpGroundworkClient::new(self.base_url.clone());
         // We only need the trait method, not the struct — call through it.
         // (HttpGroundworkClient implements the same trait we are implementing.)
         let _ = &self.http; // keep field used
@@ -189,7 +190,10 @@ async fn build_test_server() -> (
             "getByDeployableId",
             r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
         )
-        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
         .vector(
             "getByInfrastructureId",
             r#"{"payload.infrastructure_id": "{{infrastructure_id}}"}"#,
@@ -334,8 +338,10 @@ async fn build_test_server() -> (
 
     let test_environment_schema_json: Value =
         serde_json::from_str(include_str!("../config/json/test_environment.schema.json")).unwrap();
-    let test_infrastructure_schema_json: Value =
-        serde_json::from_str(include_str!("../config/json/test_infrastructure.schema.json")).unwrap();
+    let test_infrastructure_schema_json: Value = serde_json::from_str(include_str!(
+        "../config/json/test_infrastructure.schema.json"
+    ))
+    .unwrap();
     let mock_source_schema_json: Value =
         serde_json::from_str(include_str!("../config/json/mock_source.schema.json")).unwrap();
     let data_source_schema_json: Value =
@@ -352,7 +358,9 @@ async fn build_test_server() -> (
         test_environment.repo.clone(),
         auth.clone(),
         None,
-        Some(yard::validators::test_environment_validator(&test_environment_schema_json)),
+        Some(yard::validators::test_environment_validator(
+            &test_environment_schema_json,
+        )),
         None,
         None,
     );
@@ -361,7 +369,9 @@ async fn build_test_server() -> (
         test_infrastructure.repo.clone(),
         auth.clone(),
         None,
-        Some(yard::validators::base_schema_validator(&test_infrastructure_schema_json)),
+        Some(yard::validators::base_schema_validator(
+            &test_infrastructure_schema_json,
+        )),
         None,
         None,
     );
@@ -370,7 +380,9 @@ async fn build_test_server() -> (
         mock_source.repo.clone(),
         auth.clone(),
         None,
-        Some(yard::validators::base_schema_validator(&mock_source_schema_json)),
+        Some(yard::validators::base_schema_validator(
+            &mock_source_schema_json,
+        )),
         None,
         None,
     );
@@ -379,7 +391,9 @@ async fn build_test_server() -> (
         data_source.repo.clone(),
         auth.clone(),
         None,
-        Some(yard::validators::base_schema_validator(&data_source_schema_json)),
+        Some(yard::validators::base_schema_validator(
+            &data_source_schema_json,
+        )),
         None,
         None,
     );
@@ -388,7 +402,9 @@ async fn build_test_server() -> (
         data_sync.repo.clone(),
         auth.clone(),
         None,
-        Some(yard::validators::data_sync_validator(&data_sync_schema_json)),
+        Some(yard::validators::data_sync_validator(
+            &data_sync_schema_json,
+        )),
         None,
         None,
     );
@@ -397,7 +413,9 @@ async fn build_test_server() -> (
         test_run.repo.clone(),
         auth.clone(),
         None,
-        Some(yard::validators::base_schema_validator(&test_run_schema_json)),
+        Some(yard::validators::base_schema_validator(
+            &test_run_schema_json,
+        )),
         None,
         None,
     );
@@ -406,7 +424,9 @@ async fn build_test_server() -> (
         test_suite.repo.clone(),
         auth.clone(),
         None,
-        Some(yard::validators::base_schema_validator(&test_suite_schema_json)),
+        Some(yard::validators::base_schema_validator(
+            &test_suite_schema_json,
+        )),
         None,
         None,
     );
@@ -440,7 +460,10 @@ async fn build_test_server() -> (
         .route(
             "/health",
             get(|| async {
-                ([(header::CONTENT_TYPE, "application/json")], r#"{"status":"ok"}"#)
+                (
+                    [(header::CONTENT_TYPE, "application/json")],
+                    r#"{"status":"ok"}"#,
+                )
                     .into_response()
             }),
         )
@@ -485,11 +508,17 @@ async fn post_change_request_estimate(
     let cr = match state.cityhall.get_change_request(&cr_id).await {
         Ok(Some(c)) => c,
         Ok(None) => {
-            return (axum::http::StatusCode::NOT_FOUND, format!("change_request {cr_id} not found"))
+            return (
+                axum::http::StatusCode::NOT_FOUND,
+                format!("change_request {cr_id} not found"),
+            )
                 .into_response()
         }
         Err(e) => {
-            return (axum::http::StatusCode::INTERNAL_SERVER_ERROR, format!("cityhall: {e}"))
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                format!("cityhall: {e}"),
+            )
                 .into_response()
         }
     };
@@ -596,8 +625,14 @@ async fn do_request(world: &mut YardWorld, method: &str, path: &str, body: Optio
     let builder = match method {
         "GET" => world.client.get(&url),
         "DELETE" => world.client.delete(&url),
-        "POST" => world.client.post(&url).json(body.as_ref().unwrap_or(&Value::Null)),
-        "PUT" => world.client.put(&url).json(body.as_ref().unwrap_or(&Value::Null)),
+        "POST" => world
+            .client
+            .post(&url)
+            .json(body.as_ref().unwrap_or(&Value::Null)),
+        "PUT" => world
+            .client
+            .put(&url)
+            .json(body.as_ref().unwrap_or(&Value::Null)),
         _ => panic!("Unknown method: {method}"),
     };
     let resp = builder.send().await.expect("request failed");
@@ -654,7 +689,10 @@ async fn capture_last_id(world: &mut YardWorld, label: String) {
 
 #[given(regex = r#"^the Groundwork stub knows deployable "([^"]+)" as "([^"]+)"$"#)]
 async fn groundwork_stub_knows(world: &mut YardWorld, id: String, name: String) {
-    let reg = world.deployables.as_ref().expect("Groundwork stub not started");
+    let reg = world
+        .deployables
+        .as_ref()
+        .expect("Groundwork stub not started");
     reg.register_with_deps(&id, &name, &[]);
 }
 
@@ -667,7 +705,10 @@ async fn groundwork_stub_knows_with_dep(
     name: String,
     dep: String,
 ) {
-    let reg = world.deployables.as_ref().expect("Groundwork stub not started");
+    let reg = world
+        .deployables
+        .as_ref()
+        .expect("Groundwork stub not started");
     reg.register_with_deps(&id, &name, &[dep.as_str()]);
 }
 
@@ -675,15 +716,19 @@ async fn groundwork_stub_knows_with_dep(
     regex = r#"^the Groundwork stub knows deployable "([^"]+)" as "([^"]+)" with no dependencies$"#
 )]
 async fn groundwork_stub_knows_no_deps(world: &mut YardWorld, id: String, name: String) {
-    let reg = world.deployables.as_ref().expect("Groundwork stub not started");
+    let reg = world
+        .deployables
+        .as_ref()
+        .expect("Groundwork stub not started");
     reg.register_with_deps(&id, &name, &[]);
 }
 
-#[given(
-    regex = r#"^the Cityhall stub knows change request "([^"]+)" with summary "([^"]+)"$"#
-)]
+#[given(regex = r#"^the Cityhall stub knows change request "([^"]+)" with summary "([^"]+)"$"#)]
 async fn cityhall_stub_knows_cr(world: &mut YardWorld, id: String, summary: String) {
-    let reg = world.change_requests.as_ref().expect("Cityhall stub not started");
+    let reg = world
+        .change_requests
+        .as_ref()
+        .expect("Cityhall stub not started");
     reg.insert(StubChangeRequest {
         id,
         summary,
@@ -702,7 +747,10 @@ async fn cityhall_stub_knows_cr_targeting(
     summary: String,
     targets: String,
 ) {
-    let reg = world.change_requests.as_ref().expect("Cityhall stub not started");
+    let reg = world
+        .change_requests
+        .as_ref()
+        .expect("Cityhall stub not started");
     let parsed: Vec<String> = targets
         .split(',')
         .map(|t| t.trim().trim_matches('"').to_string())
@@ -718,12 +766,7 @@ async fn cityhall_stub_knows_cr_targeting(
 }
 
 #[given(regex = r#"^the Union stub knows team "(.+)" as "(.+)" of kind "(.+)"$"#)]
-async fn union_stub_knows_team(
-    world: &mut YardWorld,
-    team_id: String,
-    name: String,
-    kind: String,
-) {
+async fn union_stub_knows_team(world: &mut YardWorld, team_id: String, name: String, kind: String) {
     let reg = world.teams.as_ref().expect("Union stub not started");
     reg.insert(StubTeam {
         id: team_id,
@@ -737,7 +780,9 @@ async fn union_stub_knows_team(
 async fn register_env(world: &mut YardWorld, name: String, kind: String) {
     let payload = match kind.as_str() {
         "external" => serde_json::json!({"name": name, "kind": kind, "contractual_limit": "5"}),
-        "mock" | "stub" => serde_json::json!({"name": name, "kind": kind, "mock_source_id": "ms-default"}),
+        "mock" | "stub" => {
+            serde_json::json!({"name": name, "kind": kind, "mock_source_id": "ms-default"})
+        }
         _ => serde_json::json!({"name": name, "kind": kind}),
     };
     let id = post_for_id(world, "/test_environment/api", payload).await;
@@ -831,15 +876,8 @@ async fn register_data_source(world: &mut YardWorld, name: String, kind: String)
     world.ids.insert(name, id);
 }
 
-#[given(
-    regex = r#"^I have recorded a (passed|failed) test_run on "(.+)" with duration "(.+)"$"#
-)]
-async fn record_run(
-    world: &mut YardWorld,
-    status: String,
-    env_label: String,
-    duration: String,
-) {
+#[given(regex = r#"^I have recorded a (passed|failed) test_run on "(.+)" with duration "(.+)"$"#)]
+async fn record_run(world: &mut YardWorld, status: String, env_label: String, duration: String) {
     let env_id = world
         .ids
         .get(&env_label)
@@ -912,21 +950,30 @@ async fn check_status(world: &mut YardWorld, expected: u16) {
 async fn body_contains(world: &mut YardWorld, expected: String) {
     let resolved = world.resolve(&expected);
     let body = world.last_response_body.as_deref().unwrap_or("");
-    assert!(body.contains(&resolved), "expected body to contain {resolved:?}\nGot: {body}");
+    assert!(
+        body.contains(&resolved),
+        "expected body to contain {resolved:?}\nGot: {body}"
+    );
 }
 
 #[then(regex = r#"^the response body should not contain "(.+)"$"#)]
 async fn body_not_contains(world: &mut YardWorld, expected: String) {
     let resolved = world.resolve(&expected);
     let body = world.last_response_body.as_deref().unwrap_or("");
-    assert!(!body.contains(&resolved), "expected body NOT to contain {resolved:?}\nGot: {body}");
+    assert!(
+        !body.contains(&resolved),
+        "expected body NOT to contain {resolved:?}\nGot: {body}"
+    );
 }
 
 #[then(r#"the response body should have an "id" field"#)]
 async fn body_has_id(world: &mut YardWorld) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("response not JSON");
-    assert!(parsed.get("id").map(|v| !v.is_null()).unwrap_or(false), "no id in: {body}");
+    assert!(
+        parsed.get("id").map(|v| !v.is_null()).unwrap_or(false),
+        "no id in: {body}"
+    );
 }
 
 #[then("there should be no GraphQL errors")]
@@ -945,21 +992,30 @@ async fn no_graphql_errors(world: &mut YardWorld) {
 async fn response_data_contains(world: &mut YardWorld, expected: String) {
     let resolved = world.resolve(&expected);
     let body = world.last_response_body.as_deref().unwrap_or("");
-    assert!(body.contains(&resolved), "Expected data to contain {resolved:?}\nGot: {body}");
+    assert!(
+        body.contains(&resolved),
+        "Expected data to contain {resolved:?}\nGot: {body}"
+    );
 }
 
 #[then(regex = r#"^the response data should not contain "(.+)"$"#)]
 async fn response_data_not_contains(world: &mut YardWorld, expected: String) {
     let resolved = world.resolve(&expected);
     let body = world.last_response_body.as_deref().unwrap_or("");
-    assert!(!body.contains(&resolved), "Expected data NOT to contain {resolved:?}\nGot: {body}");
+    assert!(
+        !body.contains(&resolved),
+        "Expected data NOT to contain {resolved:?}\nGot: {body}"
+    );
 }
 
 #[then(regex = r"^the history pass_rate should be ([0-9.]+)$")]
 async fn history_pass_rate(world: &mut YardWorld, expected: f64) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("not JSON");
-    let actual = parsed.get("pass_rate").and_then(|v| v.as_f64()).unwrap_or(-1.0);
+    let actual = parsed
+        .get("pass_rate")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(-1.0);
     assert!(
         (actual - expected).abs() < 1e-9,
         "expected pass_rate={expected}, got {actual}. Body: {body}"
@@ -984,16 +1040,28 @@ async fn history_avg_duration(world: &mut YardWorld, expected: f64) {
 async fn estimate_total_minutes_at_least(world: &mut YardWorld, expected: u64) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("not JSON");
-    let actual = parsed.get("total_minutes").and_then(|v| v.as_u64()).unwrap_or(0);
-    assert!(actual >= expected, "expected total_minutes ≥ {expected}, got {actual}. Body: {body}");
+    let actual = parsed
+        .get("total_minutes")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    assert!(
+        actual >= expected,
+        "expected total_minutes ≥ {expected}, got {actual}. Body: {body}"
+    );
 }
 
 #[then(r"the estimate total_cost should be greater than 0")]
 async fn estimate_total_cost_positive(world: &mut YardWorld) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("not JSON");
-    let actual = parsed.get("total_cost").and_then(|v| v.as_f64()).unwrap_or(0.0);
-    assert!(actual > 0.0, "expected total_cost > 0, got {actual}. Body: {body}");
+    let actual = parsed
+        .get("total_cost")
+        .and_then(|v| v.as_f64())
+        .unwrap_or(0.0);
+    assert!(
+        actual > 0.0,
+        "expected total_cost > 0, got {actual}. Body: {body}"
+    );
 }
 
 #[tokio::main]

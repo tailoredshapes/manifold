@@ -51,10 +51,7 @@ impl TeamRegistry {
     }
 }
 
-async fn handle_graph(
-    State(reg): State<TeamRegistry>,
-    Json(body): Json<Value>,
-) -> Response {
+async fn handle_graph(State(reg): State<TeamRegistry>, Json(body): Json<Value>) -> Response {
     let query = body.get("query").and_then(|v| v.as_str()).unwrap_or("");
 
     // Extract id from the query: getById(id: "<value>", ...)

@@ -3,7 +3,7 @@ mod common;
 use axum::{http::header, response::IntoResponse, routing::get, Router};
 use common::stub_cityhall::{self, ChangeRequestRegistry, StubChangeRequest};
 use common::stub_groundwork::{self, DeployableRegistry, StubDeployable};
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use meshql_core::{GraphletteConfig, NoAuth, RootConfig, ServerConfig, Stash};
 use meshql_server::{ValidatorContext, ValidatorFn};
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
@@ -98,7 +98,12 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
     let enums: BTreeMap<String, Vec<String>> = schema
         .get("properties")
@@ -110,7 +115,9 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
                     v.get("enum").and_then(|e| e.as_array()).map(|arr| {
                         (
                             k.clone(),
-                            arr.iter().filter_map(|x| x.as_str().map(String::from)).collect(),
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect(),
                         )
                     })
                 })
@@ -174,8 +181,14 @@ async fn build_test_server() -> (String, DeployableRegistry, ChangeRequestRegist
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector("getByTeamId", r#"{"payload.team_id": "{{team_id}}"}"#)
-        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
-        .vector("getByChangeRequestId", r#"{"payload.change_request_id": "{{change_request_id}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByChangeRequestId",
+            r#"{"payload.change_request_id": "{{change_request_id}}"}"#,
+        )
         .vector("getByStatus", r#"{"payload.status": "{{status}}"}"#)
         .singleton_resolver(
             "deployable",
@@ -229,7 +242,9 @@ async fn build_test_server() -> (String, DeployableRegistry, ChangeRequestRegist
         person.repo,
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/person.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/person.schema.json"
+        ))),
         None,
         None,
     );
@@ -238,7 +253,9 @@ async fn build_test_server() -> (String, DeployableRegistry, ChangeRequestRegist
         team.repo,
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/team.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/team.schema.json"
+        ))),
         None,
         None,
     );
@@ -247,7 +264,9 @@ async fn build_test_server() -> (String, DeployableRegistry, ChangeRequestRegist
         team_member.repo,
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/team_member.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/team_member.schema.json"
+        ))),
         None,
         None,
     );
@@ -256,19 +275,41 @@ async fn build_test_server() -> (String, DeployableRegistry, ChangeRequestRegist
         work_order.repo,
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/work_order.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/work_order.schema.json"
+        ))),
         None,
         None,
     );
 
     let extra = Router::new()
-        .route("/", get(|| async { axum::response::Html(include_str!("../static/index.html")) }))
-        .route("/static/app.js", get(|| async {
-            ([(header::CONTENT_TYPE, "application/javascript; charset=utf-8")], include_str!("../static/app.js")).into_response()
-        }))
-        .route("/health", get(|| async {
-            ([(header::CONTENT_TYPE, "application/json")], r#"{"status":"ok"}"#).into_response()
-        }))
+        .route(
+            "/",
+            get(|| async { axum::response::Html(include_str!("../static/index.html")) }),
+        )
+        .route(
+            "/static/app.js",
+            get(|| async {
+                (
+                    [(
+                        header::CONTENT_TYPE,
+                        "application/javascript; charset=utf-8",
+                    )],
+                    include_str!("../static/app.js"),
+                )
+                    .into_response()
+            }),
+        )
+        .route(
+            "/health",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "application/json")],
+                    r#"{"status":"ok"}"#,
+                )
+                    .into_response()
+            }),
+        )
         .merge(person_restlette)
         .merge(team_restlette)
         .merge(team_member_restlette)
@@ -296,8 +337,14 @@ async fn do_request(world: &mut UnionWorld, method: &str, path: &str, body: Opti
     let builder = match method {
         "GET" => world.client.get(&url),
         "DELETE" => world.client.delete(&url),
-        "POST" => world.client.post(&url).json(body.as_ref().unwrap_or(&Value::Null)),
-        "PUT" => world.client.put(&url).json(body.as_ref().unwrap_or(&Value::Null)),
+        "POST" => world
+            .client
+            .post(&url)
+            .json(body.as_ref().unwrap_or(&Value::Null)),
+        "PUT" => world
+            .client
+            .put(&url)
+            .json(body.as_ref().unwrap_or(&Value::Null)),
         _ => panic!("Unknown method: {method}"),
     };
     let resp = builder.send().await.expect("request failed");
@@ -352,12 +399,11 @@ async fn capture_last_id(world: &mut UnionWorld, label: String) {
 }
 
 #[given(regex = r#"^the Groundwork stub knows deployable "(.+)" as "(.+)"$"#)]
-async fn groundwork_stub_knows_deployable(
-    world: &mut UnionWorld,
-    id: String,
-    name: String,
-) {
-    let reg = world.deployables.as_ref().expect("Groundwork stub not started");
+async fn groundwork_stub_knows_deployable(world: &mut UnionWorld, id: String, name: String) {
+    let reg = world
+        .deployables
+        .as_ref()
+        .expect("Groundwork stub not started");
     reg.insert(StubDeployable {
         id,
         name,
@@ -368,12 +414,11 @@ async fn groundwork_stub_knows_deployable(
 }
 
 #[given(regex = r#"^the Cityhall stub knows change request "(.+)" with summary "(.+)"$"#)]
-async fn cityhall_stub_knows_change_request(
-    world: &mut UnionWorld,
-    id: String,
-    summary: String,
-) {
-    let reg = world.change_requests.as_ref().expect("Cityhall stub not started");
+async fn cityhall_stub_knows_change_request(world: &mut UnionWorld, id: String, summary: String) {
+    let reg = world
+        .change_requests
+        .as_ref()
+        .expect("Cityhall stub not started");
     reg.insert(StubChangeRequest {
         id,
         summary,

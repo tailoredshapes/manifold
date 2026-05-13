@@ -58,14 +58,17 @@ impl cityhall::plan::GroundworkLookup for StubGroundwork {
         &self,
         id: &str,
     ) -> anyhow::Result<Option<cityhall::plan::DeployableSummary>> {
-        Ok(self.deployables.lock().unwrap().get(id).map(|d| {
-            cityhall::plan::DeployableSummary {
+        Ok(self
+            .deployables
+            .lock()
+            .unwrap()
+            .get(id)
+            .map(|d| cityhall::plan::DeployableSummary {
                 id: id.to_string(),
                 name: d.name.clone(),
                 team_id: d.team_id.clone(),
                 depends_on: d.depends_on.clone(),
-            }
-        }))
+            }))
     }
 }
 
@@ -151,7 +154,12 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
     let enums: BTreeMap<String, Vec<String>> = schema
         .get("properties")
@@ -163,7 +171,9 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
                     v.get("enum").and_then(|e| e.as_array()).map(|arr| {
                         (
                             k.clone(),
-                            arr.iter().filter_map(|x| x.as_str().map(String::from)).collect(),
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect(),
                         )
                     })
                 })
@@ -217,7 +227,10 @@ fn bylaw_validator_test(schema_str: &str) -> ValidatorFn {
     let base = validator_for(schema_str);
     Arc::new(move |payload: &Stash, ctx: &ValidatorContext| {
         base(payload, ctx)?;
-        let gate_type = payload.get("gate_type").and_then(|v| v.as_str()).unwrap_or("");
+        let gate_type = payload
+            .get("gate_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let needs: &[&str] = match gate_type {
             "WindowGate" | "FreezePeriod" => &["window"],
             "QuiesceGate" => &["quiesce_for"],
@@ -275,7 +288,10 @@ async fn build_test_server(stub: Arc<StubGroundwork>) -> (String, TeamRegistry) 
     let bylaw_root = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByOrgNodeId", r#"{"payload.org_node_id": "{{org_node_id}}"}"#)
+        .vector(
+            "getByOrgNodeId",
+            r#"{"payload.org_node_id": "{{org_node_id}}"}"#,
+        )
         .vector("getByGateType", r#"{"payload.gate_type": "{{gate_type}}"}"#)
         .build();
     let change_request_root = RootConfig::builder()
@@ -345,7 +361,9 @@ async fn build_test_server(stub: Arc<StubGroundwork>) -> (String, TeamRegistry) 
         org_node.repo.clone(),
         auth.clone(),
         None,
-        Some(org_node_validator_test(include_str!("../config/json/org_node.schema.json"))),
+        Some(org_node_validator_test(include_str!(
+            "../config/json/org_node.schema.json"
+        ))),
         None,
         None,
     );
@@ -354,7 +372,9 @@ async fn build_test_server(stub: Arc<StubGroundwork>) -> (String, TeamRegistry) 
         bylaw_e.repo.clone(),
         auth.clone(),
         None,
-        Some(bylaw_validator_test(include_str!("../config/json/bylaw.schema.json"))),
+        Some(bylaw_validator_test(include_str!(
+            "../config/json/bylaw.schema.json"
+        ))),
         None,
         None,
     );
@@ -363,7 +383,9 @@ async fn build_test_server(stub: Arc<StubGroundwork>) -> (String, TeamRegistry) 
         change_request.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/change_request.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/change_request.schema.json"
+        ))),
         None,
         None,
     );
@@ -372,7 +394,9 @@ async fn build_test_server(stub: Arc<StubGroundwork>) -> (String, TeamRegistry) 
         deployment_plan.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/deployment_plan.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/deployment_plan.schema.json"
+        ))),
         None,
         None,
     );
@@ -381,7 +405,9 @@ async fn build_test_server(stub: Arc<StubGroundwork>) -> (String, TeamRegistry) 
         gantt_output.repo.clone(),
         auth.clone(),
         None,
-        Some(validator_for(include_str!("../config/json/gantt_output.schema.json"))),
+        Some(validator_for(include_str!(
+            "../config/json/gantt_output.schema.json"
+        ))),
         None,
         None,
     );
@@ -399,13 +425,23 @@ async fn build_test_server(stub: Arc<StubGroundwork>) -> (String, TeamRegistry) 
         .route("/org_node/:id/ancestors", get(get_ancestors))
         .route("/org_node/:id/effective_bylaws", get(get_effective_bylaws))
         .route("/change_request/:id/plan", post(post_change_request_plan))
-        .route("/deployment_plan/:id/gantt", post(post_deployment_plan_gantt))
+        .route(
+            "/deployment_plan/:id/gantt",
+            post(post_deployment_plan_gantt),
+        )
         .with_state(app_state);
 
     let extra = Router::new()
-        .route("/health", get(|| async {
-            ([(header::CONTENT_TYPE, "application/json")], r#"{"status":"ok"}"#).into_response()
-        }))
+        .route(
+            "/health",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "application/json")],
+                    r#"{"status":"ok"}"#,
+                )
+                    .into_response()
+            }),
+        )
         .merge(org_node_restlette)
         .merge(bylaw_restlette)
         .merge(change_request_restlette)
@@ -495,7 +531,12 @@ async fn post_change_request_plan(
         .to_string();
     let tier = req
         .tier
-        .or_else(|| env.payload.get("tier").and_then(|v| v.as_str()).map(String::from))
+        .or_else(|| {
+            env.payload
+                .get("tier")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+        })
         .unwrap_or_else(|| "dev".into());
     let target_str = env
         .payload
@@ -507,7 +548,11 @@ async fn post_change_request_plan(
     } else if let Ok(v) = serde_json::from_str::<Vec<String>>(target_str) {
         v
     } else {
-        target_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+        target_str
+            .split(',')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
     };
 
     let inputs = cityhall::plan::PlanInputs {
@@ -531,7 +576,10 @@ async fn post_change_request_plan(
     };
 
     let mut payload = Stash::new();
-    payload.insert("change_request_id".into(), Value::String(computed.change_request_id.clone()));
+    payload.insert(
+        "change_request_id".into(),
+        Value::String(computed.change_request_id.clone()),
+    );
     payload.insert("tier".into(), Value::String(computed.tier.clone()));
     payload.insert(
         "steps".into(),
@@ -541,8 +589,14 @@ async fn post_change_request_plan(
         "blockers".into(),
         Value::String(serde_json::to_string(&computed.blockers).unwrap_or_default()),
     );
-    payload.insert("computed_at".into(), Value::String(computed.computed_at.clone()));
-    payload.insert("summary".into(), Value::String(computed.change_request_summary.clone()));
+    payload.insert(
+        "computed_at".into(),
+        Value::String(computed.computed_at.clone()),
+    );
+    payload.insert(
+        "summary".into(),
+        Value::String(computed.change_request_summary.clone()),
+    );
     let envelope = meshql_core::Envelope::new(synthetic_id(&cr_id), payload, vec![]);
 
     match state.deployment_plan.repo.create(envelope, &[]).await {
@@ -581,18 +635,46 @@ async fn post_deployment_plan_gantt(
                 .into_response()
         }
     };
-    let steps_str = env.payload.get("steps").and_then(|v| v.as_str()).unwrap_or("[]");
-    let steps: Vec<cityhall::plan::PlanStep> =
-        serde_json::from_str(steps_str).unwrap_or_default();
-    let blockers_str = env.payload.get("blockers").and_then(|v| v.as_str()).unwrap_or("[]");
-    let blockers: Vec<cityhall::plan::Blocker> = serde_json::from_str(blockers_str).unwrap_or_default();
+    let steps_str = env
+        .payload
+        .get("steps")
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
+    let steps: Vec<cityhall::plan::PlanStep> = serde_json::from_str(steps_str).unwrap_or_default();
+    let blockers_str = env
+        .payload
+        .get("blockers")
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
+    let blockers: Vec<cityhall::plan::Blocker> =
+        serde_json::from_str(blockers_str).unwrap_or_default();
     let computed = cityhall::plan::ComputedPlan {
-        change_request_id: env.payload.get("change_request_id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        change_request_summary: env.payload.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string(),
-        tier: env.payload.get("tier").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        change_request_id: env
+            .payload
+            .get("change_request_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        change_request_summary: env
+            .payload
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        tier: env
+            .payload
+            .get("tier")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
         steps,
         blockers,
-        computed_at: env.payload.get("computed_at").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+        computed_at: env
+            .payload
+            .get("computed_at")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
     };
     let mermaid = cityhall::gantt::render_gantt(&computed);
 
@@ -628,8 +710,14 @@ async fn do_request(world: &mut CityhallWorld, method: &str, path: &str, body: O
     let builder = match method {
         "GET" => world.client.get(&url),
         "DELETE" => world.client.delete(&url),
-        "POST" => world.client.post(&url).json(body.as_ref().unwrap_or(&Value::Null)),
-        "PUT" => world.client.put(&url).json(body.as_ref().unwrap_or(&Value::Null)),
+        "POST" => world
+            .client
+            .post(&url)
+            .json(body.as_ref().unwrap_or(&Value::Null)),
+        "PUT" => world
+            .client
+            .put(&url)
+            .json(body.as_ref().unwrap_or(&Value::Null)),
         _ => panic!("Unknown method: {method}"),
     };
     let resp = builder.send().await.expect("request failed");
@@ -669,7 +757,12 @@ async fn post_for_id(world: &mut CityhallWorld, path: &str, payload: Value) -> S
 #[given("a Cityhall server is running")]
 async fn start_server(world: &mut CityhallWorld) {
     let stub = Arc::new(StubGroundwork::default());
-    stub.put("dep-checkout", "checkout", Some("team-checkout"), vec!["dep-auth".into()]);
+    stub.put(
+        "dep-checkout",
+        "checkout",
+        Some("team-checkout"),
+        vec!["dep-auth".into()],
+    );
     stub.put("dep-auth", "auth", Some("team-auth"), vec![]);
     stub.put("dep-orphan", "orphan", None, vec![]);
     let (addr, team_registry) = build_test_server(stub).await;
@@ -697,9 +790,24 @@ async fn union_stub_knows_team(
 
 #[given("I have built the standard hierarchy")]
 async fn standard_hierarchy(world: &mut CityhallWorld) {
-    let acme = post_for_id(world, "/org_node/api", serde_json::json!({"name":"Acme","kind":"enterprise"})).await;
-    let eng = post_for_id(world, "/org_node/api", serde_json::json!({"name":"Engineering","kind":"division","parent_id":acme.clone()})).await;
-    let payments = post_for_id(world, "/org_node/api", serde_json::json!({"name":"Payments","kind":"domain","parent_id":eng.clone()})).await;
+    let acme = post_for_id(
+        world,
+        "/org_node/api",
+        serde_json::json!({"name":"Acme","kind":"enterprise"}),
+    )
+    .await;
+    let eng = post_for_id(
+        world,
+        "/org_node/api",
+        serde_json::json!({"name":"Engineering","kind":"division","parent_id":acme.clone()}),
+    )
+    .await;
+    let payments = post_for_id(
+        world,
+        "/org_node/api",
+        serde_json::json!({"name":"Payments","kind":"domain","parent_id":eng.clone()}),
+    )
+    .await;
     let checkout = post_for_id(world, "/org_node/api", serde_json::json!({"name":"Checkout Team","kind":"team","parent_id":payments.clone(),"team_id":"team-checkout"})).await;
     let auth = post_for_id(world, "/org_node/api", serde_json::json!({"name":"Auth Team","kind":"team","parent_id":payments.clone(),"team_id":"team-auth"})).await;
     world.ids.insert("acme".into(), acme);
@@ -711,7 +819,12 @@ async fn standard_hierarchy(world: &mut CityhallWorld) {
 
 #[given(regex = r#"^I have submitted change request "(.+)"$"#)]
 async fn submit_change_request(world: &mut CityhallWorld, label: String) {
-    let id = post_for_id(world, "/change_request/api", serde_json::json!({"summary": label.clone()})).await;
+    let id = post_for_id(
+        world,
+        "/change_request/api",
+        serde_json::json!({"summary": label.clone()}),
+    )
+    .await;
     world.ids.insert(label, id);
 }
 
@@ -732,8 +845,17 @@ async fn change_request_with_targets(world: &mut CityhallWorld, label: String, t
 }
 
 #[given(regex = r#"^enterprise "<ids\.(.+)>" has a "(.+)" bylaw with window "(.+)"$"#)]
-async fn enterprise_freeze_with_window(world: &mut CityhallWorld, node_label: String, gate_type: String, window: String) {
-    let node_id = world.ids.get(&node_label).cloned().expect("node not registered");
+async fn enterprise_freeze_with_window(
+    world: &mut CityhallWorld,
+    node_label: String,
+    gate_type: String,
+    window: String,
+) {
+    let node_id = world
+        .ids
+        .get(&node_label)
+        .cloned()
+        .expect("node not registered");
     post_for_id(
         world,
         "/bylaw/api",
@@ -783,7 +905,11 @@ async fn compute_two_step_plan(world: &mut CityhallWorld) {
         .unwrap();
     let body = resp.text().await.unwrap();
     let parsed: Value = serde_json::from_str(&body).expect("plan not JSON");
-    let plan_id = parsed.get("id").and_then(|v| v.as_str()).map(String::from).expect("no id");
+    let plan_id = parsed
+        .get("id")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .expect("no id");
     world.ids.insert("plan".into(), plan_id);
 }
 
@@ -831,14 +957,20 @@ async fn check_status(world: &mut CityhallWorld, expected: u16) {
 async fn body_contains(world: &mut CityhallWorld, expected: String) {
     let resolved = world.resolve(&expected);
     let body = world.last_response_body.as_deref().unwrap_or("");
-    assert!(body.contains(&resolved), "Expected body to contain {resolved:?}\nGot: {body}");
+    assert!(
+        body.contains(&resolved),
+        "Expected body to contain {resolved:?}\nGot: {body}"
+    );
 }
 
 #[then(r#"the response body should have an "id" field"#)]
 async fn body_has_id(world: &mut CityhallWorld) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("response not JSON");
-    assert!(parsed.get("id").map(|v| !v.is_null()).unwrap_or(false), "No 'id' field in: {body}");
+    assert!(
+        parsed.get("id").map(|v| !v.is_null()).unwrap_or(false),
+        "No 'id' field in: {body}"
+    );
 }
 
 #[then("there should be no GraphQL errors")]
@@ -857,7 +989,10 @@ async fn no_graphql_errors(world: &mut CityhallWorld) {
 async fn response_data_contains(world: &mut CityhallWorld, expected: String) {
     let resolved = world.resolve(&expected);
     let body = world.last_response_body.as_deref().unwrap_or("");
-    assert!(body.contains(&resolved), "Expected response data to contain {resolved:?}\nGot: {body}");
+    assert!(
+        body.contains(&resolved),
+        "Expected response data to contain {resolved:?}\nGot: {body}"
+    );
 }
 
 #[then(regex = r"^the plan should have (\d+) step$")]
@@ -865,21 +1000,33 @@ async fn response_data_contains(world: &mut CityhallWorld, expected: String) {
 async fn plan_step_count(world: &mut CityhallWorld, expected: usize) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("not JSON");
-    let steps_str = parsed.pointer("/payload/steps").and_then(|v| v.as_str()).unwrap_or("[]");
+    let steps_str = parsed
+        .pointer("/payload/steps")
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
     let steps: Value = serde_json::from_str(steps_str).expect("steps not JSON array");
     let actual = steps.as_array().map(|a| a.len()).unwrap_or(0);
-    assert_eq!(actual, expected, "Expected {expected} steps, got {actual}. Body: {body}");
+    assert_eq!(
+        actual, expected,
+        "Expected {expected} steps, got {actual}. Body: {body}"
+    );
 }
 
 #[then(regex = r#"^the plan step (\d+) should be "deploy (.+)"$"#)]
 async fn plan_step_is(world: &mut CityhallWorld, index: usize, deployable_name: String) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("not JSON");
-    let steps_str = parsed.pointer("/payload/steps").and_then(|v| v.as_str()).unwrap_or("[]");
+    let steps_str = parsed
+        .pointer("/payload/steps")
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
     let steps: Value = serde_json::from_str(steps_str).unwrap();
     let step = steps.get(index).expect("step index out of range");
     let action = step.get("action").and_then(|v| v.as_str()).unwrap_or("");
-    let name = step.get("deployable_name").and_then(|v| v.as_str()).unwrap_or("");
+    let name = step
+        .get("deployable_name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
     assert_eq!(action, "deploy");
     assert_eq!(name, deployable_name);
 }
@@ -888,11 +1035,20 @@ async fn plan_step_is(world: &mut CityhallWorld, index: usize, deployable_name: 
 async fn plan_step_has_gate(world: &mut CityhallWorld, index: usize, gate_type: String) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("not JSON");
-    let steps_str = parsed.pointer("/payload/steps").and_then(|v| v.as_str()).unwrap_or("[]");
+    let steps_str = parsed
+        .pointer("/payload/steps")
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
     let steps: Value = serde_json::from_str(steps_str).unwrap();
     let step = steps.get(index).expect("step index out of range");
-    let gates = step.get("gates").and_then(|v| v.as_array()).cloned().unwrap_or_default();
-    let found = gates.iter().any(|g| g.get("gate_type").and_then(|v| v.as_str()) == Some(gate_type.as_str()));
+    let gates = step
+        .get("gates")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let found = gates
+        .iter()
+        .any(|g| g.get("gate_type").and_then(|v| v.as_str()) == Some(gate_type.as_str()));
     assert!(found, "no {gate_type} gate on step {index}: {step}");
 }
 
@@ -900,7 +1056,10 @@ async fn plan_step_has_gate(world: &mut CityhallWorld, index: usize, gate_type: 
 async fn plan_blockers_contain(world: &mut CityhallWorld, expected: String) {
     let body = world.last_response_body.as_deref().unwrap_or("");
     let parsed: Value = serde_json::from_str(body).expect("not JSON");
-    let blockers_str = parsed.pointer("/payload/blockers").and_then(|v| v.as_str()).unwrap_or("[]");
+    let blockers_str = parsed
+        .pointer("/payload/blockers")
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
     // Blockers are now structured ({kind, message, mermaid?}); match against
     // the message field so feature scenarios stay readable.
     let blockers: Vec<Value> = serde_json::from_str(blockers_str).unwrap_or_default();
@@ -919,7 +1078,10 @@ async fn both_byte_equal(world: &mut CityhallWorld) {
     assert_eq!(world.last_two_bodies.len(), 2, "need 2 responses");
     let strip = |s: &str| -> String {
         let v: Value = serde_json::from_str(s).unwrap_or(Value::Null);
-        v.pointer("/payload/mermaid").and_then(|m| m.as_str()).map(String::from).unwrap_or_default()
+        v.pointer("/payload/mermaid")
+            .and_then(|m| m.as_str())
+            .map(String::from)
+            .unwrap_or_default()
     };
     let a = strip(&world.last_two_bodies[0]);
     let b = strip(&world.last_two_bodies[1]);

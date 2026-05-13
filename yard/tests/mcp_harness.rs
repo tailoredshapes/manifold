@@ -74,7 +74,12 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
     let enums: BTreeMap<String, Vec<String>> = schema
         .get("properties")
@@ -86,7 +91,9 @@ fn validator_for(schema_str: &str) -> ValidatorFn {
                     v.get("enum").and_then(|e| e.as_array()).map(|arr| {
                         (
                             k.clone(),
-                            arr.iter().filter_map(|x| x.as_str().map(String::from)).collect(),
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect(),
                         )
                     })
                 })
@@ -634,12 +641,7 @@ async fn register_test_environment(world: &mut McpWorld, name: String, kind: Str
 #[given(
     regex = r#"^I have logged test run for "([^"]+)" with status "([^"]+)" lasting (\d+) minutes$"#
 )]
-async fn log_test_run(
-    world: &mut McpWorld,
-    env_label: String,
-    status: String,
-    minutes: u64,
-) {
+async fn log_test_run(world: &mut McpWorld, env_label: String, status: String, minutes: u64) {
     let env_id = world
         .ids
         .get(&env_label)

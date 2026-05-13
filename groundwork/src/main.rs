@@ -38,7 +38,10 @@ async fn serve_index() -> Html<&'static str> {
 async fn serve_app_js() -> Response {
     (
         [
-            (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
             (header::CACHE_CONTROL, "no-cache, must-revalidate"),
         ],
         APP_JS,
@@ -49,7 +52,10 @@ async fn serve_app_js() -> Response {
 async fn serve_cytoscape_js() -> Response {
     (
         [
-            (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
             (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
         ],
         CYTOSCAPE_JS,
@@ -126,8 +132,7 @@ async fn main() -> anyhow::Result<()> {
         .parse()
         .expect("PORT must be a valid u16");
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "./data".into());
-    let union_url =
-        std::env::var("UNION_URL").unwrap_or_else(|_| "http://localhost:3001".into());
+    let union_url = std::env::var("UNION_URL").unwrap_or_else(|_| "http://localhost:3001".into());
 
     // Cross-app public URLs — published via /config.json for the frontend to
     // build cross-app <a href>s. These are *config*, not data. See memory
@@ -195,27 +200,45 @@ async fn main() -> anyhow::Result<()> {
     let dependency_gql_config = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
-        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
         .build();
 
     let exposes_gql_config = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
-        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
         .build();
 
     let contract_gql_config = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByServiceId", r#"{"payload.service_id": "{{service_id}}"}"#)
+        .vector(
+            "getByServiceId",
+            r#"{"payload.service_id": "{{service_id}}"}"#,
+        )
         .build();
 
     let sla_gql_config = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByContractId", r#"{"payload.contract_id": "{{contract_id}}"}"#)
+        .vector(
+            "getByContractId",
+            r#"{"payload.contract_id": "{{contract_id}}"}"#,
+        )
         .build();
 
     let config = ServerConfig {
@@ -327,13 +350,7 @@ async fn main() -> anyhow::Result<()> {
         "/config.json",
         get(move || {
             let body = config_body.clone();
-            async move {
-                (
-                    [(header::CONTENT_TYPE, "application/json")],
-                    body,
-                )
-                    .into_response()
-            }
+            async move { ([(header::CONTENT_TYPE, "application/json")], body).into_response() }
         }),
     );
 

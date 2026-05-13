@@ -13,7 +13,12 @@ pub fn base_schema_validator(schema: &serde_json::Value) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
 
     let enums: BTreeMap<String, Vec<String>> = schema
@@ -26,7 +31,9 @@ pub fn base_schema_validator(schema: &serde_json::Value) -> ValidatorFn {
                     v.get("enum").and_then(|e| e.as_array()).map(|arr| {
                         (
                             k.clone(),
-                            arr.iter().filter_map(|x| x.as_str().map(String::from)).collect(),
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect(),
                         )
                     })
                 })
@@ -71,8 +78,16 @@ pub fn test_environment_validator(schema: &serde_json::Value) -> ValidatorFn {
         base(payload, ctx)?;
         let kind = payload.get("kind").and_then(|v| v.as_str()).unwrap_or("");
         match kind {
-            "external" => require_field(payload, "contractual_limit", "TestEnvironment kind 'external'"),
-            "mock" | "stub" => require_field(payload, "mock_source_id", "TestEnvironment kind 'mock' or 'stub'"),
+            "external" => require_field(
+                payload,
+                "contractual_limit",
+                "TestEnvironment kind 'external'",
+            ),
+            "mock" | "stub" => require_field(
+                payload,
+                "mock_source_id",
+                "TestEnvironment kind 'mock' or 'stub'",
+            ),
             _ => Ok(()),
         }
     })
@@ -88,9 +103,7 @@ pub fn data_sync_validator(schema: &serde_json::Value) -> ValidatorFn {
         let env_src = nonempty_string(payload, "source_env_id");
         let data_src = nonempty_string(payload, "source_data_id");
         if !env_src && !data_src {
-            return Err(
-                "DataSync requires either source_env_id or source_data_id".to_string(),
-            );
+            return Err("DataSync requires either source_env_id or source_data_id".to_string());
         }
         let kind = payload.get("kind").and_then(|v| v.as_str()).unwrap_or("");
         if kind == "shared" && !env_src {

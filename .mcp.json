@@ -5,7 +5,8 @@
       "command": "target/debug/groundwork-mcp",
       "args": [],
       "env": {
-        "GROUNDWORK_URL": "http://localhost:3050"
+        "GROUNDWORK_URL": "http://localhost:3050",
+        "MANIFOLD_USER_ID": "alice@example.dev"
       }
     },
     "union": {
@@ -13,7 +14,8 @@
       "command": "target/debug/union-mcp",
       "args": [],
       "env": {
-        "UNION_URL": "http://localhost:3051"
+        "UNION_URL": "http://localhost:3051",
+        "MANIFOLD_USER_ID": "alice@example.dev"
       }
     },
     "cityhall": {
@@ -21,7 +23,8 @@
       "command": "target/debug/cityhall-mcp",
       "args": [],
       "env": {
-        "CITYHALL_URL": "http://localhost:3052"
+        "CITYHALL_URL": "http://localhost:3052",
+        "MANIFOLD_USER_ID": "alice@example.dev"
       }
     },
     "yard": {
@@ -29,7 +32,17 @@
       "command": "target/debug/yard-mcp",
       "args": [],
       "env": {
-        "YARD_URL": "http://localhost:3053"
+        "YARD_URL": "http://localhost:3053",
+        "MANIFOLD_USER_ID": "alice@example.dev"
+      }
+    },
+    "manifold-ingest": {
+      "type": "stdio",
+      "command": "target/debug/manifold-ingest-mcp",
+      "args": [],
+      "env": {
+        "INGEST_URL": "http://localhost:3054",
+        "MANIFOLD_USER_ID": "alice@example.dev"
       }
     }
   }

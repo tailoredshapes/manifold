@@ -150,7 +150,10 @@ mod tests {
         let p = plan_with(vec![step(0, "checkout", vec![], vec![])]);
         let g = render_gantt(&p);
         assert!(g.contains("section checkout"), "missing section: {g}");
-        assert!(g.contains("deploy checkout :step_0, after start, 10min"), "got: {g}");
+        assert!(
+            g.contains("deploy checkout :step_0, after start, 10min"),
+            "got: {g}"
+        );
         assert!(g.contains("dateFormat HH:mm"));
     }
 
@@ -178,7 +181,10 @@ mod tests {
         assert!(g.contains("section checkout"));
         let auth_pos = g.find("section auth").unwrap();
         let checkout_pos = g.find("section checkout").unwrap();
-        assert!(auth_pos < checkout_pos, "auth must come before checkout: {g}");
+        assert!(
+            auth_pos < checkout_pos,
+            "auth must come before checkout: {g}"
+        );
     }
 
     #[test]
@@ -196,7 +202,10 @@ mod tests {
         assert!(g.contains("ApprovalGate (Acme) :crit, milestone, gate_0_0,"));
         assert!(g.contains("WindowGate (Payments-Domain) :crit, milestone, gate_0_1,"));
         // Step depends on both gates.
-        assert!(g.contains("deploy billing :step_0, after gate_0_0 gate_0_1, 10min"), "got: {g}");
+        assert!(
+            g.contains("deploy billing :step_0, after gate_0_0 gate_0_1, 10min"),
+            "got: {g}"
+        );
     }
 
     #[test]
@@ -206,19 +215,28 @@ mod tests {
         // should drop the forward ref to keep Mermaid happy; the cycle is
         // still reported via ComputedPlan::blockers elsewhere.
         let p = plan_with(vec![
-            step(0, "auth", vec![5], vec![]),       // forward ref to step_5
+            step(0, "auth", vec![5], vec![]),        // forward ref to step_5
             step(1, "checkout", vec![0, 3], vec![]), // step_3 is forward
-            step(2, "billing", vec![1], vec![]),    // backward, fine
-            step(3, "ledger", vec![2], vec![]),     // backward, fine
-            step(5, "audit", vec![0], vec![]),      // backward, fine
+            step(2, "billing", vec![1], vec![]),     // backward, fine
+            step(3, "ledger", vec![2], vec![]),      // backward, fine
+            step(5, "audit", vec![0], vec![]),       // backward, fine
         ]);
         let g = render_gantt(&p);
         // step_0 had only forward refs → falls back to `after start`
-        assert!(g.contains("deploy auth :step_0, after start, 10min"), "got: {g}");
+        assert!(
+            g.contains("deploy auth :step_0, after start, 10min"),
+            "got: {g}"
+        );
         // step_1 had one forward (3) and one backward (0) → backward kept
-        assert!(g.contains("deploy checkout :step_1, after step_0, 10min"), "got: {g}");
+        assert!(
+            g.contains("deploy checkout :step_1, after step_0, 10min"),
+            "got: {g}"
+        );
         // step_5's only predecessor (0) is backward → kept as-is
-        assert!(g.contains("deploy audit :step_5, after step_0, 10min"), "got: {g}");
+        assert!(
+            g.contains("deploy audit :step_5, after step_0, 10min"),
+            "got: {g}"
+        );
         // No literal "after step_5" anywhere — that was the forward ref
         assert!(!g.contains("after step_5"), "forward ref leaked: {g}");
     }

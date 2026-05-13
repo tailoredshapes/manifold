@@ -22,9 +22,7 @@ pub fn org_node_validator(schema: &serde_json::Value) -> ValidatorFn {
             .map(|s| !s.trim().is_empty())
             .unwrap_or(false);
         match (kind, parent_id_present) {
-            ("enterprise", true) => Err(
-                "Enterprise OrgNode must not have a parent_id".to_string(),
-            ),
+            ("enterprise", true) => Err("Enterprise OrgNode must not have a parent_id".to_string()),
             ("enterprise", false) => Ok(()),
             (_, false) => Err(format!("OrgNode kind '{kind}' must have a parent_id")),
             _ => Ok(()),
@@ -43,7 +41,10 @@ pub fn bylaw_validator(schema: &serde_json::Value) -> ValidatorFn {
     let base = base_schema_validator(schema);
     Arc::new(move |payload: &Stash, ctx: &ValidatorContext| {
         base(payload, ctx)?;
-        let gate_type = payload.get("gate_type").and_then(|v| v.as_str()).unwrap_or("");
+        let gate_type = payload
+            .get("gate_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let needs: &[&str] = match gate_type {
             "WindowGate" | "FreezePeriod" => &["window"],
             "QuiesceGate" => &["quiesce_for"],
@@ -73,7 +74,12 @@ pub fn base_schema_validator(schema: &serde_json::Value) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
 
     let enums: BTreeMap<String, Vec<String>> = schema
@@ -86,7 +92,9 @@ pub fn base_schema_validator(schema: &serde_json::Value) -> ValidatorFn {
                     v.get("enum").and_then(|e| e.as_array()).map(|arr| {
                         (
                             k.clone(),
-                            arr.iter().filter_map(|x| x.as_str().map(String::from)).collect(),
+                            arr.iter()
+                                .filter_map(|x| x.as_str().map(String::from))
+                                .collect(),
                         )
                     })
                 })
@@ -182,10 +190,7 @@ pub async fn effective_bylaws_for(
     org_node_id: &str,
 ) -> anyhow::Result<Vec<EffectiveBylaw>> {
     let chain = ancestors_of(org_node_repo, org_node_id).await?;
-    let all_bylaws = bylaw_repo
-        .list(&[])
-        .await
-        .context("listing bylaws")?;
+    let all_bylaws = bylaw_repo.list(&[]).await.context("listing bylaws")?;
     let mut out: Vec<EffectiveBylaw> = Vec::new();
 
     for (node_id, node_name) in chain {
@@ -208,12 +213,36 @@ pub async fn effective_bylaws_for(
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
-                priority: env.payload.get("priority").and_then(|v| v.as_str()).map(String::from),
-                description: env.payload.get("description").and_then(|v| v.as_str()).map(String::from),
-                conditions: env.payload.get("conditions").and_then(|v| v.as_str()).map(String::from),
-                window: env.payload.get("window").and_then(|v| v.as_str()).map(String::from),
-                quiesce_for: env.payload.get("quiesce_for").and_then(|v| v.as_str()).map(String::from),
-                approvers: env.payload.get("approvers").and_then(|v| v.as_str()).map(String::from),
+                priority: env
+                    .payload
+                    .get("priority")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                description: env
+                    .payload
+                    .get("description")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                conditions: env
+                    .payload
+                    .get("conditions")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                window: env
+                    .payload
+                    .get("window")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                quiesce_for: env
+                    .payload
+                    .get("quiesce_for")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
+                approvers: env
+                    .payload
+                    .get("approvers")
+                    .and_then(|v| v.as_str())
+                    .map(String::from),
             });
         }
     }

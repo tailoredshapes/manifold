@@ -7,8 +7,8 @@ use crate::bylaw::{self, EffectiveBylaw};
 use anyhow::Context;
 use async_trait::async_trait;
 use meshql_core::Repository;
-use std::collections::{BTreeMap, HashSet, VecDeque};
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::sync::Arc;
 
 /// What the planner needs to know about a deployable in Groundwork.
@@ -149,12 +149,9 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
 
         let gates = match summary.team_id.as_deref() {
             Some(team_id) if !team_id.is_empty() => {
-                let bylaws = effective_bylaws_for_team(
-                    inputs.org_node_repo,
-                    inputs.bylaw_repo,
-                    team_id,
-                )
-                .await?;
+                let bylaws =
+                    effective_bylaws_for_team(inputs.org_node_repo, inputs.bylaw_repo, team_id)
+                        .await?;
                 bylaws.into_iter().map(plan_gate_from_bylaw).collect()
             }
             _ => Vec::new(),
@@ -239,7 +236,12 @@ fn topo_sort(
         // Fall back to the id only if a name is somehow missing.
         let names: Vec<&str> = leftover
             .iter()
-            .map(|id| summaries.get(id).map(|s| s.name.as_str()).unwrap_or(id.as_str()))
+            .map(|id| {
+                summaries
+                    .get(id)
+                    .map(|s| s.name.as_str())
+                    .unwrap_or(id.as_str())
+            })
             .collect();
         let message = format!("dependency cycle involving: {}", names.join(", "));
         let mermaid = render_cycle_mermaid(&leftover, summaries);
@@ -317,7 +319,9 @@ fn render_cycle_mermaid(
     let mut edge_idx: usize = 0;
     let mut cyclic_edge_indices: Vec<usize> = Vec::new();
     for id in cycle_ids {
-        let Some(&from) = id_to_idx.get(id.as_str()) else { continue };
+        let Some(&from) = id_to_idx.get(id.as_str()) else {
+            continue;
+        };
         let Some(s) = summaries.get(id) else { continue };
         for dep_id in &s.depends_on {
             if let Some(&to) = id_to_idx.get(dep_id.as_str()) {
@@ -355,7 +359,9 @@ fn reachable_nontrivial(
     adj: &std::collections::HashMap<&str, Vec<&str>>,
 ) -> bool {
     use std::collections::HashSet;
-    let Some(start) = adj.get(src) else { return false };
+    let Some(start) = adj.get(src) else {
+        return false;
+    };
     let mut stack: Vec<&str> = start.iter().copied().collect();
     let mut visited: HashSet<&str> = HashSet::new();
     while let Some(node) = stack.pop() {
@@ -442,16 +448,31 @@ mod tests {
         // a is dragged-in: NO cyclic class
         assert!(out.contains("n0[\"A\"]\n"), "a should be unclassed: {out}");
         // b and c are on the cycle: classed cyclic
-        assert!(out.contains("n1[\"B\"]:::cyclic\n"), "b should be cyclic: {out}");
-        assert!(out.contains("n2[\"C\"]:::cyclic\n"), "c should be cyclic: {out}");
+        assert!(
+            out.contains("n1[\"B\"]:::cyclic\n"),
+            "b should be cyclic: {out}"
+        );
+        assert!(
+            out.contains("n2[\"C\"]:::cyclic\n"),
+            "c should be cyclic: {out}"
+        );
         // Edges emitted in order: a→b (idx 0, NOT cyclic), b→c (idx 1, cyclic), c→b (idx 2, cyclic)
         assert!(out.contains("n0 --> n1\n"), "a→b edge missing: {out}");
         assert!(out.contains("n1 --> n2\n"), "b→c edge missing: {out}");
         assert!(out.contains("n2 --> n1\n"), "c→b edge missing: {out}");
         // linkStyle: idx 1 and idx 2 are cyclic; idx 0 (a→b) is not
-        assert!(out.contains("linkStyle 1 stroke:#dc2626"), "b→c edge should be styled: {out}");
-        assert!(out.contains("linkStyle 2 stroke:#dc2626"), "c→b edge should be styled: {out}");
-        assert!(!out.contains("linkStyle 0"), "a→b edge must not be styled: {out}");
+        assert!(
+            out.contains("linkStyle 1 stroke:#dc2626"),
+            "b→c edge should be styled: {out}"
+        );
+        assert!(
+            out.contains("linkStyle 2 stroke:#dc2626"),
+            "c→b edge should be styled: {out}"
+        );
+        assert!(
+            !out.contains("linkStyle 0"),
+            "a→b edge must not be styled: {out}"
+        );
         // classDef appears once
         assert_eq!(
             out.matches("classDef cyclic").count(),
@@ -474,7 +495,10 @@ mod tests {
         assert!(out.contains("n0[\"A\"]\n"));
         assert!(out.contains("n1[\"B\"]\n"));
         assert!(out.contains("n0 --> n1\n"));
-        assert!(!out.contains("classDef cyclic"), "no classDef expected: {out}");
+        assert!(
+            !out.contains("classDef cyclic"),
+            "no classDef expected: {out}"
+        );
         assert!(!out.contains("linkStyle"), "no linkStyle expected: {out}");
     }
 }

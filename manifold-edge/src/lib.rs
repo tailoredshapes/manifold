@@ -107,7 +107,10 @@ async fn identity_middleware(
 /// outside of the axum middleware pipeline.
 pub fn build_stash(headers: &HeaderMap, cfg: &HeaderConfig) -> Stash {
     let mut stash = Stash::new();
-    if let Some(id) = headers.get(&cfg.user_id_header).and_then(|v| v.to_str().ok()) {
+    if let Some(id) = headers
+        .get(&cfg.user_id_header)
+        .and_then(|v| v.to_str().ok())
+    {
         if !id.is_empty() {
             stash.insert(STASH_KEY_USER_ID.to_string(), Value::String(id.to_string()));
         }
@@ -141,7 +144,10 @@ mod tests {
     #[test]
     fn build_stash_populates_user_id_from_default_header() {
         let mut h = HeaderMap::new();
-        h.insert("x-manifold-user-id", HeaderValue::from_static("alice@example.dev"));
+        h.insert(
+            "x-manifold-user-id",
+            HeaderValue::from_static("alice@example.dev"),
+        );
         let s = build_stash(&h, &cfg());
         assert_eq!(
             s.get(STASH_KEY_USER_ID),

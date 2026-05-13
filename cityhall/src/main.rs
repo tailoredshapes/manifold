@@ -1,6 +1,5 @@
 //! Cityhall — governance, change planning, and deployment Gantt output.
 
-use cityhall::{bylaw, gantt, groundwork_client, plan};
 use axum::{
     extract::{Path, State},
     http::header,
@@ -8,6 +7,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use cityhall::{bylaw, gantt, groundwork_client, plan};
 use manifold_edge::{with_header_identity, HeaderConfig};
 use meshql_casbin::CasbinAuth;
 use meshql_core::{Auth, GraphletteConfig, Repository, RootConfig, ServerConfig, StashKeyAuth};
@@ -35,7 +35,10 @@ async fn serve_index() -> Html<&'static str> {
 async fn serve_app_js() -> Response {
     (
         [
-            (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
             (header::CACHE_CONTROL, "no-cache, must-revalidate"),
         ],
         APP_JS,
@@ -88,10 +91,7 @@ pub struct AppState {
 
 // ── Custom routes ─────────────────────────────────────────────────────────────
 
-async fn get_ancestors(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+async fn get_ancestors(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     match bylaw::ancestors_of(&state.org_node.repo, &id).await {
         Ok(chain) => (
             axum::http::StatusCode::OK,
@@ -107,10 +107,7 @@ async fn get_ancestors(
     }
 }
 
-async fn get_effective_bylaws(
-    State(state): State<AppState>,
-    Path(id): Path<String>,
-) -> Response {
+async fn get_effective_bylaws(State(state): State<AppState>, Path(id): Path<String>) -> Response {
     match bylaw::effective_bylaws_for(&state.org_node.repo, &state.bylaw.repo, &id).await {
         Ok(list) => (
             axum::http::StatusCode::OK,
@@ -162,7 +159,12 @@ async fn post_change_request_plan(
         .to_string();
     let tier = req
         .tier
-        .or_else(|| env.payload.get("tier").and_then(|v| v.as_str()).map(String::from))
+        .or_else(|| {
+            env.payload
+                .get("tier")
+                .and_then(|v| v.as_str())
+                .map(String::from)
+        })
         .unwrap_or_else(|| "dev".into());
     let target_deployable_ids = parse_target_deployables(
         env.payload
@@ -304,7 +306,10 @@ fn parse_plan_payload(payload: &meshql_core::Stash) -> anyhow::Result<plan::Comp
         .and_then(|v| v.as_str())
         .unwrap_or("[]");
     let steps: Vec<plan::PlanStep> = serde_json::from_str(steps_str)?;
-    let blockers_str = payload.get("blockers").and_then(|v| v.as_str()).unwrap_or("[]");
+    let blockers_str = payload
+        .get("blockers")
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
     let blockers: Vec<plan::Blocker> = serde_json::from_str(blockers_str).unwrap_or_default();
     Ok(plan::ComputedPlan {
         change_request_id: payload
@@ -370,8 +375,7 @@ async fn main() -> anyhow::Result<()> {
         .parse()
         .expect("PORT must be a valid u16");
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "./data".into());
-    let union_url =
-        std::env::var("UNION_URL").unwrap_or_else(|_| "http://localhost:3001".into());
+    let union_url = std::env::var("UNION_URL").unwrap_or_else(|_| "http://localhost:3001".into());
 
     // Cross-app public URLs — published via /config.json for the frontend.
     let groundwork_public_url = std::env::var("GROUNDWORK_PUBLIC_URL")
@@ -438,7 +442,10 @@ async fn main() -> anyhow::Result<()> {
     let bylaw_root = RootConfig::builder()
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
-        .vector("getByOrgNodeId", r#"{"payload.org_node_id": "{{org_node_id}}"}"#)
+        .vector(
+            "getByOrgNodeId",
+            r#"{"payload.org_node_id": "{{org_node_id}}"}"#,
+        )
         .vector("getByGateType", r#"{"payload.gate_type": "{{gate_type}}"}"#)
         .build();
 
@@ -559,20 +566,17 @@ async fn main() -> anyhow::Result<()> {
         .route("/org_node/:id/ancestors", get(get_ancestors))
         .route("/org_node/:id/effective_bylaws", get(get_effective_bylaws))
         .route("/change_request/:id/plan", post(post_change_request_plan))
-        .route("/deployment_plan/:id/gantt", post(post_deployment_plan_gantt))
+        .route(
+            "/deployment_plan/:id/gantt",
+            post(post_deployment_plan_gantt),
+        )
         .with_state(app_state);
 
     let config_route = Router::new().route(
         "/config.json",
         get(move || {
             let body = config_body.clone();
-            async move {
-                (
-                    [(header::CONTENT_TYPE, "application/json")],
-                    body,
-                )
-                    .into_response()
-            }
+            async move { ([(header::CONTENT_TYPE, "application/json")], body).into_response() }
         }),
     );
 

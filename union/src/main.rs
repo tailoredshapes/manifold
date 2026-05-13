@@ -34,7 +34,10 @@ async fn serve_index() -> Html<&'static str> {
 async fn serve_app_js() -> Response {
     (
         [
-            (header::CONTENT_TYPE, "application/javascript; charset=utf-8"),
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
             (header::CACHE_CONTROL, "no-cache, must-revalidate"),
         ],
         APP_JS,
@@ -58,7 +61,12 @@ fn make_schema_validator(schema: &serde_json::Value) -> ValidatorFn {
     let required: Vec<String> = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str()).map(String::from).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str())
+                .map(String::from)
+                .collect()
+        })
         .unwrap_or_default();
 
     // Map of field-name → list of allowed string values.
@@ -200,8 +208,14 @@ async fn main() -> anyhow::Result<()> {
         .singleton("getById", r#"{"id": "{{id}}"}"#)
         .vector("getAll", "{}")
         .vector("getByTeamId", r#"{"payload.team_id": "{{team_id}}"}"#)
-        .vector("getByDeployableId", r#"{"payload.deployable_id": "{{deployable_id}}"}"#)
-        .vector("getByChangeRequestId", r#"{"payload.change_request_id": "{{change_request_id}}"}"#)
+        .vector(
+            "getByDeployableId",
+            r#"{"payload.deployable_id": "{{deployable_id}}"}"#,
+        )
+        .vector(
+            "getByChangeRequestId",
+            r#"{"payload.change_request_id": "{{change_request_id}}"}"#,
+        )
         .vector("getByStatus", r#"{"payload.status": "{{status}}"}"#)
         .singleton_resolver(
             "deployable",
@@ -294,13 +308,7 @@ async fn main() -> anyhow::Result<()> {
         "/config.json",
         get(move || {
             let body = config_body.clone();
-            async move {
-                (
-                    [(header::CONTENT_TYPE, "application/json")],
-                    body,
-                )
-                    .into_response()
-            }
+            async move { ([(header::CONTENT_TYPE, "application/json")], body).into_response() }
         }),
     );
 

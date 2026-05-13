@@ -28,14 +28,18 @@ pub struct ChangeRequestRegistry {
 }
 
 impl ChangeRequestRegistry {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
     pub fn insert(&self, cr: StubChangeRequest) {
         self.inner.lock().unwrap().insert(cr.id.clone(), cr);
     }
     pub fn get(&self, id: &str) -> Option<StubChangeRequest> {
         self.inner.lock().unwrap().get(id).cloned()
     }
-    pub fn clear(&self) { self.inner.lock().unwrap().clear(); }
+    pub fn clear(&self) {
+        self.inner.lock().unwrap().clear();
+    }
 }
 
 async fn get_change_request(

@@ -42,8 +42,15 @@ impl ChangeRequestLookup for HttpCityhallClient {
             Some(v) if v.is_object() => v.clone(),
             _ => env.clone(),
         };
-        let summary = payload.get("summary").and_then(|v| v.as_str()).unwrap_or("").to_string();
-        let tier = payload.get("tier").and_then(|v| v.as_str()).map(String::from);
+        let summary = payload
+            .get("summary")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        let tier = payload
+            .get("tier")
+            .and_then(|v| v.as_str())
+            .map(String::from);
         let target_str = payload
             .get("target_deployables")
             .and_then(|v| v.as_str())
@@ -55,7 +62,11 @@ impl ChangeRequestLookup for HttpCityhallClient {
         } else if let Ok(v) = serde_json::from_str::<Vec<String>>(&target_str) {
             v
         } else {
-            target_str.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect()
+            target_str
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect()
         };
 
         Ok(Some(ChangeRequestSummary {
