@@ -503,6 +503,21 @@ async fn main() -> anyhow::Result<()> {
     let app = meshql_server::build_app_with_auth(config, auth, custom).await?;
     let app = with_header_identity(app, HeaderConfig::from_env());
 
+    // One-shot Meridian programs seed (idempotent — no-op if any program
+    // already exists). Best-effort; failure is logged and doesn't block the
+    // server from starting.
+    match manifold_lobby::seed::seed_if_empty(&app_state).await {
+        Ok(report) => {
+            if report.programs_created > 0 || report.memberships_created > 0 {
+                println!(
+                    "manifold-lobby seeded {} programs, {} memberships",
+                    report.programs_created, report.memberships_created
+                );
+            }
+        }
+        Err(e) => eprintln!("manifold-lobby seed warning: {e}"),
+    }
+
     // Spawn the derivation engine in the background.
     let engine = Engine::new(app_state, SourceClients::from_env());
     let _engine_handle = engine.spawn();

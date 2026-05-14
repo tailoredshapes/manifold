@@ -10,6 +10,7 @@
 
 pub mod engine;
 pub mod rules;
+pub mod seed;
 pub mod snapshot;
 pub mod sources;
 pub mod state;

@@ -510,6 +510,23 @@
     .plan-blockers h4 { color: var(--danger); font-size: 13px; font-weight: 600; margin-bottom: 4px; }
     .plan-blockers ul { padding-left: 20px; font-size: 13px; color: var(--danger); }
 
+    /* Lobby "Affected by N advisories →" pill. Sits at the top of a plan
+       card; renders only when Lobby returns at least one open advisory. */
+    .lobby-pill-slot:empty { display: none; }
+    .lobby-pill {
+      display: inline-block;
+      padding: 4px 12px;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 999px;
+      background: var(--warn-soft);
+      color: var(--warn);
+      border: 1px solid var(--warn);
+      text-decoration: none;
+      margin-bottom: 10px;
+    }
+    .lobby-pill:hover { background: var(--warn); color: var(--surface); }
+
     /* ── Tier tabs (plans) — same underline treatment as top tabs ──────────── */
     .tier-tabs {
       display: flex;

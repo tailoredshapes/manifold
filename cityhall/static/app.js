@@ -72,6 +72,41 @@ async function loadConfig() {
   }
 }
 
+// Fetch the count of open advisories that Lobby has raised on a given
+// change_request (or any subject). Returns 0 on any failure — Lobby is a
+// soft dependency.
+async function fetchLobbyAdvisoryCount(subjectId) {
+  const lobby = state.config?.lobby_public_url;
+  if (!lobby || !subjectId) return 0;
+  try {
+    const r = await fetch(`${lobby}/advisory/graph`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `{ getBySubjectId(subject_id: "${subjectId}") { id state } }`,
+      }),
+    });
+    if (!r.ok) return 0;
+    const j = await r.json();
+    const rows = j?.data?.getBySubjectId || [];
+    return rows.filter(a => a.state !== 'resolved' && a.state !== 'dismissed').length;
+  } catch {
+    return 0;
+  }
+}
+
+function renderLobbyPill(subjectId, count) {
+  const lobby = state.config?.lobby_public_url || '';
+  const a = document.createElement('a');
+  a.href = `${lobby}/#inbox`;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.className = 'lobby-pill';
+  a.textContent = `Affected by ${count} advisor${count === 1 ? 'y' : 'ies'} →`;
+  a.title = 'Open in Lobby';
+  return a;
+}
+
 // Build a cross-app anchor pointing at <base>#<screen>[/<id>]. Falls back to
 // plain escaped text when the target app's public URL is unknown. Receiving
 // end may not yet focus the entity; the URL is still informative.
@@ -827,6 +862,18 @@ function renderPlanDetail(envelope) {
   try { blockers = JSON.parse(envelope?.blockers || '[]'); } catch { blockers = []; }
 
   const wrap = el('div', { class: 'stack' });
+
+  // "Affected by N advisories →" pill linking into Lobby. Async fetch
+  // populates the pill once Lobby responds; the slot is empty until then so
+  // a Lobby outage never blocks plan rendering.
+  const crId = envelope?.change_request_id;
+  if (crId) {
+    const pillSlot = el('div', { class: 'lobby-pill-slot' });
+    wrap.appendChild(pillSlot);
+    fetchLobbyAdvisoryCount(crId).then(count => {
+      if (count > 0) pillSlot.appendChild(renderLobbyPill(crId, count));
+    }).catch(() => {});
+  }
 
   if (!steps.length && !blockers.length) {
     wrap.appendChild(el('div', { class: 'muted', style: 'font-size: 13px;' }, 'Plan computed with no steps.'));

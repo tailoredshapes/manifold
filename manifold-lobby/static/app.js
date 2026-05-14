@@ -62,32 +62,136 @@ async function post(path, body) {
   return r;
 }
 
-async function ack(id)     { await post(`/advisory/${id}/acknowledge`, {}); await refresh(); }
+async function ack(id) {
+  await post(`/advisory/${id}/acknowledge`, {});
+  await refresh();
+}
+
+const DISMISS_REASONS = [
+  { code: 'false-positive',        label: 'False positive',         help: 'The rule fired but the underlying concern isn\'t real.' },
+  { code: 'accepted-risk',         label: 'Accepted risk',          help: 'Acknowledged, weighed, accepted by an owner.' },
+  { code: 'deferred',              label: 'Deferred',               help: 'Real, but parked until a future window.' },
+  { code: 'compensating-control',  label: 'Compensating control',   help: 'Mitigated by something elsewhere; rule is technically right but irrelevant.' },
+  { code: 'other',                 label: 'Other',                  help: 'Use the note field to explain.' },
+];
+
 async function dismiss(id) {
-  const reason = prompt('Dismiss reason (accepted-risk / false-positive / deferred / compensating-control / other):', 'false-positive');
-  if (!reason) return;
-  const note = prompt('Note (optional):', '') || undefined;
-  await post(`/advisory/${id}/dismiss`, { reason, note });
+  const adv = state.advisories.find(a => a.id === id);
+  const choice = await openModal({
+    title: 'Dismiss advisory',
+    intro: adv ? `${adv.kind} on ${adv.subject_name || adv.subject_id}` : '',
+    fields: [
+      { name: 'reason',  type: 'radio',    label: 'Reason',     options: DISMISS_REASONS, required: true, default: 'false-positive' },
+      { name: 'note',    type: 'textarea', label: 'Note (optional)', placeholder: 'Context for the audit trail…' },
+    ],
+    submit: 'Dismiss',
+  });
+  if (!choice) return;
+  await post(`/advisory/${id}/dismiss`, { reason: choice.reason, note: choice.note || undefined });
   await refresh();
 }
 async function escalate(id) {
-  const to = prompt('Escalate to (person id or role):', '');
-  if (!to) return;
-  await post(`/advisory/${id}/escalate`, { to });
+  const choice = await openModal({
+    title: 'Escalate advisory',
+    fields: [
+      { name: 'to',   type: 'text',     label: 'Escalate to', placeholder: 'person id or role (e.g. director-of-release)', required: true },
+      { name: 'note', type: 'textarea', label: 'Note (optional)' },
+    ],
+    submit: 'Escalate',
+  });
+  if (!choice) return;
+  await post(`/advisory/${id}/escalate`, { to: choice.to, note: choice.note || undefined });
   await refresh();
 }
 async function assign(id) {
-  const assignee = prompt('Assign to:', '');
-  if (!assignee) return;
-  await post(`/advisory/${id}/assign`, { assignee });
+  const choice = await openModal({
+    title: 'Assign advisory',
+    fields: [{ name: 'assignee', type: 'text', label: 'Assignee', placeholder: 'person id', required: true }],
+    submit: 'Assign',
+  });
+  if (!choice) return;
+  await post(`/advisory/${id}/assign`, { assignee: choice.assignee });
   await refresh();
 }
 async function comment(id) {
-  const body = prompt('Comment:', '');
-  if (!body) return;
-  await post(`/advisory/${id}/comment`, { body });
+  const choice = await openModal({
+    title: 'Add comment',
+    fields: [{ name: 'body', type: 'textarea', label: 'Comment', required: true }],
+    submit: 'Post comment',
+  });
+  if (!choice) return;
+  await post(`/advisory/${id}/comment`, { body: choice.body });
   await loadComments(id);
   render();
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+
+function openModal(spec) {
+  return new Promise(resolve => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    const dialog = document.createElement('div');
+    dialog.className = 'modal-dialog';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'modal-title');
+    const close = (value) => { backdrop.remove(); document.removeEventListener('keydown', onKey); resolve(value); };
+    const onKey = e => { if (e.key === 'Escape') close(null); };
+    document.addEventListener('keydown', onKey);
+
+    const form = document.createElement('form');
+    form.innerHTML = `<h3 id="modal-title">${spec.title}</h3>` + (spec.intro ? `<p class="modal-intro">${spec.intro}</p>` : '');
+    for (const f of spec.fields) {
+      const wrap = document.createElement('div'); wrap.className = 'modal-field';
+      const label = document.createElement('label'); label.textContent = f.label; wrap.appendChild(label);
+      if (f.type === 'radio') {
+        for (const opt of f.options) {
+          const id = `r_${f.name}_${opt.code}`;
+          const row = document.createElement('label'); row.className = 'modal-radio';
+          row.innerHTML = `<input type="radio" name="${f.name}" value="${opt.code}" id="${id}" ${opt.code === f.default ? 'checked' : ''}>
+            <span class="opt-label">${opt.label}</span>
+            <span class="opt-help">${opt.help || ''}</span>`;
+          wrap.appendChild(row);
+        }
+      } else if (f.type === 'textarea') {
+        const t = document.createElement('textarea');
+        t.name = f.name; t.placeholder = f.placeholder || ''; t.rows = 4;
+        if (f.required) t.required = true;
+        wrap.appendChild(t);
+      } else {
+        const i = document.createElement('input');
+        i.type = 'text'; i.name = f.name; i.placeholder = f.placeholder || '';
+        if (f.required) i.required = true;
+        wrap.appendChild(i);
+      }
+      form.appendChild(wrap);
+    }
+    const actions = document.createElement('div'); actions.className = 'modal-actions';
+    actions.innerHTML = `
+      <button type="button" data-act="cancel">Cancel</button>
+      <button type="submit" class="primary">${spec.submit || 'Submit'}</button>`;
+    form.appendChild(actions);
+
+    form.addEventListener('submit', e => {
+      e.preventDefault();
+      const data = new FormData(form);
+      const out = {};
+      for (const [k, v] of data.entries()) out[k] = v;
+      // Validate required
+      for (const f of spec.fields) {
+        if (f.required && !out[f.name]) { return; }
+      }
+      close(out);
+    });
+    form.querySelector('[data-act=cancel]').addEventListener('click', () => close(null));
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) close(null); });
+
+    dialog.appendChild(form);
+    backdrop.appendChild(dialog);
+    document.body.appendChild(backdrop);
+    setTimeout(() => form.querySelector('input,textarea')?.focus(), 50);
+  });
 }
 async function deriveNow() {
   await post('/_derive', {});

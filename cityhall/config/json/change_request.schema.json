@@ -9,7 +9,8 @@
     "target_versions":    { "type": "string" },
     "requested_by":       { "type": "string" },
     "tier":               { "type": "string", "enum": ["dev", "integration", "uat", "prod"] },
-    "status":             { "type": "string", "enum": ["draft", "submitted", "approved", "rejected", "deployed", "rolled_back"] }
+    "status":             { "type": "string", "enum": ["draft", "submitted", "approved", "rejected", "deployed", "rolled_back", "blocked"] },
+    "blocker":            { "type": "string" }
   },
   "additionalProperties": true
 }
