@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["kind", "subject_type", "subject_id", "severity", "state", "rule", "explain", "raised_at"],
+  "properties": {
+    "kind":             { "type": "string", "enum": ["BlockedUpstream", "CircularDependency", "UndocumentedInterface", "WatershedMismatch", "MissingEnvironment", "ScheduleContention", "StaleOwnership", "OrphanedEnvironment"] },
+    "subject_type":     { "type": "string", "enum": ["deployable", "service", "change_request", "deployment_plan", "test_environment", "team", "person"] },
+    "subject_id":       { "type": "string" },
+    "subject_name":     { "type": "string" },
+    "programs":         { "type": "string" },
+    "severity":         { "type": "string", "enum": ["info", "warn", "critical"] },
+    "state":            { "type": "string", "enum": ["raised", "acknowledged", "dismissed", "resolved"] },
+    "rule":             { "type": "string" },
+    "explain":          { "type": "string" },
+    "caused_by":        { "type": "string" },
+    "raised_at":        { "type": "string" },
+    "acknowledged_at":  { "type": "string" },
+    "dismissed_at":     { "type": "string" },
+    "resolved_at":      { "type": "string" },
+    "dismiss_reason":   { "type": "string", "enum": ["accepted-risk", "false-positive", "deferred", "compensating-control", "other"] },
+    "dismiss_note":     { "type": "string" },
+    "escalated_to":     { "type": "string" },
+    "re_raise_count":   { "type": "string" },
+    "last_action":      { "type": "string" },
+    "assignee":         { "type": "string" }
+  },
+  "additionalProperties": true
+}

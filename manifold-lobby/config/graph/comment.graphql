@@ -1,0 +1,12 @@
+type Comment {
+    id: ID
+    advisory_id: String!
+    author: String!
+    body: String!
+    at: String!
+}
+type Query {
+    getById(id: ID, at: Float): Comment
+    getAll(at: Float): [Comment]
+    getByAdvisoryId(advisory_id: String, at: Float): [Comment]
+}

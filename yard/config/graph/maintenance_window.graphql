@@ -1,0 +1,21 @@
+type MaintenanceWindow {
+    id: ID
+    test_environment_id: String!
+    starts_at: String!
+    ends_at: String!
+    reason: String
+    declared_by: String
+    test_environment: TestEnvironment
+}
+type TestEnvironment {
+    id: ID
+    name: String
+    kind: String
+    deployable_id: String
+    watershed: String
+}
+type Query {
+    getById(id: ID, at: Float): MaintenanceWindow
+    getAll(at: Float): [MaintenanceWindow]
+    getByTestEnvironmentId(test_environment_id: String, at: Float): [MaintenanceWindow]
+}

@@ -13,6 +13,7 @@ type TestEnvironment {
     concurrency_limit: String
     rate_limit: String
     contractual_limit: String
+    watershed: String
     notes: String
     deployable: Deployable
     service: Service

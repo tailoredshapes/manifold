@@ -16,6 +16,7 @@
     "concurrency_limit":    { "type": "string" },
     "rate_limit":           { "type": "string" },
     "contractual_limit":    { "type": "string" },
+    "watershed":            { "type": "string", "enum": ["prod", "prod-like", "path-to-prod"] },
     "notes":                { "type": "string" }
   },
   "additionalProperties": true

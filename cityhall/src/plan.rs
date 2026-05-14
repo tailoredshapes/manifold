@@ -37,6 +37,19 @@ pub struct PlanStep {
     pub predecessor_orders: Vec<usize>,
     pub gates: Vec<PlanGate>,
     pub estimated_minutes: u32,
+    /// Window claim: when this step intends to start (ISO 8601). Populated
+    /// from sequential scheduling using `estimated_minutes` as duration.
+    /// Lobby's ScheduleContention rule uses (window_start, window_end) to
+    /// detect overlapping reservations across CRs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_start: Option<String>,
+    /// Window claim end (ISO 8601).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_end: Option<String>,
+    /// The test/staging environment this step claims for the window, if
+    /// known. Lobby joins on this when computing contention.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub test_environment_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,7 +144,13 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
     let order = topo_sort(&summaries, &mut blockers);
 
     // ── 4. For each ordered deployable, fetch effective bylaws via the team's
-    //       OrgNode and turn them into PlanGates.
+    //       OrgNode and turn them into PlanGates. Assign sequential window
+    //       claims so Lobby's ScheduleContention rule has reservations to
+    //       reason about. Windows are deterministic from `computed_at`: step 0
+    //       starts at computed_at + 30 minutes (lead time) and each step
+    //       runs for `estimated_minutes`. Two CRs computed at the same time
+    //       that target overlapping deployables will produce colliding
+    //       windows — exactly the contention case we want surfaced.
     let mut steps: Vec<PlanStep> = Vec::new();
     let order_index: BTreeMap<String, usize> = order
         .iter()
@@ -139,6 +158,8 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
         .map(|(i, id)| (id.clone(), i))
         .collect();
 
+    let plan_t0 = chrono::Utc::now() + chrono::Duration::minutes(30);
+    let mut cursor = plan_t0;
     for (i, dep_id) in order.iter().enumerate() {
         let summary = &summaries[dep_id];
         let predecessor_orders: Vec<usize> = summary
@@ -157,6 +178,10 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
             _ => Vec::new(),
         };
 
+        let estimated_minutes: u32 = 10;
+        let window_start = cursor;
+        let window_end = cursor + chrono::Duration::minutes(estimated_minutes as i64);
+        cursor = window_end;
         steps.push(PlanStep {
             order: i,
             deployable_id: summary.id.clone(),
@@ -164,7 +189,10 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
             action: "deploy".to_string(),
             predecessor_orders,
             gates,
-            estimated_minutes: 10,
+            estimated_minutes,
+            window_start: Some(window_start.to_rfc3339()),
+            window_end: Some(window_end.to_rfc3339()),
+            test_environment_id: None,
         });
     }
 

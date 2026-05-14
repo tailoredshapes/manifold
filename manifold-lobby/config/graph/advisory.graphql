@@ -1,0 +1,31 @@
+type Advisory {
+    id: ID
+    kind: String!
+    subject_type: String!
+    subject_id: String!
+    subject_name: String
+    programs: String
+    severity: String!
+    state: String!
+    rule: String!
+    explain: String!
+    caused_by: String
+    raised_at: String!
+    acknowledged_at: String
+    dismissed_at: String
+    resolved_at: String
+    dismiss_reason: String
+    dismiss_note: String
+    escalated_to: String
+    re_raise_count: String
+    last_action: String
+    assignee: String
+}
+type Query {
+    getById(id: ID, at: Float): Advisory
+    getAll(at: Float): [Advisory]
+    getByState(state: String, at: Float): [Advisory]
+    getByKind(kind: String, at: Float): [Advisory]
+    getBySubjectId(subject_id: String, at: Float): [Advisory]
+    getBySubjectType(subject_type: String, at: Float): [Advisory]
+}

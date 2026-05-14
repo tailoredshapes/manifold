@@ -1,0 +1,14 @@
+type SavedView {
+    id: ID
+    name: String!
+    description: String
+    filter_json: String!
+    owner: String
+    shared: String
+    digest_schedule: String
+}
+type Query {
+    getById(id: ID, at: Float): SavedView
+    getAll(at: Float): [SavedView]
+    getByOwner(owner: String, at: Float): [SavedView]
+}

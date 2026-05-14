@@ -1,0 +1,16 @@
+type LifecycleEntry {
+    id: ID
+    advisory_id: String!
+    at: String!
+    actor_type: String!
+    actor_id: String!
+    action: String!
+    reason: String
+    note: String
+}
+type Query {
+    getById(id: ID, at: Float): LifecycleEntry
+    getAll(at: Float): [LifecycleEntry]
+    getByAdvisoryId(advisory_id: String, at: Float): [LifecycleEntry]
+    getByActorId(actor_id: String, at: Float): [LifecycleEntry]
+}

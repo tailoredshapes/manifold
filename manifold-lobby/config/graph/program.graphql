@@ -1,0 +1,12 @@
+type Program {
+    id: ID
+    name: String!
+    description: String
+    leadership: String
+    color: String
+}
+type Query {
+    getById(id: ID, at: Float): Program
+    getAll(at: Float): [Program]
+    getByName(name: String, at: Float): [Program]
+}

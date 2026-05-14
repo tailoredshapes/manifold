@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["advisory_id", "at", "actor_type", "actor_id", "action"],
+  "properties": {
+    "advisory_id": { "type": "string" },
+    "at":          { "type": "string" },
+    "actor_type":  { "type": "string", "enum": ["user", "system"] },
+    "actor_id":    { "type": "string" },
+    "action":      { "type": "string", "enum": ["raise", "acknowledge", "dismiss", "resolve", "re-raise", "escalate", "assign", "comment"] },
+    "reason":      { "type": "string" },
+    "note":        { "type": "string" }
+  },
+  "additionalProperties": true
+}

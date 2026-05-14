@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Lobby — Manifold</title>
+<style>
+  :root {
+    --bg: #f9fafb;
+    --surface: #ffffff;
+    --text: #111827;
+    --text-muted: #6b7280;
+    --text-soft: #9ca3af;
+    --border: #e5e7eb;
+    --border-soft: #f3f4f6;
+    --ink: #111827;
+    --success: #16a34a;
+    --warn: #f59e0b;
+    --danger: #dc2626;
+    --info-soft: rgba(59,130,246,0.10);
+    --warn-soft: rgba(245,158,11,0.14);
+    --danger-soft: rgba(220,38,38,0.14);
+    --row-hover: #f3f4f6;
+    --font: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", sans-serif;
+    --font-serif: "Iowan Old Style", "Palatino", Georgia, serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --gutter: 24px;
+    --max-w: 1200px;
+    --radius: 8px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; border-bottom: 1px dotted var(--text-soft); }
+  a:hover { border-bottom-style: solid; }
+
+  header.app-bar {
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    padding: 16px var(--gutter);
+  }
+  header .wrap { max-width: var(--max-w); margin: 0 auto; display: flex; align-items: baseline; gap: 24px; }
+  header h1 { font-family: var(--font-serif); font-weight: 500; font-size: 22px; letter-spacing: -0.01em; }
+  header h1 .tag { color: var(--text-soft); font-size: 13px; margin-left: 8px; font-style: italic; }
+  header nav { margin-left: auto; display: flex; gap: 16px; font-size: 14px; }
+  header nav a { border-bottom: none; color: var(--text-muted); padding-bottom: 2px; }
+  header nav a.active { color: var(--text); border-bottom: 2px solid var(--ink); }
+
+  main.layout { max-width: var(--max-w); margin: 0 auto; padding: var(--gutter); display: grid; grid-template-columns: 220px 1fr; gap: var(--gutter); }
+  @media (max-width: 760px) { main.layout { grid-template-columns: 1fr; } }
+
+  aside.sidebar { font-size: 14px; }
+  aside h3 { font-family: var(--font-serif); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 8px; }
+  aside ul { list-style: none; margin-bottom: 24px; }
+  aside li button { width: 100%; background: none; border: none; padding: 6px 10px; text-align: left; cursor: pointer; font: inherit; color: var(--text-muted); border-radius: 4px; }
+  aside li button:hover { background: var(--row-hover); color: var(--text); }
+  aside li button.active { background: var(--ink); color: var(--surface); }
+  aside li button .count { float: right; color: var(--text-soft); }
+  aside li button.active .count { color: var(--surface); opacity: 0.7; }
+
+  section.content { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; min-height: 60vh; }
+  section h2 { font-family: var(--font-serif); font-weight: 500; font-size: 24px; margin-bottom: 8px; }
+  section .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+
+  .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; font-size: 13px; }
+  .toolbar select, .toolbar input { font: inherit; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); }
+
+  ul.advisory-list { list-style: none; }
+  ul.advisory-list li { border-bottom: 1px solid var(--border-soft); padding: 14px 8px; cursor: pointer; display: grid; grid-template-columns: auto auto 1fr auto; gap: 12px; align-items: baseline; }
+  ul.advisory-list li:hover { background: var(--row-hover); }
+  .sev { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  .sev.info { background: var(--info-soft); color: #1d4ed8; }
+  .sev.warn { background: var(--warn-soft); color: #b45309; }
+  .sev.critical { background: var(--danger-soft); color: var(--danger); }
+  .kind { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+  .subject { font-weight: 500; }
+  .subject .state { font-weight: 400; color: var(--text-soft); font-size: 12px; margin-left: 8px; }
+  .age { color: var(--text-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .explain { grid-column: 1 / -1; color: var(--text-muted); font-size: 14px; padding-top: 4px; padding-left: 8px; }
+
+  .drawer { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; background: #fdfdfd; }
+  .drawer h3 { font-family: var(--font-serif); font-weight: 500; font-size: 18px; margin-bottom: 8px; }
+  .drawer dl { display: grid; grid-template-columns: max-content 1fr; column-gap: 16px; row-gap: 6px; font-size: 14px; margin-bottom: 16px; }
+  .drawer dt { color: var(--text-muted); }
+  .drawer dd { font-family: var(--font-mono); font-size: 13px; }
+  .drawer .actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .drawer button { font: inherit; font-size: 13px; padding: 6px 14px; border: 1px solid var(--border); background: var(--surface); border-radius: 4px; cursor: pointer; }
+  .drawer button:hover { background: var(--row-hover); }
+  .drawer button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  .drawer .lifecycle { margin-top: 16px; }
+  .drawer .lifecycle h4 { font-family: var(--font-serif); font-weight: 500; font-size: 14px; margin-bottom: 8px; color: var(--text-muted); }
+  .drawer .lifecycle ol { list-style: none; }
+  .drawer .lifecycle li { font-size: 13px; padding: 4px 0; color: var(--text-muted); }
+  .drawer .lifecycle li b { color: var(--text); }
+
+  .empty { color: var(--text-soft); font-style: italic; padding: 32px; text-align: center; }
+
+  ul.program-list, ul.audit-list { list-style: none; }
+  ul.program-list li { padding: 12px 0; border-bottom: 1px solid var(--border-soft); }
+  ul.program-list li b { font-family: var(--font-serif); font-weight: 500; font-size: 17px; display: block; margin-bottom: 4px; }
+  ul.program-list li .desc { color: var(--text-muted); font-size: 14px; }
+  ul.audit-list li { padding: 8px 0; border-bottom: 1px solid var(--border-soft); font-size: 13px; display: grid; grid-template-columns: auto auto 1fr auto; gap: 12px; }
+  ul.audit-list li .at { color: var(--text-soft); font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 12px; }
+  ul.audit-list li .action { font-family: var(--font-mono); font-weight: 600; }
+</style>
+</head>
+<body>
+<header class="app-bar">
+  <div class="wrap">
+    <h1>Lobby <span class="tag">advisories across the suite</span></h1>
+    <nav>
+      <a href="#inbox" data-route="inbox">Inbox</a>
+      <a href="#programs" data-route="programs">Programs</a>
+      <a href="#audit" data-route="audit">Audit</a>
+    </nav>
+  </div>
+</header>
+<main class="layout">
+  <aside class="sidebar">
+    <h3>Saved views</h3>
+    <ul id="saved-views"></ul>
+    <h3>Filters</h3>
+    <ul id="filters"></ul>
+  </aside>
+  <section class="content" id="content">
+    <p class="empty">Loading…</p>
+  </section>
+</main>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

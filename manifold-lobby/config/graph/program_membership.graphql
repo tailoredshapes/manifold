@@ -1,0 +1,18 @@
+type ProgramMembership {
+    id: ID
+    program_id: String!
+    subject_type: String!
+    subject_id: String!
+    program: Program
+}
+type Program {
+    id: ID
+    name: String
+    color: String
+}
+type Query {
+    getById(id: ID, at: Float): ProgramMembership
+    getAll(at: Float): [ProgramMembership]
+    getByProgramId(program_id: String, at: Float): [ProgramMembership]
+    getBySubjectId(subject_id: String, at: Float): [ProgramMembership]
+}

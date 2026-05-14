@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["advisory_id", "author", "body", "at"],
+  "properties": {
+    "advisory_id": { "type": "string" },
+    "author":      { "type": "string" },
+    "body":        { "type": "string" },
+    "at":          { "type": "string" }
+  },
+  "additionalProperties": true
+}

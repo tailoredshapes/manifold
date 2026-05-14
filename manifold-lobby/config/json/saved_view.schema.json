@@ -1,0 +1,14 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["name", "filter_json"],
+  "properties": {
+    "name":            { "type": "string" },
+    "description":     { "type": "string" },
+    "filter_json":     { "type": "string" },
+    "owner":           { "type": "string" },
+    "shared":          { "type": "string" },
+    "digest_schedule": { "type": "string" }
+  },
+  "additionalProperties": true
+}

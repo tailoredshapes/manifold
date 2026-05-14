@@ -1,0 +1,39 @@
+[package]
+name = "manifold-lobby"
+version = "0.1.0"
+edition = "2021"
+description = "Lobby — advisory tier and cross-program coordination surface for Manifold. Reads from the federated graph; derives advisories; owns programs, reservations, saved views, comments."
+
+[lib]
+name = "manifold_lobby"
+path = "src/lib.rs"
+
+[[bin]]
+name = "manifold-lobby"
+path = "src/main.rs"
+
+[[bin]]
+name = "manifold-lobby-mcp"
+path = "src/bin/manifold-lobby-mcp.rs"
+
+[dependencies]
+meshql-core      = { path = "../../meshql-rs/meshql-core" }
+meshql-graphlette = { path = "../../meshql-rs/meshql-graphlette" }
+meshql-restlette = { path = "../../meshql-rs/meshql-restlette" }
+meshql-server    = { path = "../../meshql-rs/meshql-server" }
+meshql-mcp       = { path = "../../meshql-rs/meshql-mcp" }
+meshql-casbin    = { path = "../../meshql-rs/meshql-casbin" }
+meshql-sqlite    = { path = "../../meshql-rs/meshql-sqlite" }
+manifold-edge    = { path = "../manifold-edge" }
+sqlx             = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }
+tokio            = { workspace = true }
+serde            = { workspace = true }
+serde_json       = { workspace = true }
+anyhow           = { workspace = true }
+axum             = "0.7"
+async-trait      = "0.1"
+reqwest          = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+chrono           = { version = "0.4", features = ["serde"] }
+uuid             = { version = "1", features = ["v4", "serde"] }
+tracing          = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

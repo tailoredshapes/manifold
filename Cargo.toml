@@ -6,6 +6,7 @@ members = [
     "yard",
     "manifold-edge",
     "manifold-ingest",
+    "manifold-lobby",
     "manifold-integrations/common",
     "manifold-integrations/catalog-from-github",
     "manifold-integrations/catalog-from-gitlab",

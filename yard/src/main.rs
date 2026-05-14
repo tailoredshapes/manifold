@@ -242,11 +242,14 @@ async fn main() -> anyhow::Result<()> {
         std::env::var("UNION_PUBLIC_URL").unwrap_or_else(|_| "https://union.tildarc.com".into());
     let cityhall_public_url = std::env::var("CITYHALL_PUBLIC_URL")
         .unwrap_or_else(|_| "https://cityhall.tildarc.com".into());
+    let lobby_public_url =
+        std::env::var("LOBBY_PUBLIC_URL").unwrap_or_else(|_| "https://lobby.tildarc.com".into());
 
     let config_body = serde_json::json!({
         "groundwork_public_url": groundwork_public_url,
         "union_public_url":      union_public_url,
         "cityhall_public_url":   cityhall_public_url,
+        "lobby_public_url":      lobby_public_url,
     })
     .to_string();
 

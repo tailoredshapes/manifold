@@ -1,0 +1,14 @@
+# Lobby authorization.
+#
+#   admin       — read + write (humans triaging advisories)
+#   viewer      — read only
+#   automation  — write-only is fine, allow * for simplicity. The derivation
+#                 engine runs as automation:lobby-derive.
+
+p, admin,                      /*, *
+p, viewer,                     /*, read
+p, automation:lobby-derive,    /*, *
+
+# Dev synthetic identity — production overrides via Caddyfile / Easy Auth.
+g, alice@example.dev, admin
+g, lobby-system,      automation:lobby-derive

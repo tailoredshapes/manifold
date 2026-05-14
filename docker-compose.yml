@@ -18,7 +18,9 @@ services:
       - UNION_URL=http://union:3000
       - UNION_PUBLIC_URL=${UNION_PUBLIC_URL:-https://union.tildarc.com}
       - CITYHALL_PUBLIC_URL=${CITYHALL_PUBLIC_URL:-https://cityhall.tildarc.com}
+      - LOBBY_PUBLIC_URL=${LOBBY_PUBLIC_URL:-https://lobby.tildarc.com}
       - YARD_PUBLIC_URL=${YARD_PUBLIC_URL:-https://yard.tildarc.com}
+      - LOBBY_PUBLIC_URL=${LOBBY_PUBLIC_URL:-https://lobby.tildarc.com}
 
   union:
     build:
@@ -40,6 +42,7 @@ services:
       - CITYHALL_URL=http://cityhall:3000
       - GROUNDWORK_PUBLIC_URL=${GROUNDWORK_PUBLIC_URL:-https://groundwork.tildarc.com}
       - CITYHALL_PUBLIC_URL=${CITYHALL_PUBLIC_URL:-https://cityhall.tildarc.com}
+      - LOBBY_PUBLIC_URL=${LOBBY_PUBLIC_URL:-https://lobby.tildarc.com}
 
   cityhall:
     build:
@@ -94,6 +97,7 @@ services:
       - GROUNDWORK_PUBLIC_URL=${GROUNDWORK_PUBLIC_URL:-https://groundwork.tildarc.com}
       - UNION_PUBLIC_URL=${UNION_PUBLIC_URL:-https://union.tildarc.com}
       - CITYHALL_PUBLIC_URL=${CITYHALL_PUBLIC_URL:-https://cityhall.tildarc.com}
+      - LOBBY_PUBLIC_URL=${LOBBY_PUBLIC_URL:-https://lobby.tildarc.com}
 
   manifold-ingest:
     build:
@@ -111,6 +115,35 @@ services:
     environment:
       - PORT=3000
       - DATA_DIR=/data
+
+  manifold-lobby:
+    build:
+      context: /tank/repos/tailoredshapes
+      dockerfile: manifold/Dockerfile
+      target: runtime
+      args:
+        APP: manifold-lobby
+    container_name: manifold-lobby
+    restart: unless-stopped
+    depends_on:
+      - groundwork
+      - union
+      - cityhall
+      - yard
+    ports:
+      - "3055:3000"
+    volumes:
+      - manifold-lobby-data:/data
+    environment:
+      - PORT=3000
+      - DATA_DIR=/data
+      - GROUNDWORK_URL=http://groundwork:3000
+      - UNION_URL=http://union:3000
+      - CITYHALL_URL=http://cityhall:3000
+      - YARD_URL=http://yard:3000
+      - MANIFOLD_USER_ID=lobby-system
+      - MANIFOLD_USER_GROUPS=automation:lobby-derive
+      - LOBBY_POLL_INTERVAL_SECONDS=60
 
   # Edge gateway. Injects synthetic identity headers in dev; in production
   # the customer's Caddyfile (see caddy/Caddyfile.azure-entra.example) maps
@@ -137,5 +170,6 @@ volumes:
   cityhall-data:
   yard-data:
   manifold-ingest-data:
+  manifold-lobby-data:
   caddy-data:
   caddy-config:

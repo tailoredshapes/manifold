@@ -143,11 +143,14 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "https://cityhall.tildarc.com".into());
     let yard_public_url =
         std::env::var("YARD_PUBLIC_URL").unwrap_or_else(|_| "https://yard.tildarc.com".into());
+    let lobby_public_url =
+        std::env::var("LOBBY_PUBLIC_URL").unwrap_or_else(|_| "https://lobby.tildarc.com".into());
 
     let config_body = serde_json::json!({
         "union_public_url":    union_public_url,
         "cityhall_public_url": cityhall_public_url,
         "yard_public_url":     yard_public_url,
+        "lobby_public_url":    lobby_public_url,
     })
     .to_string();
 
