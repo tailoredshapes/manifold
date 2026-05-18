@@ -7,6 +7,7 @@ members = [
     "manifold-edge",
     "manifold-ingest",
     "manifold-lobby",
+    "manifold-ui",
     "manifold-integrations/common",
     "manifold-integrations/catalog-from-github",
     "manifold-integrations/catalog-from-gitlab",

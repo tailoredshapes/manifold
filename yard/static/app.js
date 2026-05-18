@@ -1,5 +1,17 @@
 // yard — test coordinator (environments, runs, sync, settings)
 // Vanilla JS ES module · no build step · no framework · no charting library.
+//
+// Primitives (el, esc, apiFetch, gqlQuery, modal/status helpers, crossLink,
+// fieldInput, readForm) come from the shared Manifold UI kit.
+
+import {
+  $, $$, el, esc,
+  apiFetch, gqlQuery,
+  loadManifoldConfig, crossLink,
+  setStatus, setError, updateFooterMeta,
+  emptyCard, fieldInput, readForm,
+  openModal, closeModal, isModalOpen,
+} from '/static/manifold-ui.js';
 
 // ── Enum vocab ───────────────────────────────────────────────────────────────
 
@@ -149,7 +161,7 @@ const state = {
     testRuns: [],
     testSuites: [],
   },
-  config: {},                              // populated from /config.json: cross-app public URLs
+  // Cross-app config now lives inside manifold-ui (loadManifoldConfig).
   availability: new Map(),                 // env id → { status: 'available'|'cap'|'blocked'|'unknown', raw }
   history:      new Map(),                 // env id → history payload
   expandedEnvId: null,
@@ -159,89 +171,12 @@ const state = {
   syncEnvId: null,
   search: '',
   loading: false,
-  modal: { open: false, entityKey: null },
+  // Modal open/close state lives in the DOM (isModalOpen()); entityKey
+  // tracks which entity the in-flight "new …" modal is collecting.
+  modal: { entityKey: null },
 };
 
-// ── Cross-app linking ────────────────────────────────────────────────────────
-
-async function loadConfig() {
-  try {
-    const res = await fetch('/config.json');
-    if (res.ok) state.config = await res.json();
-  } catch {
-    state.config = {};
-  }
-}
-
-// Build a cross-app anchor pointing at <base>#<screen>[/<id>]. Falls back to
-// plain escaped text when the target app's public URL is unknown. Receiving
-// end may not yet focus the entity; the URL is still informative.
-function crossLink(appKey, screen, id, label) {
-  const base = state.config?.[`${appKey}_public_url`];
-  if (!base) return esc(label);
-  const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
-  return `<a href="${esc(base.replace(/\/$/, ''))}${hash}">${esc(label)}</a>`;
-}
-
-// ── DOM helpers ──────────────────────────────────────────────────────────────
-
-const $  = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
-function el(tag, attrs = {}, ...children) {
-  const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (v == null || v === false) continue;
-    if (k === 'class')        node.className = v;
-    else if (k === 'dataset') Object.assign(node.dataset, v);
-    else if (k === 'html')    node.innerHTML = v;
-    else if (k.startsWith('on') && typeof v === 'function')
-                              node.addEventListener(k.slice(2).toLowerCase(), v);
-    else if (k in node)       try { node[k] = v; } catch { node.setAttribute(k, v); }
-    else                      node.setAttribute(k, v);
-  }
-  for (const c of children.flat()) {
-    if (c == null || c === false) continue;
-    node.appendChild(c.nodeType ? c : document.createTextNode(String(c)));
-  }
-  return node;
-}
-
-function esc(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-// ── API ──────────────────────────────────────────────────────────────────────
-
-async function apiFetch(url, opts) {
-  const res = await fetch(url, opts);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`${opts?.method || 'GET'} ${url} → ${res.status}${body ? ': ' + body : ''}`);
-  }
-  if (res.status === 204) return null;
-  const ctype = res.headers.get('content-type') || '';
-  return ctype.includes('application/json') ? res.json() : res.text();
-}
-
-async function gqlQuery(path, query, variables = {}) {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`graph ${path} ${res.status}${body ? ': ' + body : ''}`);
-  }
-  const body = await res.json();
-  if (body.errors && body.errors.length) {
-    throw new Error(body.errors.map(e => e.message).join('; '));
-  }
-  return body.data;
-}
+// ── Data load ────────────────────────────────────────────────────────────────
 
 async function loadAll() {
   const [
@@ -319,51 +254,6 @@ async function fetchHistory(envId) {
   return apiFetch(`/test_environment/${envId}/history`);
 }
 
-// ── Footer meta / empty-card helpers ─────────────────────────────────────────
-
-function updateFooterMeta(text) {
-  const node = document.getElementById('footer-meta');
-  if (node) node.textContent = text || '';
-}
-
-function emptyCard({ title, lede, hintHtml }) {
-  return el('div', { class: 'empty-card' },
-    el('span', { class: 'empty-mark' }, '§'),
-    el('h3', {}, title),
-    el('p', { class: 'lede' }, lede),
-    el('p', { class: 'hint', html: hintHtml || 'Press <kbd>n</kbd> to register the first one.' }),
-  );
-}
-
-// ── Status strip ─────────────────────────────────────────────────────────────
-
-let statusTimer = null;
-
-function setStatus(message, kind = 'info', { sticky = false } = {}) {
-  const strip = $('#status-strip');
-  strip.classList.remove('error', 'info');
-  if (!message) {
-    strip.style.display = 'none';
-    strip.textContent = '';
-    return;
-  }
-  strip.classList.add(kind === 'error' ? 'error' : 'info');
-  strip.textContent = message;
-  strip.style.display = 'block';
-  if (statusTimer) clearTimeout(statusTimer);
-  if (!sticky) {
-    statusTimer = setTimeout(() => {
-      strip.style.display = 'none';
-      strip.textContent = '';
-    }, kind === 'error' ? 6000 : 3000);
-  }
-}
-
-function setError(err) {
-  if (!err) return setStatus('');
-  setStatus(err.message || String(err), 'error');
-}
-
 // ── Availability classification ──────────────────────────────────────────────
 
 function classifyAvailability(raw) {
@@ -414,73 +304,30 @@ function fmtNum(v, digits = 2) {
 }
 
 // ── Field renderer (forms) ───────────────────────────────────────────────────
+//
+// fieldInput + readForm come from manifold-ui. We pass a lookup callback
+// for `ref` fields so the shared module can render <select> options from
+// yard's own state.data without needing to know about it.
 
-function fieldInput(field, value) {
-  const id = `f-${field.name}-${Math.random().toString(36).slice(2, 8)}`;
-  let input;
-  if (field.type === 'textarea') {
-    input = el('textarea', { id, name: field.name, rows: 2 }, value ?? '');
-  } else if (field.type === 'select') {
-    input = el('select', { id, name: field.name });
-    input.appendChild(el('option', { value: '' }, '—'));
-    for (const opt of field.options || []) {
-      const o = el('option', { value: opt }, opt);
-      if (opt === value) o.selected = true;
-      input.appendChild(o);
-    }
-  } else if (field.type === 'ref') {
-    input = el('select', { id, name: field.name });
-    input.appendChild(el('option', { value: '' }, '— none —'));
-    for (const item of state.data[field.refKey] || []) {
-      const lbl = item.name || item.target_env_id || item.id;
-      const o = el('option', { value: item.id }, lbl);
-      if (item.id === value) o.selected = true;
-      input.appendChild(o);
-    }
-  } else {
-    input = el('input', {
-      id, name: field.name, type: 'text',
-      value: value ?? '',
-      autocomplete: 'off', spellcheck: false,
-    });
-  }
-  return el('div', { class: 'field' + (field.full ? ' full' : '') },
-    el('label', { for: id }, field.label + (field.required ? ' *' : '')),
-    input,
-  );
-}
+const refLookup = (refKey) => state.data[refKey] || [];
 
-function readForm(container) {
-  const out = {};
-  $$('[name]', container).forEach(node => {
-    const v = node.value.trim();
-    if (v !== '') out[node.name] = v;
-  });
-  return out;
-}
+const yardFieldInput = (field, value) => fieldInput(field, value, refLookup);
 
 // ── Modal (new record) ───────────────────────────────────────────────────────
 
 function openNewModal(entityKey) {
   const cfg = ENTITIES[entityKey];
   if (!cfg) return;
-  state.modal.open = true;
   state.modal.entityKey = entityKey;
-
-  $('#modal-title').textContent = `New ${cfg.label.toLowerCase()}`;
-  const fieldsEl = $('#modal-fields');
-  fieldsEl.innerHTML = '';
-  for (const f of cfg.fields) fieldsEl.appendChild(fieldInput(f, ''));
-
-  $('#modal-root').classList.add('open');
-  const first = $('input, select, textarea', fieldsEl);
-  if (first) first.focus();
+  openModal({
+    title: `New ${cfg.label.toLowerCase()}`,
+    fields: cfg.fields.map(f => yardFieldInput(f, '')),
+  });
 }
 
-function closeModal() {
-  state.modal.open = false;
+function closeNewModal() {
   state.modal.entityKey = null;
-  $('#modal-root').classList.remove('open');
+  closeModal();
 }
 
 async function saveNewModal() {
@@ -502,7 +349,7 @@ async function saveNewModal() {
     // REST writes return only local fields; re-read via /graph so the new
     // row reflects the same shape the rest of the app already uses.
     await loadAll();
-    closeModal();
+    closeNewModal();
     setStatus(`${cfg.label} created`);
     render();
   } catch (e) { setError(e); }
@@ -696,7 +543,7 @@ function buildEnvDetail(item) {
   for (const fname of editable) {
     const f = cfg.fields.find(x => x.name === fname);
     if (!f) continue;
-    form.appendChild(fieldInput(f, item[fname]));
+    form.appendChild(yardFieldInput(f, item[fname]));
   }
   detail.appendChild(form);
 
@@ -908,7 +755,7 @@ function renderRuns(root) {
       const cfg = ENTITIES.testRuns;
       for (const fname of ['status', 'started_at', 'finished_at', 'duration_minutes', 'cost_actual']) {
         const f = cfg.fields.find(x => x.name === fname);
-        if (f) form.appendChild(fieldInput(f, r[fname]));
+        if (f) form.appendChild(yardFieldInput(f, r[fname]));
       }
       detailCell.appendChild(form);
 
@@ -1304,7 +1151,7 @@ function renderSettings(root, entityKey) {
       ));
     } else {
       const form = el('div', { class: 'form-grid' });
-      for (const f of cfg.fields) form.appendChild(fieldInput(f, item[f.name]));
+      for (const f of cfg.fields) form.appendChild(yardFieldInput(f, item[f.name]));
 
       const wrap = el('div', { class: 'row expanded' },
         el('div', {},
@@ -1422,18 +1269,19 @@ function bindUI() {
     render();
   });
 
-  $('#modal-cancel').addEventListener('click', closeModal);
+  $('#modal-cancel').addEventListener('click', closeNewModal);
   $('#modal-save').addEventListener('click', saveNewModal);
   $('#modal-root').addEventListener('click', (e) => {
-    if (e.target.id === 'modal-root') closeModal();
+    if (e.target.id === 'modal-root') closeNewModal();
   });
 
   document.addEventListener('keydown', (e) => {
     const tag = document.activeElement?.tagName?.toLowerCase();
     const inField = ['input', 'textarea', 'select'].includes(tag);
+    const modalOpen = isModalOpen();
 
     if (e.key === 'Escape') {
-      if (state.modal.open)              { closeModal(); return; }
+      if (modalOpen)                     { closeNewModal(); return; }
       if (state.expandedEnvId)           { state.expandedEnvId = null; render(); return; }
       if (state.expandedRunId)           { state.expandedRunId = null; render(); return; }
       if (state.expandedSettingId)       { state.expandedSettingId = null; render(); return; }
@@ -1453,12 +1301,12 @@ function bindUI() {
       $('#search').select();
       return;
     }
-    if (e.key === 'n' && !inField && !state.modal.open) {
+    if (e.key === 'n' && !inField && !modalOpen) {
       e.preventDefault();
       openNewModal(newEntityKeyForCurrentScreen());
       return;
     }
-    if (e.key === 'Enter' && state.modal.open && inField && tag !== 'textarea') {
+    if (e.key === 'Enter' && modalOpen && inField && tag !== 'textarea') {
       e.preventDefault();
       saveNewModal();
       return;
@@ -1473,7 +1321,7 @@ async function init() {
   setStatus('Loading…', 'info', { sticky: true });
   // /config.json publishes cross-app public URLs; load before first render
   // so cross-app anchors land with the right base.
-  await loadConfig();
+  await loadManifoldConfig();
   try {
     await loadAll();
     setStatus('');
