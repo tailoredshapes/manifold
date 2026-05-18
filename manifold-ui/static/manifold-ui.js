@@ -67,10 +67,12 @@ export function el(tag, attrs = {}, ...children) {
   return node;
 }
 
-/** HTML-escape a value for safe interpolation into raw strings. */
+/** HTML-escape a value for safe interpolation into raw strings. Escapes
+ *  both quote flavours so attribute values are safe regardless of which
+ *  quote style the caller wraps them in. */
 export function esc(s) {
   return String(s ?? '')
-    .replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
     .replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
