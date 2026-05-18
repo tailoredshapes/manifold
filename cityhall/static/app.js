@@ -1,5 +1,14 @@
 // cityhall — planner frontend
 // Vanilla JS ES module. No build step.
+//
+// Primitives ($, $$, el, esc, apiFetch (aliased to `api`), gqlQuery,
+// crossLink, manifold-config helpers) come from the shared Manifold UI kit.
+
+import {
+  $, $$, el, esc,
+  apiFetch as api, gqlQuery,
+  loadManifoldConfig, getManifoldConfig, crossLink,
+} from '/static/manifold-ui.js';
 
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 
@@ -29,7 +38,7 @@ const ENDPOINTS = {
 const state = {
   screen: 'org',
   data: { orgNodes: [], bylaws: [], changeRequests: [], plans: [], gantts: [] },
-  config: {},     // populated from /config.json: cross-app public URLs
+  // Cross-app config now lives inside manifold-ui (getManifoldConfig()).
   lookups: {      // cached id→name maps from sibling apps, via their /graph
     deployables: new Map(),
     people: new Map(),
@@ -63,20 +72,11 @@ const state = {
 
 // ── Cross-app linking ────────────────────────────────────────────────────────
 
-async function loadConfig() {
-  try {
-    const res = await fetch('/config.json');
-    if (res.ok) state.config = await res.json();
-  } catch {
-    state.config = {};
-  }
-}
-
 // Fetch the count of open advisories that Lobby has raised on a given
 // change_request (or any subject). Returns 0 on any failure — Lobby is a
 // soft dependency.
 async function fetchLobbyAdvisoryCount(subjectId) {
-  const lobby = state.config?.lobby_public_url;
+  const lobby = getManifoldConfig()?.lobby_public_url;
   if (!lobby || !subjectId) return 0;
   try {
     const r = await fetch(`${lobby}/advisory/graph`, {
@@ -96,7 +96,7 @@ async function fetchLobbyAdvisoryCount(subjectId) {
 }
 
 function renderLobbyPill(subjectId, count) {
-  const lobby = state.config?.lobby_public_url || '';
+  const lobby = getManifoldConfig()?.lobby_public_url || '';
   const a = document.createElement('a');
   a.href = `${lobby}/#inbox`;
   a.target = '_blank';
@@ -105,16 +105,6 @@ function renderLobbyPill(subjectId, count) {
   a.textContent = `Affected by ${count} advisor${count === 1 ? 'y' : 'ies'} →`;
   a.title = 'Open in Lobby';
   return a;
-}
-
-// Build a cross-app anchor pointing at <base>#<screen>[/<id>]. Falls back to
-// plain escaped text when the target app's public URL is unknown. Receiving
-// end may not yet focus the entity; the URL is still informative.
-function crossLink(appKey, screen, id, label) {
-  const base = state.config?.[`${appKey}_public_url`];
-  if (!base) return esc(label);
-  const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
-  return `<a href="${esc(base.replace(/\/$/, ''))}${hash}">${esc(label)}</a>`;
 }
 
 // UUID-ish detector: cheap heuristic so requested_by stored as a free-text
@@ -127,8 +117,9 @@ function looksLikeId(s) {
 // CORS is open on meshql-server, so cross-origin POST works. Failures are
 // non-fatal — render code falls back to formatId() when a name is missing.
 async function loadCrossAppLookups() {
-  const gw = state.config?.groundwork_public_url;
-  const un = state.config?.union_public_url;
+  const cfg = getManifoldConfig();
+  const gw = cfg?.groundwork_public_url;
+  const un = cfg?.union_public_url;
   const fetches = [];
   if (gw) {
     fetches.push(
@@ -191,32 +182,6 @@ function formatId(s) {
   return looksLikeId(s) ? `${s.slice(0, 8)}…` : s;
 }
 
-// ── Tiny DOM helpers ──────────────────────────────────────────────────────────
-
-const $  = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
-function el(tag, props = {}, children = []) {
-  const node = document.createElement(tag);
-  for (const [k, v] of Object.entries(props)) {
-    if (k === 'class') node.className = v;
-    else if (k === 'dataset') Object.assign(node.dataset, v);
-    else if (k.startsWith('on') && typeof v === 'function') node.addEventListener(k.slice(2), v);
-    else if (k === 'html') node.innerHTML = v;
-    else if (v !== null && v !== undefined) node.setAttribute(k, v);
-  }
-  for (const c of [].concat(children)) {
-    if (c == null || c === false) continue;
-    node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
-  }
-  return node;
-}
-
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
 // Format an ISO timestamp like "2026-04-29T00:00:00Z" as "2026-04-29 00:00 UTC".
 // Falls back to the raw string if it can't be parsed.
 function formatTimestamp(s) {
@@ -227,35 +192,7 @@ function formatTimestamp(s) {
   return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
 }
 
-// ── API ───────────────────────────────────────────────────────────────────────
-
-async function api(url, opts) {
-  const res = await fetch(url, opts);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`${opts?.method || 'GET'} ${url} → ${res.status}${body ? ': ' + body : ''}`);
-  }
-  if (res.status === 204) return null;
-  const ct = res.headers.get('content-type') || '';
-  return ct.includes('application/json') ? res.json() : res.text();
-}
-
-async function gqlQuery(path, query, variables = {}) {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`graph ${path} ${res.status}${body ? ': ' + body : ''}`);
-  }
-  const body = await res.json();
-  if (body.errors && body.errors.length) {
-    throw new Error(body.errors.map(e => e.message).join('; '));
-  }
-  return body.data;
-}
+// ── Cityhall-specific REST wrappers (api comes from manifold-ui) ─────────────
 
 const apiCreate = (key, body)      => api(ENDPOINTS[key], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 const apiUpdate = (key, id, body)  => api(`${ENDPOINTS[key]}/${id}`, { method: 'PUT',    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -1353,7 +1290,7 @@ async function init() {
 
   // /config.json publishes cross-app public URLs; needed before first render
   // so cross-app anchors land with the right base.
-  await loadConfig();
+  await loadManifoldConfig();
 
   try {
     await loadAll();

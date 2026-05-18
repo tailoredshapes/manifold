@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cityhall — Planner</title>
+
+  <!-- Shared Manifold UI kit: design tokens + primitive component styles. -->
+  <!-- Cityhall's inline CSS below currently redeclares the same tokens — a   -->
+  <!-- future normalization pass should strip the duplicates and migrate     -->
+  <!-- cityhall's .btn / .field-grid / table classes to the shared taxonomy. -->
+  <link rel="stylesheet" href="/static/manifold-ui.css" />
+
   <style>
     /* ── Shared Manifold design tokens (Union, Cityhall, Yard) ──────────────── */
     :root {

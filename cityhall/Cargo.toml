@@ -24,6 +24,7 @@ meshql-server    = { path = "../../meshql-rs/meshql-server" }
 meshql-mcp       = { path = "../../meshql-rs/meshql-mcp" }
 meshql-casbin    = { path = "../../meshql-rs/meshql-casbin" }
 manifold-edge    = { path = "../manifold-edge" }
+manifold-ui      = { path = "../manifold-ui" }
 meshql-mongo     = { path = "../../meshql-rs/meshql-mongo", optional = true }
 meshql-merkql    = { path = "../../meshql-rs/meshql-merkql", optional = true }
 meshql-sqlite    = { path = "../../meshql-rs/meshql-sqlite", optional = true }

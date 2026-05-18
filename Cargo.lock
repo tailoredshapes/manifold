@@ -494,6 +494,7 @@ dependencies = [
  "chrono",
  "cucumber",
  "manifold-edge",
+ "manifold-ui",
  "meshql-casbin",
  "meshql-core",
  "meshql-graphlette",
