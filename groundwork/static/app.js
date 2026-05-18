@@ -1,5 +1,16 @@
 // groundwork — multi-entity service catalog UI
 // Vanilla JS ES module, no build step, no framework.
+//
+// Primitives (esc, apiFetch, gqlQuery, crossLink, manifold-config helpers)
+// come from the shared Manifold UI kit. Groundwork keeps its own DOM
+// construction style (raw createElement + innerHTML templates) and its own
+// inline-form workflow (#new-form, not a modal).
+
+import {
+  esc,
+  apiFetch, gqlQuery,
+  loadManifoldConfig, getManifoldConfig, crossLink,
+} from '/static/manifold-ui.js';
 
 // ── Entity config ─────────────────────────────────────────────────────────────
 
@@ -260,30 +271,11 @@ const state = {
   // generalises if more column filters are added later.
   columnFilter: { deployables: { deployment_status: '' } },
   newFormOpen: false,
-  config: {},  // populated from /config.json: cross-app public URLs
+  // Cross-app config now lives inside manifold-ui (getManifoldConfig()).
   graph: { cy: null, tableMode: false },  // cytoscape instance + table-view toggle
 };
 
 // ── Cross-app linking ─────────────────────────────────────────────────────────
-
-async function loadConfig() {
-  try {
-    const res = await fetch('/config.json');
-    if (res.ok) state.config = await res.json();
-  } catch {
-    state.config = {};
-  }
-}
-
-// Build a cross-app anchor pointing at <base>#<screen>[/<id>], or fall back to
-// plain escaped text when the target app's public URL is unknown. Receiving
-// end may not yet honour the id segment — that's deferred.
-function crossLink(appKey, screen, id, label) {
-  const base = state.config?.[`${appKey}_public_url`];
-  if (!base) return esc(label);
-  const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
-  return `<a href="${esc(base.replace(/\/$/, ''))}${hash}">${esc(label)}</a>`;
-}
 
 // Build an intra-app anchor pointing at #<screen>[/<id>].
 function intraLink(screen, id, label) {
@@ -291,34 +283,7 @@ function intraLink(screen, id, label) {
   return `<a href="${hash}">${esc(label)}</a>`;
 }
 
-// ── API helpers ───────────────────────────────────────────────────────────────
-
-async function apiFetch(url, opts) {
-  const res = await fetch(url, opts);
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`${opts?.method || 'GET'} ${url} → ${res.status}${body ? ': ' + body : ''}`);
-  }
-  if (res.status === 204) return null;
-  return res.json();
-}
-
-async function gqlQuery(path, query, variables = {}) {
-  const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`graph ${path} ${res.status}${body ? ': ' + body : ''}`);
-  }
-  const body = await res.json();
-  if (body.errors && body.errors.length) {
-    throw new Error(body.errors.map(e => e.message).join('; '));
-  }
-  return body.data;
-}
+// ── Data load ─────────────────────────────────────────────────────────────────
 
 async function loadEntity(entityKey) {
   const cfg = ENTITIES[entityKey];
@@ -355,10 +320,6 @@ async function deleteRecord(entityKey, id) {
 }
 
 // ── Rendering ─────────────────────────────────────────────────────────────────
-
-function esc(s) {
-  return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 
 function updateBadge(entityKey) {
   const el = document.getElementById(`badge-${entityKey}`);
@@ -1321,7 +1282,7 @@ async function init() {
 
   // /config.json publishes cross-app public URLs; needed before first render
   // so that cross-app anchors land with the right base.
-  await loadConfig();
+  await loadManifoldConfig();
 
   try {
     await loadAll();

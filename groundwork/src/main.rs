@@ -63,6 +63,31 @@ async fn serve_cytoscape_js() -> Response {
         .into_response()
 }
 
+async fn serve_manifold_ui_css() -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "text/css; charset=utf-8"),
+            (header::CACHE_CONTROL, "no-cache, must-revalidate"),
+        ],
+        manifold_ui::CSS,
+    )
+        .into_response()
+}
+
+async fn serve_manifold_ui_js() -> Response {
+    (
+        [
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
+            (header::CACHE_CONTROL, "no-cache, must-revalidate"),
+        ],
+        manifold_ui::JS,
+    )
+        .into_response()
+}
+
 async fn health_check() -> Response {
     (
         [(header::CONTENT_TYPE, "application/json")],
@@ -361,6 +386,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(serve_index))
         .route("/static/app.js", get(serve_app_js))
         .route("/static/vendor/cytoscape.min.js", get(serve_cytoscape_js))
+        .route("/static/manifold-ui.css", get(serve_manifold_ui_css))
+        .route("/static/manifold-ui.js", get(serve_manifold_ui_js))
         .route("/health", get(health_check))
         .merge(config_route)
         .merge(deployable_restlette)
