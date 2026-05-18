@@ -326,11 +326,24 @@ export function openModal(spec) {
       form.appendChild(wrap);
     }
 
+    // Buttons assembled as element refs (not via innerHTML + querySelector)
+    // so the cancel-button listener can never bind to null — defensive
+    // after a session in which a botched module migration ate the cancel
+    // event and produced a confusing "addEventListener of null" trace.
+    const cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.addEventListener('click', () => close(null));
+
+    const submitBtn = document.createElement('button');
+    submitBtn.type = 'submit';
+    submitBtn.className = 'primary';
+    submitBtn.textContent = spec.submit || 'Submit';
+
     const actions = document.createElement('div');
     actions.className = 'modal-actions';
-    actions.innerHTML =
-      `<button type="button" data-act="cancel">Cancel</button>` +
-      `<button type="submit" class="primary">${esc(spec.submit || 'Submit')}</button>`;
+    actions.appendChild(cancelBtn);
+    actions.appendChild(submitBtn);
     form.appendChild(actions);
 
     form.addEventListener('submit', (e) => {
@@ -347,7 +360,6 @@ export function openModal(spec) {
       }
       close(out);
     });
-    form.querySelector('[data-act=cancel]').addEventListener('click', () => close(null));
     backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(null); });
 
     dialog.appendChild(form);
