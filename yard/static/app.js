@@ -255,7 +255,7 @@ async function loadAll() {
   ] = await Promise.all([
     gqlQuery(
       '/test_environment/graph',
-      '{ getAll { id name kind deployable_id service_id infrastructure_id mock_source_id cost_per_hour spinup_minutes teardown_policy max_duration_minutes concurrency_limit rate_limit contractual_limit notes } }'
+      '{ getAll { id name kind deployable_id service_id infrastructure_id mock_source_id cost_per_hour spinup_minutes teardown_policy max_duration_minutes concurrency_limit rate_limit contractual_limit notes deployable { id name } } }'
     ).then(d => d.getAll).catch(() => []),
     gqlQuery(
       '/test_infrastructure/graph',
@@ -535,7 +535,8 @@ function renderEnvironments(root) {
   const needle = state.search.trim().toLowerCase();
   const visible = needle
     ? envs.filter(e => (e.name || '').toLowerCase().includes(needle)
-                    || (e.kind || '').toLowerCase().includes(needle))
+                    || (e.kind || '').toLowerCase().includes(needle)
+                    || (e.deployable?.name || '').toLowerCase().includes(needle))
     : envs;
 
   updateFooterMeta(
@@ -563,9 +564,44 @@ function renderEnvironments(root) {
     return;
   }
 
-  const grid = el('div', { class: 'card-grid' });
-  for (const item of visible) grid.appendChild(buildEnvCard(item));
-  root.appendChild(grid);
+  // Group by deployable (the "product" each env tests). Envs whose
+  // federated deployable lookup didn't resolve — either no deployable_id, or
+  // Groundwork didn't return a name — bucket into "Unassigned" so the view
+  // stays coherent even if /graph federation is partially down.
+  const UNASSIGNED = '— Unassigned';
+  const groups = new Map();
+  for (const env of visible) {
+    const key = env.deployable?.name || UNASSIGNED;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(env);
+  }
+
+  // Named groups alphabetically, Unassigned last.
+  const sortedKeys = [...groups.keys()].sort((a, b) => {
+    if (a === UNASSIGNED) return 1;
+    if (b === UNASSIGNED) return -1;
+    return a.localeCompare(b);
+  });
+
+  for (const key of sortedKeys) {
+    const items = groups.get(key);
+    const headingId = `product-${key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`;
+    const section = el('section', {
+      class: 'product-group',
+      'aria-labelledby': headingId,
+    });
+    section.appendChild(
+      el('h3', { class: 'product-head', id: headingId },
+        el('span', { class: 'product-name' }, key),
+        el('span', { class: 'product-count' },
+          `${items.length} ${items.length === 1 ? 'environment' : 'environments'}`),
+      ),
+    );
+    const grid = el('div', { class: 'card-grid' });
+    for (const item of items) grid.appendChild(buildEnvCard(item));
+    section.appendChild(grid);
+    root.appendChild(section);
+  }
 
   // lazily fetch availability for each card after render
   queueMicrotask(() => loadAvailabilityForVisible(visible));

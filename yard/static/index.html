@@ -298,6 +298,28 @@
       gap: 16px;
     }
 
+    /* ── Product groups (Environments screen) ──────────────────────────── */
+    .product-group + .product-group { margin-top: 28px; }
+    .product-head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .product-head .product-name {
+      color: var(--text);
+      letter-spacing: 0.04em;
+    }
+    .product-head .product-count {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-soft);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
     .env-card {
       display: flex;
       flex-direction: column;
