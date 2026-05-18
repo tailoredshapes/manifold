@@ -157,8 +157,13 @@ services:
       - union
       - cityhall
       - yard
+    # Host 8090 → container 8080. Production *.tildarc.com routing bypasses
+    # this Caddy entirely (system Caddy proxies straight to the per-app
+    # container ports 3050-3055); manifold-edge here is dev path-style
+    # access at http://localhost:8090/{groundwork,union,cityhall,yard}/*.
+    # Moved off host 8080 to avoid colliding with cadvisor on the deploy host.
     ports:
-      - "8080:8080"
+      - "8090:8080"
     volumes:
       - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
