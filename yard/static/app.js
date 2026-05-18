@@ -10,7 +10,7 @@ import {
   loadManifoldConfig, crossLink,
   setStatus, setError, updateFooterMeta,
   emptyCard, fieldInput, readForm,
-  openModal, closeModal, isModalOpen,
+  openModal,
 } from '/static/manifold-ui.js';
 
 // ── Enum vocab ───────────────────────────────────────────────────────────────
@@ -171,9 +171,8 @@ const state = {
   syncEnvId: null,
   search: '',
   loading: false,
-  // Modal open/close state lives in the DOM (isModalOpen()); entityKey
-  // tracks which entity the in-flight "new …" modal is collecting.
-  modal: { entityKey: null },
+  // Modal is fully promise-driven via manifold-ui openModal() — no
+  // open/close state to track here.
 };
 
 // ── Data load ────────────────────────────────────────────────────────────────
@@ -303,7 +302,7 @@ function fmtNum(v, digits = 2) {
   return String(v);
 }
 
-// ── Field renderer (forms) ───────────────────────────────────────────────────
+// ── Field renderer (inline forms) ────────────────────────────────────────────
 //
 // fieldInput + readForm come from manifold-ui. We pass a lookup callback
 // for `ref` fields so the shared module can render <select> options from
@@ -313,46 +312,32 @@ const refLookup = (refKey) => state.data[refKey] || [];
 
 const yardFieldInput = (field, value) => fieldInput(field, value, refLookup);
 
-// ── Modal (new record) ───────────────────────────────────────────────────────
+// ── New-record flow ──────────────────────────────────────────────────────────
+//
+// Single async function — openModal() resolves with the captured payload
+// (or null on cancel/Esc/backdrop). No state to track, no separate save
+// handler, no scaffold in markup.
 
-function openNewModal(entityKey) {
+async function createNew(entityKey) {
   const cfg = ENTITIES[entityKey];
   if (!cfg) return;
-  state.modal.entityKey = entityKey;
-  openModal({
+  const payload = await openModal({
     title: `New ${cfg.label.toLowerCase()}`,
-    fields: cfg.fields.map(f => yardFieldInput(f, '')),
+    fields: cfg.fields,
+    lookupRef: refLookup,
+    submit: 'Create',
   });
-}
-
-function closeNewModal() {
-  state.modal.entityKey = null;
-  closeModal();
-}
-
-async function saveNewModal() {
-  const key = state.modal.entityKey;
-  if (!key) return;
-  const cfg = ENTITIES[key];
-  const fieldsEl = $('#modal-fields');
-  const payload = readForm(fieldsEl);
-  for (const f of cfg.fields) {
-    if (f.required && !payload[f.name]) {
-      setError(new Error(`${f.label} is required`));
-      const node = $(`[name="${f.name}"]`, fieldsEl);
-      if (node) node.focus();
-      return;
-    }
-  }
+  if (!payload) return;
   try {
-    await createRecord(key, payload);
+    await createRecord(entityKey, payload);
     // REST writes return only local fields; re-read via /graph so the new
     // row reflects the same shape the rest of the app already uses.
     await loadAll();
-    closeNewModal();
     setStatus(`${cfg.label} created`);
     render();
-  } catch (e) { setError(e); }
+  } catch (e) {
+    setError(e);
+  }
 }
 
 // ── Screens: dispatcher ──────────────────────────────────────────────────────
@@ -1098,7 +1083,7 @@ function renderSettings(root, entityKey) {
       el('h1', {}, cfg.label + 's'),
       el('div', { class: 'meta' }, `${visible.length} of ${items.length}`),
     ),
-    el('button', { class: 'primary', onClick: () => openNewModal(entityKey) }, `New ${cfg.label.toLowerCase()}`),
+    el('button', { class: 'primary', onClick: () => createNew(entityKey) }, `New ${cfg.label.toLowerCase()}`),
   ));
 
   if (visible.length === 0) {
@@ -1251,7 +1236,7 @@ function bindUI() {
     tab.addEventListener('click', () => setScreen(tab.dataset.screen));
   });
 
-  $('#btn-new').addEventListener('click', () => openNewModal(newEntityKeyForCurrentScreen()));
+  $('#btn-new').addEventListener('click', () => createNew(newEntityKeyForCurrentScreen()));
 
   $('#btn-settings').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1269,19 +1254,18 @@ function bindUI() {
     render();
   });
 
-  $('#modal-cancel').addEventListener('click', closeNewModal);
-  $('#modal-save').addEventListener('click', saveNewModal);
-  $('#modal-root').addEventListener('click', (e) => {
-    if (e.target.id === 'modal-root') closeNewModal();
-  });
+  // Modal Esc + Enter are handled by manifold-ui's promise modal itself;
+  // we don't bind anything here.
 
   document.addEventListener('keydown', (e) => {
     const tag = document.activeElement?.tagName?.toLowerCase();
     const inField = ['input', 'textarea', 'select'].includes(tag);
-    const modalOpen = isModalOpen();
+    const modalOpen = !!document.querySelector('.modal-backdrop');
 
     if (e.key === 'Escape') {
-      if (modalOpen)                     { closeNewModal(); return; }
+      // The modal swallows Esc itself; bail if it's open so we don't also
+      // collapse expanded rows behind it.
+      if (modalOpen)                     { return; }
       if (state.expandedEnvId)           { state.expandedEnvId = null; render(); return; }
       if (state.expandedRunId)           { state.expandedRunId = null; render(); return; }
       if (state.expandedSettingId)       { state.expandedSettingId = null; render(); return; }
@@ -1303,12 +1287,7 @@ function bindUI() {
     }
     if (e.key === 'n' && !inField && !modalOpen) {
       e.preventDefault();
-      openNewModal(newEntityKeyForCurrentScreen());
-      return;
-    }
-    if (e.key === 'Enter' && modalOpen && inField && tag !== 'textarea') {
-      e.preventDefault();
-      saveNewModal();
+      createNew(newEntityKeyForCurrentScreen());
       return;
     }
   });

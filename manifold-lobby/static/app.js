@@ -1,4 +1,8 @@
 // Lobby frontend — vanilla ES modules, no build step.
+//
+// openModal (canonical promise-based pattern) is shared via manifold-ui.
+
+import { openModal } from '/static/manifold-ui.js';
 
 const state = {
   route: 'inbox',
@@ -125,74 +129,8 @@ async function comment(id) {
   render();
 }
 
-// ── Modal ─────────────────────────────────────────────────────────────────
+// ── Derived actions ───────────────────────────────────────────────────────
 
-function openModal(spec) {
-  return new Promise(resolve => {
-    const backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop';
-    const dialog = document.createElement('div');
-    dialog.className = 'modal-dialog';
-    dialog.setAttribute('role', 'dialog');
-    dialog.setAttribute('aria-modal', 'true');
-    dialog.setAttribute('aria-labelledby', 'modal-title');
-    const close = (value) => { backdrop.remove(); document.removeEventListener('keydown', onKey); resolve(value); };
-    const onKey = e => { if (e.key === 'Escape') close(null); };
-    document.addEventListener('keydown', onKey);
-
-    const form = document.createElement('form');
-    form.innerHTML = `<h3 id="modal-title">${spec.title}</h3>` + (spec.intro ? `<p class="modal-intro">${spec.intro}</p>` : '');
-    for (const f of spec.fields) {
-      const wrap = document.createElement('div'); wrap.className = 'modal-field';
-      const label = document.createElement('label'); label.textContent = f.label; wrap.appendChild(label);
-      if (f.type === 'radio') {
-        for (const opt of f.options) {
-          const id = `r_${f.name}_${opt.code}`;
-          const row = document.createElement('label'); row.className = 'modal-radio';
-          row.innerHTML = `<input type="radio" name="${f.name}" value="${opt.code}" id="${id}" ${opt.code === f.default ? 'checked' : ''}>
-            <span class="opt-label">${opt.label}</span>
-            <span class="opt-help">${opt.help || ''}</span>`;
-          wrap.appendChild(row);
-        }
-      } else if (f.type === 'textarea') {
-        const t = document.createElement('textarea');
-        t.name = f.name; t.placeholder = f.placeholder || ''; t.rows = 4;
-        if (f.required) t.required = true;
-        wrap.appendChild(t);
-      } else {
-        const i = document.createElement('input');
-        i.type = 'text'; i.name = f.name; i.placeholder = f.placeholder || '';
-        if (f.required) i.required = true;
-        wrap.appendChild(i);
-      }
-      form.appendChild(wrap);
-    }
-    const actions = document.createElement('div'); actions.className = 'modal-actions';
-    actions.innerHTML = `
-      <button type="button" data-act="cancel">Cancel</button>
-      <button type="submit" class="primary">${spec.submit || 'Submit'}</button>`;
-    form.appendChild(actions);
-
-    form.addEventListener('submit', e => {
-      e.preventDefault();
-      const data = new FormData(form);
-      const out = {};
-      for (const [k, v] of data.entries()) out[k] = v;
-      // Validate required
-      for (const f of spec.fields) {
-        if (f.required && !out[f.name]) { return; }
-      }
-      close(out);
-    });
-    form.querySelector('[data-act=cancel]').addEventListener('click', () => close(null));
-    backdrop.addEventListener('click', e => { if (e.target === backdrop) close(null); });
-
-    dialog.appendChild(form);
-    backdrop.appendChild(dialog);
-    document.body.appendChild(backdrop);
-    setTimeout(() => form.querySelector('input,textarea')?.focus(), 50);
-  });
-}
 async function deriveNow() {
   await post('/_derive', {});
   await refresh();

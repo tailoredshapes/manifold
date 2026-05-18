@@ -2,16 +2,17 @@
 // Vanilla JS ES module, no build step, no framework.
 // Screens: Teams · Staffing · People · Work (kanban).
 //
-// Primitives (esc, apiFetch, gqlQuery, crossLink, manifold-config helpers)
-// come from the shared Manifold UI kit. Union's modal is preserved as-is
-// for this commit — it uses #modal-backdrop + a native <form> with
-// FormData submission, structurally different from the shared modal
-// scaffold; converging would be its own normalization pass.
+// All primitives (esc, apiFetch, gqlQuery, crossLink, openModal,
+// manifold-config helpers) come from the shared Manifold UI kit. Modal
+// is now the canonical promise-based pattern — no persistent scaffold,
+// no separate open/close/submit handlers; createNew() awaits openModal()
+// and posts the resolved payload.
 
 import {
   esc,
   apiFetch, gqlQuery,
   loadManifoldConfig, getManifoldConfig, crossLink,
+  openModal,
 } from '/static/manifold-ui.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -45,8 +46,8 @@ const state = {
   filter: '',
   data: { people: [], teams: [], members: [], workOrders: [] },
   expandedTeamId: null,
-  modalOpen: false,
-  modalKind: null, // 'team' | 'person' | 'member' | 'work_order'
+  // Modal is fully promise-driven via manifold-ui openModal() — no
+  // open/close state to track here.
   // Cross-app config now lives inside manifold-ui (getManifoldConfig()).
 };
 
@@ -698,6 +699,8 @@ async function moveWorkOrder(id, newStatus) {
 
 // ── Modal: new record ─────────────────────────────────────────────────────────
 
+// MODAL_FORMS is union's catalogue of "new" forms — one entry per screen's
+// primary entity. `refKey` maps to entries in unionLookupRef() below.
 const MODAL_FORMS = {
   team: {
     title: 'New team',
@@ -721,25 +724,29 @@ const MODAL_FORMS = {
     title: 'New team member',
     endpoint: ENDPOINTS.members,
     fields: [
-      { name: 'person_id', label: 'Person', type: 'ref', required: true, source: () => state.data.people, labelOf: p => p.name || p.id },
-      { name: 'team_id', label: 'Team', type: 'ref', required: true, source: () => state.data.teams, labelOf: t => t.name || t.id },
-      { name: 'role', label: 'Role on team', type: 'text' },
+      { name: 'person_id', label: 'Person', type: 'ref', refKey: 'people', required: true },
+      { name: 'team_id',   label: 'Team',   type: 'ref', refKey: 'teams',  required: true },
+      { name: 'role',      label: 'Role on team', type: 'text' },
     ],
   },
   work_order: {
     title: 'New work order',
     endpoint: ENDPOINTS.workOrders,
     fields: [
-      { name: 'team_id', label: 'Team', type: 'ref', required: true, source: () => state.data.teams, labelOf: t => t.name || t.id },
-      { name: 'summary', label: 'Summary', type: 'text', required: true },
-      { name: 'status', label: 'Status', type: 'select', options: WORK_ORDER_STATUSES, default: 'proposed' },
+      { name: 'team_id',  label: 'Team',     type: 'ref', refKey: 'teams', required: true },
+      { name: 'summary',  label: 'Summary',  type: 'text', required: true },
+      { name: 'status',   label: 'Status',   type: 'select', options: WORK_ORDER_STATUSES, default: 'proposed' },
       { name: 'priority', label: 'Priority', type: 'select', options: WORK_ORDER_PRIORITIES, default: 'medium' },
-      { name: 'deployable_id', label: 'Deployable id', type: 'text' },
+      { name: 'deployable_id',     label: 'Deployable id',     type: 'text' },
       { name: 'change_request_id', label: 'Change request id', type: 'text' },
-      { name: 'story_points', label: 'Story points', type: 'select', options: WORK_ORDER_POINTS, cast: 'integer' },
+      // story_points is a select of integers but the API expects a number;
+      // createNew casts the payload before POSTing.
+      { name: 'story_points', label: 'Story points', type: 'select', options: WORK_ORDER_POINTS },
     ],
   },
 };
+
+const INT_FIELDS = new Set(['story_points']);
 
 function modalKindForCurrentScreen() {
   switch (state.screen) {
@@ -751,95 +758,24 @@ function modalKindForCurrentScreen() {
   }
 }
 
-function openModal(kind) {
+const unionLookupRef = (refKey) => state.data[refKey] || [];
+
+async function createNew(kind) {
   const cfg = MODAL_FORMS[kind];
   if (!cfg) return;
-
-  state.modalKind = kind;
-  state.modalOpen = true;
-
-  document.getElementById('modal-title').textContent = cfg.title;
-  const fieldsEl = document.getElementById('modal-fields');
-  fieldsEl.innerHTML = cfg.fields.map(f => renderModalField(f)).join('');
-
-  document.getElementById('modal-backdrop').classList.add('visible');
-
-  // Focus first input
-  const first = fieldsEl.querySelector('input, select, textarea');
-  if (first) first.focus();
-}
-
-function renderModalField(f) {
-  const req = f.required ? ' <span class="req">*</span>' : '';
-  if (f.type === 'select') {
-    const opts = ['<option value="">—</option>'].concat(
-      f.options.map(o => `<option value="${esc(o)}"${o === f.default ? ' selected' : ''}>${esc(o)}</option>`)
-    ).join('');
-    return `
-      <div class="form-row">
-        <label for="f-${esc(f.name)}">${esc(f.label)}${req}</label>
-        <select id="f-${esc(f.name)}" name="${esc(f.name)}">${opts}</select>
-      </div>`;
-  }
-  if (f.type === 'ref') {
-    const items = f.source() || [];
-    const opts = ['<option value="">— select —</option>'].concat(
-      items.map(it => `<option value="${esc(it.id)}">${esc(f.labelOf(it))}</option>`)
-    ).join('');
-    return `
-      <div class="form-row">
-        <label for="f-${esc(f.name)}">${esc(f.label)}${req}</label>
-        <select id="f-${esc(f.name)}" name="${esc(f.name)}">${opts}</select>
-      </div>`;
-  }
-  if (f.type === 'textarea') {
-    return `
-      <div class="form-row">
-        <label for="f-${esc(f.name)}">${esc(f.label)}${req}</label>
-        <textarea id="f-${esc(f.name)}" name="${esc(f.name)}" rows="3"></textarea>
-      </div>`;
-  }
-  return `
-    <div class="form-row">
-      <label for="f-${esc(f.name)}">${esc(f.label)}${req}</label>
-      <input id="f-${esc(f.name)}" name="${esc(f.name)}" type="text" autocomplete="off" />
-    </div>`;
-}
-
-function closeModal() {
-  state.modalOpen = false;
-  state.modalKind = null;
-  document.getElementById('modal-backdrop').classList.remove('visible');
-}
-
-async function submitModal(e) {
-  e.preventDefault();
-  const cfg = MODAL_FORMS[state.modalKind];
-  if (!cfg) return;
-  const fieldsEl = document.getElementById('modal-fields');
-  const fieldsByName = Object.fromEntries(cfg.fields.map(f => [f.name, f]));
-  const payload = {};
-  fieldsEl.querySelectorAll('[name]').forEach(el => {
-    const v = el.value.trim();
-    if (!v) return;
-    const f = fieldsByName[el.name];
-    if (f?.cast === 'integer') {
-      const n = parseInt(v, 10);
-      if (Number.isFinite(n)) payload[el.name] = n;
-    } else {
-      payload[el.name] = v;
-    }
+  const payload = await openModal({
+    title: cfg.title,
+    fields: cfg.fields,
+    lookupRef: unionLookupRef,
+    submit: 'Create',
   });
-
-  for (const f of cfg.fields) {
-    if (f.required && !payload[f.name]) {
-      setError(`'${f.label}' is required`);
-      const input = fieldsEl.querySelector(`[name="${f.name}"]`);
-      if (input) input.focus();
-      return;
+  if (!payload) return;
+  for (const k of Object.keys(payload)) {
+    if (INT_FIELDS.has(k)) {
+      const n = parseInt(payload[k], 10);
+      if (Number.isFinite(n)) payload[k] = n; else delete payload[k];
     }
   }
-
   try {
     await createRecord(cfg.endpoint, payload);
     // Refetch via /graph so federated fields (e.g. work_order.deployable)
@@ -848,7 +784,6 @@ async function submitModal(e) {
     await loadAll();
     setError('');
     setInfo('Saved');
-    closeModal();
     rerender();
     updateFooterMeta();
   } catch (err) {
@@ -920,8 +855,12 @@ function initKeyboard() {
     const tag = document.activeElement?.tagName?.toLowerCase();
     const inInput = tag === 'input' || tag === 'textarea' || tag === 'select';
 
+    // The modal handles its own Esc internally; if it's open we bail so
+    // we don't also collapse expanded rows behind it.
+    const modalOpen = !!document.querySelector('.modal-backdrop');
+
     if (e.key === 'Escape') {
-      if (state.modalOpen) { closeModal(); return; }
+      if (modalOpen) return;
       if (document.activeElement === search && search.value) {
         search.value = '';
         state.filter = '';
@@ -936,16 +875,16 @@ function initKeyboard() {
       return;
     }
 
-    if (e.key === '/' && !inInput && !state.modalOpen) {
+    if (e.key === '/' && !inInput && !modalOpen) {
       e.preventDefault();
       search.focus();
       search.select();
       return;
     }
 
-    if (e.key === 'n' && !inInput && !state.modalOpen) {
+    if (e.key === 'n' && !inInput && !modalOpen) {
       e.preventDefault();
-      openModal(modalKindForCurrentScreen());
+      createNew(modalKindForCurrentScreen());
       return;
     }
   });
@@ -965,13 +904,10 @@ function initTabs() {
 }
 
 function initModal() {
-  document.getElementById('modal-cancel').addEventListener('click', closeModal);
-  document.getElementById('modal-form').addEventListener('submit', submitModal);
-  document.getElementById('modal-backdrop').addEventListener('click', e => {
-    if (e.target.id === 'modal-backdrop') closeModal();
-  });
+  // Modal scaffolding lives in manifold-ui's openModal() — no DOM setup
+  // needed here. We only wire the "new" button on the topbar.
   document.getElementById('new-btn').addEventListener('click', () => {
-    openModal(modalKindForCurrentScreen());
+    createNew(modalKindForCurrentScreen());
   });
 }
 

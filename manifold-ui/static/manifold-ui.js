@@ -208,35 +208,153 @@ export function emptyCard({ title, lede, hintHtml }) {
   );
 }
 
-// ── Modal (new-record style) ─────────────────────────────────────────────
+// ── Modal (promise-based) ────────────────────────────────────────────────
+//
+// Single canonical modal pattern across the suite. The modal is built on
+// demand and resolves a promise with the captured form data on Submit,
+// or `null` on Cancel / Esc / backdrop click.
+//
+//   const data = await openModal({
+//     title: 'New environment',
+//     intro: 'Optional subtitle paragraph in italic.',
+//     submit: 'Create',                  // button label, default 'Submit'
+//     lookupRef: (refKey) => [...],      // optional, for type:'ref' fields
+//     fields: [
+//       { name: 'name',  type: 'text',     label: 'Name', required: true },
+//       { name: 'kind',  type: 'select',   label: 'Kind', options: [...], default: 'mock' },
+//       { name: 'note',  type: 'textarea', label: 'Note', placeholder: '…' },
+//       { name: 'team',  type: 'ref',      label: 'Team', refKey: 'teams', required: true },
+//       { name: 'why',   type: 'radio',    label: 'Reason',
+//         options: [{ code: 'foo', label: 'Foo', help: '…' }, …],
+//         required: true, default: 'foo' },
+//     ],
+//   });
+//   if (!data) return;     // cancelled
+//
+// No persistent #modal-root scaffold in markup — the modal builds and
+// removes its own DOM. Caller doesn't need to track open/close state or
+// wire keyboard handlers; Esc and backdrop click both resolve `null`.
 
-/**
- * Open the shared modal with a title and a list of field DOM nodes
- * (typically from fieldInput()). Focuses the first focusable input.
- * Does not manage app state — caller tracks open/closed for keyboard
- * routing, then calls saveModal/closeModal in response.
- */
-export function openModal({ title, fields = [] }) {
-  const titleEl = $('#modal-title');
-  const fieldsEl = $('#modal-fields');
-  const root = $('#modal-root');
-  if (!titleEl || !fieldsEl || !root) {
-    throw new Error('manifold-ui: modal scaffold (#modal-root/#modal-title/#modal-fields) missing');
-  }
-  titleEl.textContent = title;
-  fieldsEl.innerHTML = '';
-  for (const node of fields) fieldsEl.appendChild(node);
-  root.classList.add('open');
-  const first = $('input, select, textarea', fieldsEl);
-  if (first) first.focus();
-}
+export function openModal(spec) {
+  return new Promise(resolve => {
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop open';
+    const dialog = document.createElement('div');
+    dialog.className = 'modal-dialog';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'modal-title');
 
-export function closeModal() {
-  $('#modal-root')?.classList.remove('open');
-}
+    const close = (value) => {
+      backdrop.remove();
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (e) => { if (e.key === 'Escape') close(null); };
+    document.addEventListener('keydown', onKey);
 
-export function isModalOpen() {
-  return $('#modal-root')?.classList.contains('open') ?? false;
+    const form = document.createElement('form');
+    form.innerHTML =
+      `<h2 id="modal-title">${esc(spec.title)}</h2>` +
+      (spec.intro ? `<p class="modal-intro">${esc(spec.intro)}</p>` : '');
+
+    for (const f of spec.fields) {
+      const wrap = document.createElement('div');
+      wrap.className = 'modal-field';
+      if (f.full) wrap.classList.add('full');
+
+      const label = document.createElement('label');
+      label.textContent = f.label + (f.required ? ' *' : '');
+      wrap.appendChild(label);
+
+      if (f.type === 'radio') {
+        for (const opt of f.options || []) {
+          const id = `r_${f.name}_${opt.code}`;
+          const row = document.createElement('label');
+          row.className = 'modal-radio';
+          row.innerHTML =
+            `<input type="radio" name="${esc(f.name)}" value="${esc(opt.code)}" id="${id}"` +
+              `${opt.code === f.default ? ' checked' : ''}>` +
+            `<span class="opt-label">${esc(opt.label)}</span>` +
+            (opt.help ? `<span class="opt-help">${esc(opt.help)}</span>` : '');
+          wrap.appendChild(row);
+        }
+      } else if (f.type === 'textarea') {
+        const t = document.createElement('textarea');
+        t.name = f.name;
+        t.placeholder = f.placeholder || '';
+        t.rows = 3;
+        if (f.required) t.required = true;
+        if (f.default != null) t.value = f.default;
+        wrap.appendChild(t);
+      } else if (f.type === 'select') {
+        const s = document.createElement('select');
+        s.name = f.name;
+        if (f.required) s.required = true;
+        s.appendChild(new Option('—', ''));
+        for (const opt of f.options || []) {
+          const o = new Option(opt, opt);
+          if (opt === f.default) o.selected = true;
+          s.appendChild(o);
+        }
+        wrap.appendChild(s);
+      } else if (f.type === 'ref') {
+        const s = document.createElement('select');
+        s.name = f.name;
+        if (f.required) s.required = true;
+        s.appendChild(new Option('— none —', ''));
+        const items = (spec.lookupRef || (() => []))(f.refKey) || [];
+        for (const item of items) {
+          const lbl = item.name || item.target_env_id || item.id;
+          const o = new Option(lbl, item.id);
+          if (item.id === f.default) o.selected = true;
+          s.appendChild(o);
+        }
+        wrap.appendChild(s);
+      } else {
+        // text (default)
+        const i = document.createElement('input');
+        i.type = 'text';
+        i.name = f.name;
+        i.placeholder = f.placeholder || '';
+        i.autocomplete = 'off';
+        i.spellcheck = false;
+        if (f.required) i.required = true;
+        if (f.default != null) i.value = f.default;
+        wrap.appendChild(i);
+      }
+      form.appendChild(wrap);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'modal-actions';
+    actions.innerHTML =
+      `<button type="button" data-act="cancel">Cancel</button>` +
+      `<button type="submit" class="primary">${esc(spec.submit || 'Submit')}</button>`;
+    form.appendChild(actions);
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = new FormData(form);
+      const out = {};
+      for (const [k, v] of data.entries()) {
+        const s = String(v).trim();
+        if (s !== '') out[k] = s;
+      }
+      // Required-field guard (browser usually catches this, defence in depth).
+      for (const f of spec.fields) {
+        if (f.required && !out[f.name]) return;
+      }
+      close(out);
+    });
+    form.querySelector('[data-act=cancel]').addEventListener('click', () => close(null));
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(null); });
+
+    dialog.appendChild(form);
+    backdrop.appendChild(dialog);
+    document.body.appendChild(backdrop);
+    setTimeout(() => form.querySelector('input,textarea,select')?.focus(), 50);
+  });
 }
 
 // ── Field rendering ──────────────────────────────────────────────────────

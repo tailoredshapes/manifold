@@ -506,19 +506,20 @@ button.ghost:hover { color: var(--text); background: var(--surface-alt); box-sha
 #status-strip.info { display: block; }
 
 /* ── Modal ─────────────────────────────────────────────────────────────── *
- * Apps include the modal scaffold (see openModal() in manifold-ui.js for
- * the expected #modal-root / #modal-title / #modal-fields structure). */
+ * Promise-based modal. No persistent scaffold in markup — openModal() in
+ * manifold-ui.js creates and removes the DOM on demand. See that module
+ * for the field-spec contract. */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(17,24,39,0.30);
-  display: none;
+  background: rgba(17,24,39,0.45);
+  display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
   z-index: 100;
 }
-.modal-backdrop.open { display: flex; }
-.modal {
+.modal-dialog {
   background: var(--surface);
   border-radius: var(--radius);
   border: 1px solid var(--border);
@@ -526,14 +527,69 @@ button.ghost:hover { color: var(--text); background: var(--surface-alt); box-sha
   width: min(560px, 92vw);
   max-height: 88vh;
   overflow-y: auto;
-  padding: 20px;
+  padding: 24px 24px 18px;
 }
-.modal h2 { margin-bottom: 12px; }
-.modal .actions {
+.modal-dialog h2 {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+.modal-intro {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 18px;
+  font-style: italic;
+}
+.modal-field {
+  margin-bottom: 14px;
+}
+.modal-field > label {
+  display: block;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.modal-field input[type="text"],
+.modal-field textarea,
+.modal-field select {
+  width: 100%;
+  font-size: 14px;
+  padding: 7px 10px;
+}
+.modal-field textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+.modal-radio {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  padding: 5px 0;
+  cursor: pointer;
+  align-items: baseline;
+}
+.modal-radio input {
+  grid-row: 1 / 3;
+  align-self: start;
+  margin-top: 4px;
+}
+.modal-radio .opt-label {
+  font-weight: 500;
+  font-size: 14px;
+}
+.modal-radio .opt-help {
+  grid-column: 2;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 .hint {
   font-size: 12px;

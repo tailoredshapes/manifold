@@ -97,23 +97,7 @@
   ul.audit-list li .at { color: var(--text-soft); font-variant-numeric: tabular-nums; font-family: var(--font-mono); font-size: 12px; }
   ul.audit-list li .action { font-family: var(--font-mono); font-weight: 600; }
 
-  .modal-backdrop { position: fixed; inset: 0; background: rgba(17,24,39,0.45); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 999; }
-  .modal-dialog { background: var(--surface); border-radius: var(--radius); max-width: 520px; width: 100%; padding: 28px 28px 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
-  .modal-dialog h3 { font-family: var(--font-serif); font-weight: 500; font-size: 20px; margin-bottom: 4px; }
-  .modal-intro { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; font-style: italic; }
-  .modal-field { margin-bottom: 16px; }
-  .modal-field > label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 6px; }
-  .modal-field input[type=text], .modal-field textarea { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text); }
-  .modal-field textarea { resize: vertical; min-height: 80px; font-family: var(--font); }
-  .modal-field input:focus, .modal-field textarea:focus { outline: 2px solid var(--ink); outline-offset: -1px; }
-  .modal-radio { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; padding: 6px 0; cursor: pointer; align-items: baseline; }
-  .modal-radio input { grid-row: 1 / 3; align-self: start; margin-top: 4px; }
-  .modal-radio .opt-label { font-weight: 500; font-size: 14px; }
-  .modal-radio .opt-help { grid-column: 2; color: var(--text-muted); font-size: 13px; }
-  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
-  .modal-actions button { font: inherit; font-size: 14px; padding: 8px 16px; border: 1px solid var(--border); background: var(--surface); border-radius: 4px; cursor: pointer; }
-  .modal-actions button:hover { background: var(--row-hover); }
-  .modal-actions button.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+  /* Modal styles now come from manifold-ui.css. */
 </style>
 </head>
 <body>
