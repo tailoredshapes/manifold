@@ -18,9 +18,11 @@
 }
 
 :8080 {
-	# Inject synthetic identity headers on every upstream request.
-	header_up X-Manifold-User-Id "alice@example.dev"
-	header_up X-Manifold-User-Groups "admin"
+	# Synthetic identity headers are injected per-upstream inside each
+	# `reverse_proxy` block below — Caddy's `header_up` directive is only
+	# valid inside a reverse_proxy, not at site-root scope. (Removing the
+	# top-level versions fixed a long-standing parser error that kept
+	# manifold-edge in a crash-restart loop.)
 
 	# Manifold landing page (public — links to the four apps).
 	handle /manifold/* {
