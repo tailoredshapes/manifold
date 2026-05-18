@@ -5,66 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Union — Foreman</title>
 
-  <!-- Shared Manifold UI kit: design tokens + primitive component styles. -->
-  <!-- Union's inline CSS below currently redeclares the same tokens — a    -->
-  <!-- future normalization pass should strip the duplicates and migrate   -->
-  <!-- union's modal scaffold (#modal-backdrop + native <form>) to the    -->
-  <!-- shared #modal-root contract.                                        -->
+  <!-- Shared Manifold UI kit: design tokens + primitive component styles.
+       Union's inline <style> aliases the kit's tokens under union-specific
+       names (--muted, --font, --t, --shadow-card, --row-stripe, --row-hover)
+       and overrides a couple of values, then defines its own component class
+       taxonomy. Modal scaffold is union's own (#modal-backdrop + native
+       <form> with FormData submission); convergence is its own separate
+       pass. White-label overrides applied to the kit propagate through. -->
   <link rel="stylesheet" href="/static/manifold-ui.css" />
 
   <style>
-    /* ── Shared Manifold design tokens (Union, Cityhall, Yard) ──────────────── */
+    /* ── Union-specific token aliases + overrides ────────────────────────── */
     :root {
-      /* Colors */
-      --bg:          #f9fafb;
-      --surface:     #ffffff;
-      --text:        #111827;
-      --text-muted:  #6b7280;
-      --text-soft:   #9ca3af;
-      --muted:       #6b7280;
-      --border:      #e5e7eb;
-      --border-soft: #f3f4f6;
-      --ink:         #111827;
-      --ink-hover:   #1f2937;
-      --ink-soft:    #f3f4f6;
-      --ink-faint:   #e5e7eb;
-      --success:     #16a34a;
-      --warn:        #f59e0b;
-      --danger:      #dc2626;
-      --row-stripe:  #f9fafb;
-      --row-hover:   #f3f4f6;
+      /* Aliases — union component classes use these names. */
+      --muted:        var(--text-muted);
+      --font:         var(--font-sans);
+      --t:            var(--transition);
+      --shadow-card:  var(--shadow-sm);
+      --row-stripe:   var(--bg);
+      --row-hover:    var(--surface-alt);
 
-      /* Typography */
-      --font: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", sans-serif;
-      --font-serif: "Iowan Old Style", "Palatino", Georgia, serif;
-
-      /* Shape */
-      --radius: 8px;
-      --radius-sm: 6px;
-      --shadow-card: 0 1px 3px rgba(0,0,0,0.04);
+      /* Override — union prefers a flatter hover shadow than the kit. */
       --shadow-hover: 0 1px 2px rgba(0,0,0,0.05);
-
-      /* Motion */
-      --t: 120ms ease;
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 15px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-      min-height: 100vh;
-    }
-
-    body {
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
+    /* Union reads at 15px (kit baseline is 14px). */
+    html, body { font-size: 15px; }
 
     /* ── Top bar ──────────────────────────────────────────────────────────── */
     header.topbar {
@@ -689,62 +655,8 @@
       overflow-wrap: anywhere;
     }
 
-    /* ── New record modal/drawer ──────────────────────────────────────────── */
-    #modal-backdrop {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(17, 24, 39, 0.32);
-      z-index: 50;
-      align-items: flex-start;
-      justify-content: center;
-      padding: 80px 16px 16px;
-    }
-
-    #modal-backdrop.visible { display: flex; }
-
-    .modal {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: 0 10px 25px rgba(0,0,0,0.10);
-      width: 100%;
-      max-width: 480px;
-      padding: 24px;
-    }
-
-    .modal h2 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 16px;
-    }
-
-    .form-row {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-bottom: 12px;
-    }
-
-    .form-row label {
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--muted);
-      letter-spacing: 0.02em;
-    }
-
-    .form-row label .req { color: var(--danger); }
-
-    .form-row input, .form-row select, .form-row textarea {
-      width: 100%;
-    }
-
-    .form-actions {
-      display: flex;
-      gap: 8px;
-      justify-content: flex-end;
-      margin-top: 20px;
-    }
+    /* Modal styles now come from manifold-ui.css; union no longer needs
+       local #modal-backdrop / .form-row / .form-actions rules. */
 
     /* ── Tooltip ──────────────────────────────────────────────────────────── */
     #tooltip {
@@ -944,18 +856,8 @@
   <span id="footer-meta" style="margin-left:auto"></span>
 </footer>
 
-<div id="modal-backdrop">
-  <div class="modal" role="dialog" aria-modal="true">
-    <h2 id="modal-title">New record</h2>
-    <form id="modal-form" autocomplete="off">
-      <div id="modal-fields"></div>
-      <div class="form-actions">
-        <button type="button" id="modal-cancel">Cancel</button>
-        <button type="submit" class="primary" id="modal-save">Save</button>
-      </div>
-    </form>
-  </div>
-</div>
+<!-- No persistent modal scaffold — manifold-ui's openModal() builds and
+     removes its own DOM on demand. -->
 
 <div id="tooltip"></div>
 <div id="status-strip"></div>

@@ -5,79 +5,41 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cityhall — Planner</title>
 
-  <!-- Shared Manifold UI kit: design tokens + primitive component styles. -->
-  <!-- Cityhall's inline CSS below currently redeclares the same tokens — a   -->
-  <!-- future normalization pass should strip the duplicates and migrate     -->
-  <!-- cityhall's .btn / .field-grid / table classes to the shared taxonomy. -->
+  <!-- Shared Manifold UI kit: design tokens + primitive component styles.
+       Cityhall's inline <style> below aliases the kit's tokens under
+       cityhall-specific names and overrides a few values, then defines its
+       own component class taxonomy (.btn / .field-grid / custom-arrow
+       select). White-label overrides applied to the kit propagate through. -->
   <link rel="stylesheet" href="/static/manifold-ui.css" />
 
   <style>
-    /* ── Shared Manifold design tokens (Union, Cityhall, Yard) ──────────────── */
+    /* ── Cityhall-specific token aliases + overrides ─────────────────────────
+       Almost all design tokens come from manifold-ui.css. Only the names
+       cityhall's components reference under different identifiers (--muted,
+       --font, --t, --shadow-card, --row-stripe, --row-hover) need aliasing,
+       and only the values cityhall intentionally diverges on (softer rgba
+       status accents, paper-flat shadow-hover) need overriding. This is the
+       white-label hook: a client.css overriding the shared tokens will
+       propagate through cityhall via these aliases. */
     :root {
-      /* Colors */
-      --bg:          #f9fafb;
-      --surface:     #ffffff;
-      --text:        #111827;
-      --text-muted:  #6b7280;
-      --text-soft:   #9ca3af;
-      --muted:       #6b7280;
-      --border:      #e5e7eb;
-      --border-soft: #f3f4f6;
-      --border-strong: #d1d5db;
-      --ink:         #111827;
-      --ink-hover:   #1f2937;
-      --ink-soft:    #f3f4f6;
-      --ink-faint:   #e5e7eb;
-      --success:     #16a34a;
+      /* Aliases — cityhall component classes use these names. */
+      --muted:        var(--text-muted);
+      --font:         var(--font-sans);
+      --t:            var(--transition);
+      --shadow-card:  var(--shadow-sm);
+      --row-stripe:   var(--bg);
+      --row-hover:    var(--surface-alt);
+
+      /* Overrides — cityhall prefers translucent rgba status accents and a
+         flatter hover shadow than the kit defaults. */
       --success-soft: rgba(22, 163, 74, 0.10);
-      --warn:        #f59e0b;
-      --warn-soft:   rgba(245, 158, 11, 0.12);
-      --danger:      #dc2626;
-      --danger-soft: rgba(220, 38, 38, 0.10);
-      --row-stripe:  #f9fafb;
-      --row-hover:   #f3f4f6;
-
-      /* Typography */
-      --font: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", sans-serif;
-      --font-sans: ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", sans-serif;
-      --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-      --font-serif: "Iowan Old Style", "Palatino", Georgia, serif;
-
-      /* Shape */
-      --gutter: 24px;
-      --max-w: 1200px;
-      --radius: 8px;
-      --radius-sm: 6px;
-      --shadow-card: 0 1px 3px rgba(17,24,39,0.04);
+      --warn-soft:    rgba(245, 158, 11, 0.12);
+      --danger-soft:  rgba(220, 38, 38, 0.10);
       --shadow-hover: 0 1px 2px rgba(0,0,0,0.05);
-
-      /* Motion */
-      --t: 120ms ease;
     }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 15px;
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    body {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    a {
-      color: var(--text);
-      text-decoration: underline;
-      text-decoration-color: var(--text-muted);
-    }
-    a:hover { text-decoration-color: var(--text); }
+    /* Cityhall reads at 15px (kit baseline is 14px). */
+    html, body { font-size: 15px; }
 
     input::placeholder { color: var(--muted); }
 
