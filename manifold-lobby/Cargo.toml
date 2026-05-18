@@ -25,6 +25,7 @@ meshql-mcp       = { path = "../../meshql-rs/meshql-mcp" }
 meshql-casbin    = { path = "../../meshql-rs/meshql-casbin" }
 meshql-sqlite    = { path = "../../meshql-rs/meshql-sqlite" }
 manifold-edge    = { path = "../manifold-edge" }
+manifold-ui      = { path = "../manifold-ui" }
 sqlx             = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }
 tokio            = { workspace = true }
 serde            = { workspace = true }
