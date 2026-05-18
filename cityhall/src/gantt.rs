@@ -120,6 +120,9 @@ mod tests {
             predecessor_orders: preds,
             gates,
             estimated_minutes: 10,
+            window_start: None,
+            window_end: None,
+            test_environment_id: None,
         }
     }
 

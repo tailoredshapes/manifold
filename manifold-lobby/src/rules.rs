@@ -179,7 +179,7 @@ pub fn blocked_upstream_v1(snap: &GraphSnapshot) -> Vec<DerivedAdvisory> {
 /// Build a map of `service_id` → `Vec<deployable_id>` from the snapshot's
 /// Exposes edges. Used by both BlockedUpstream and CircularDependency to
 /// resolve "this dependency on service S lands on which deployable?"
-fn exposers_index<'a>(exposes: &'a [Exposes]) -> HashMap<&'a str, Vec<&'a str>> {
+fn exposers_index(exposes: &[Exposes]) -> HashMap<&str, Vec<&str>> {
     let mut out: HashMap<&str, Vec<&str>> = HashMap::new();
     for e in exposes {
         out.entry(e.service_id.as_str())
@@ -273,6 +273,9 @@ fn tarjan_scc(n: usize, adj: &[Vec<usize>]) -> Vec<Vec<usize>> {
     let mut lowlinks = vec![usize::MAX; n];
     let mut out: Vec<Vec<usize>> = Vec::new();
 
+    // Tarjan's SCC needs the full iteration state; eight args is the shape
+    // of the algorithm, not a refactor target.
+    #[allow(clippy::too_many_arguments)]
     fn strongconnect(
         v: usize,
         adj: &[Vec<usize>],

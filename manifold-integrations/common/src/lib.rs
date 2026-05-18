@@ -52,10 +52,10 @@ impl ManifoldClient {
     /// - `MANIFOLD_YARD_URL`        (default `http://localhost:3053`)
     /// - `MANIFOLD_INGEST_URL`      (default `http://localhost:3054`)
     /// - `MANIFOLD_USER_ID`         **required** — the human on whose behalf
-    ///                              the adapter is running
+    ///   the adapter is running
     /// - `MANIFOLD_USER_GROUPS`     comma-separated role list; should
-    ///                              include the adapter's automation role
-    ///                              (e.g. `automation:github-sync`)
+    ///   include the adapter's automation role
+    ///   (e.g. `automation:github-sync`)
     pub fn from_env() -> Result<Self> {
         let mut primary_urls = std::collections::HashMap::new();
         primary_urls.insert(
@@ -183,6 +183,10 @@ impl ManifoldClient {
     ///   `"/deployable/api"`, `"/team/api"`, `"/test_run/api"`.
     /// - `target_domain` is the value written to the provenance row,
     ///   e.g. `"groundwork.deployable"`.
+    ///
+    /// Nine positional args is on the edge of comfortable, but each one is
+    /// load-bearing and a struct would just shuffle the noise to call sites.
+    #[allow(clippy::too_many_arguments)]
     pub async fn upsert(
         &self,
         primary: &str,

@@ -130,7 +130,7 @@ pub async fn compute_plan(inputs: PlanInputs<'_>) -> anyhow::Result<ComputedPlan
     }
 
     // ── 2. For each summary with no team_id, register an orphan blocker.
-    for (_id, s) in &summaries {
+    for s in summaries.values() {
         if s.team_id.as_deref().map(str::is_empty).unwrap_or(true) {
             blockers.push(Blocker {
                 kind: "orphan".into(),
@@ -390,7 +390,7 @@ fn reachable_nontrivial(
     let Some(start) = adj.get(src) else {
         return false;
     };
-    let mut stack: Vec<&str> = start.iter().copied().collect();
+    let mut stack: Vec<&str> = start.to_vec();
     let mut visited: HashSet<&str> = HashSet::new();
     while let Some(node) = stack.pop() {
         if node == dst {

@@ -29,9 +29,8 @@ use crate::state::AppState;
 use anyhow::Result;
 use chrono::Utc;
 use meshql_core::{Envelope, Stash};
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use std::time::Duration;
 
 /// Default 1-hour quiet window before auto-resolving an advisory whose rule
@@ -415,7 +414,10 @@ impl<'a> UserAction<'a> {
         Ok(())
     }
 
-    pub async fn escalate(&self, to: &str, note: Option<&str>) -> Result<()> {
+    pub async fn escalate(&self, to: &str, _note: Option<&str>) -> Result<()> {
+        // _note: API accepts a freetext note for parity with `dismiss`, but
+        // for now the escalation target `to` is stored in the lifecycle row's
+        // note slot. Wire `_note` through when a UI surfaces a separate field.
         let Some(env) = self.load_env().await? else {
             anyhow::bail!("advisory not found: {}", self.advisory_id);
         };

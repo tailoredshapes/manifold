@@ -15,7 +15,6 @@ use crate::state::AppState;
 use anyhow::Result;
 use meshql_core::{Envelope, Stash};
 use serde_json::Value;
-use std::sync::Arc;
 
 #[derive(Clone)]
 struct ProgramSeed {

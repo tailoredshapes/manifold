@@ -106,11 +106,9 @@ async fn make_entity(dir: &str, name: &str) -> Entity {
 
 // ── Custom RPC routes ──────────────────────────────────────────────────────
 
-#[derive(Deserialize, Default)]
-struct AckBody {
-    #[serde(default)]
-    note: Option<String>,
-}
+// `acknowledge` takes no body — the action is meaningful on its own. If
+// callers ever need to attach a note, mirror DismissBody and wire it through
+// `UserAction::acknowledge`.
 
 #[derive(Deserialize)]
 struct DismissBody {
