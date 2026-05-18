@@ -4,6 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Union — Foreman</title>
+
+  <!-- Shared Manifold UI kit: design tokens + primitive component styles. -->
+  <!-- Union's inline CSS below currently redeclares the same tokens — a    -->
+  <!-- future normalization pass should strip the duplicates and migrate   -->
+  <!-- union's modal scaffold (#modal-backdrop + native <form>) to the    -->
+  <!-- shared #modal-root contract.                                        -->
+  <link rel="stylesheet" href="/static/manifold-ui.css" />
+
   <style>
     /* ── Shared Manifold design tokens (Union, Cityhall, Yard) ──────────────── */
     :root {
