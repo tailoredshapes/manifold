@@ -773,7 +773,11 @@ async function createNew(kind) {
   for (const k of Object.keys(payload)) {
     if (INT_FIELDS.has(k)) {
       const n = parseInt(payload[k], 10);
-      if (Number.isFinite(n)) payload[k] = n; else delete payload[k];
+      // openModal resolves payload as Record<string,string>; we coerce the
+      // few integer-shaped fields here. The cast widens the slot so tsc
+      // doesn't enforce string against the resulting number.
+      if (Number.isFinite(n)) /** @type {any} */ (payload)[k] = n;
+      else delete payload[k];
     }
   }
   try {

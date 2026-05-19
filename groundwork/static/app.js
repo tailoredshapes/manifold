@@ -279,7 +279,9 @@ async function fetchTestEnvsForDeployable(deployableId) {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/** @param {string} sel @param {ParentNode} [root] */
 const $  = (sel, root = document) => root.querySelector(sel);
+/** @param {string} sel @param {ParentNode} [root] */
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // Build an intra-app anchor.
@@ -604,6 +606,14 @@ function renderGovernance(root) {
   root.appendChild(buildByTeamSection(deployables, exposes, contracts, slas));
 }
 
+/**
+ * @param {object} spec
+ * @param {string} spec.label
+ * @param {number | string} spec.figure
+ * @param {number} [spec.denom]
+ * @param {boolean} [spec.gap]
+ * @param {string} [spec.sub]
+ */
 function buildStatTile({ label, figure, denom, gap, sub }) {
   const tile = document.createElement('div');
   tile.className = 'stat-tile' + (gap ? ' gap' : '');
@@ -1400,7 +1410,10 @@ function resolveReadonlyFK(fkName, val) {
 async function saveAdminRow(entityKey, id, li) {
   const cfg = ENTITIES[entityKey];
   const fields = {};
-  $$('[name]', li).forEach(el => { fields[el.name] = el.value.trim(); });
+  $$('[name]', li).forEach(/** @param {Element} e */ e => {
+    const n = /** @type {HTMLInputElement} */ (e);
+    fields[n.name] = (n.value || '').trim();
+  });
 
   // Preserve FKs and primary fields that aren't in the editable form.
   const original = state.data[entityKey].find(x => x.id === id);

@@ -7,6 +7,30 @@ stages:
   - build
   - deploy
 
+# ── Static JS type-check (JSDoc + tsc --checkJs) ──────────────────────────
+# Runs in parallel with the Rust build. Catches missing imports, wrong
+# call signatures, and undefined identifiers across the suite's static/*.js
+# files — the class of bug that ate manifold-edge for a session because
+# Rust's build couldn't see it.
+typecheck-static:
+  image: node:24-alpine
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH
+      changes:
+        - "**/static/**/*.js"
+        - "tsconfig.json"
+        - "global.d.ts"
+    - when: never
+  script:
+    - npx -y -p typescript@5 tsc -p tsconfig.json
+  cache:
+    - key: "npm-cache-v1"
+      paths:
+        - /root/.npm/
+      when: always
+
 build:
   stage: build
   rules:
@@ -48,6 +72,12 @@ deploy:
     - main
   needs:
     - build
+    # Also block on the static typecheck — a red tsc shouldn't deploy even
+    # if the Rust build passes. The job is filtered by changes:, so when no
+    # static files have moved it doesn't even create — gitlab tolerates the
+    # missing dep via optional: true.
+    - job: typecheck-static
+      optional: true
   variables:
     # Stable name so docker compose volumes persist across deploys regardless
     # of the runner's working directory.

@@ -680,7 +680,7 @@ function setWizardStep(n) {
     stepEl.classList.toggle('done', s < n);
   });
   $$('.wizard-pane').forEach(p => p.classList.toggle('hidden', parseInt(p.dataset.pane, 10) !== n));
-  $('#cr-back').disabled = n === 1;
+  /** @type {HTMLButtonElement} */ ($('#cr-back')).disabled = n === 1;
   $('#cr-next').textContent = n === 4 ? 'Submit' : 'Next';
   if (n === 3) refreshPlanPane();
   if (n === 4) renderReviewPane();
@@ -954,8 +954,8 @@ function initChanges() {
   $('#cr-next').addEventListener('click', nextStep);
   $('#cr-recompute').addEventListener('click', refreshPlanPane);
 
-  const entry = $('#cr-chip-entry');
-  entry.addEventListener('keydown', e => {
+  const entry = /** @type {HTMLInputElement} */ ($('#cr-chip-entry'));
+  entry.addEventListener('keydown', /** @param {KeyboardEvent} e */ (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       const v = entry.value.trim();
@@ -978,7 +978,7 @@ function renderPlans() {
   for (const tier of TIERS) {
     const count = state.data.plans.filter(p => (p.tier || '') === tier).length;
     const span = $(`.tier-count[data-count="${tier}"]`);
-    if (span) span.textContent = count;
+    if (span) span.textContent = String(count);
   }
   // Active tab
   $$('.tier-tab').forEach(t => t.classList.toggle('active', t.dataset.tier === state.plans.tier));

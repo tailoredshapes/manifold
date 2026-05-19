@@ -4,14 +4,23 @@
 
 import { openModal } from '/static/manifold-ui.js';
 
+/** @typedef {{ kind?: string, severity?: string, state?: string }} AdvisoryFilter */
+
 const state = {
   route: 'inbox',
+  /** @type {any[]} */
   advisories: [],
+  /** @type {any[]} */
   programs: [],
+  /** @type {any[]} */
   lifecycle: [],
+  /** @type {any[]} */
   comments: [],
+  /** @type {AdvisoryFilter} */
   filter: { kind: '', severity: '', state: 'open' },
+  /** @type {string | null} */
   view: null,           // active saved-view id
+  /** @type {string | null} */
   selected: null,       // selected advisory id
 };
 
@@ -192,7 +201,7 @@ function renderSidebar() {
     }).length;
     const btn = document.createElement('button');
     btn.textContent = v.name;
-    const cnt = document.createElement('span'); cnt.className = 'count'; cnt.textContent = n;
+    const cnt = document.createElement('span'); cnt.className = 'count'; cnt.textContent = String(n);
     btn.appendChild(cnt);
     btn.classList.toggle('active', state.view === v.id);
     btn.onclick = () => applySavedView(v.id);
@@ -206,7 +215,7 @@ function renderSidebar() {
     const n = state.advisories.filter(a => a.kind === k && (a.state !== 'resolved' && a.state !== 'dismissed')).length;
     const btn = document.createElement('button');
     btn.textContent = k;
-    const cnt = document.createElement('span'); cnt.className = 'count'; cnt.textContent = n;
+    const cnt = document.createElement('span'); cnt.className = 'count'; cnt.textContent = String(n);
     btn.appendChild(cnt);
     btn.classList.toggle('active', state.filter.kind === k);
     btn.onclick = () => { state.filter = { kind: k, severity: '', state: 'open' }; state.view = null; state.selected = null; render(); };

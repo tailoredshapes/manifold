@@ -30,7 +30,18 @@
 
 // ── DOM selectors ────────────────────────────────────────────────────────
 
+/**
+ * @param {string} sel
+ * @param {ParentNode} [root]
+ * @returns {Element | null}
+ */
 export const $  = (sel, root = document) => root.querySelector(sel);
+
+/**
+ * @param {string} sel
+ * @param {ParentNode} [root]
+ * @returns {Element[]}
+ */
 export const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
 // ── Element factory ──────────────────────────────────────────────────────
@@ -69,7 +80,10 @@ export function el(tag, attrs = {}, ...children) {
 
 /** HTML-escape a value for safe interpolation into raw strings. Escapes
  *  both quote flavours so attribute values are safe regardless of which
- *  quote style the caller wraps them in. */
+ *  quote style the caller wraps them in.
+ *  @param {*} s
+ *  @returns {string}
+ */
 export function esc(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
@@ -198,6 +212,12 @@ export function updateFooterMeta(text) {
  * Editorial-paper empty state. `hintHtml` may contain markup
  * (e.g. `Press <kbd>n</kbd> to start.`) — caller is responsible for
  * escaping any untrusted content.
+ *
+ * @param {object} spec
+ * @param {string} spec.title
+ * @param {string} spec.lede
+ * @param {string} [spec.hintHtml]
+ * @returns {HTMLElement}
  */
 export function emptyCard({ title, lede, hintHtml }) {
   return el('div', { class: 'empty-card' },
@@ -235,6 +255,30 @@ export function emptyCard({ title, lede, hintHtml }) {
 // removes its own DOM. Caller doesn't need to track open/close state or
 // wire keyboard handlers; Esc and backdrop click both resolve `null`.
 
+/**
+ * @typedef {object} FieldSpec
+ * @property {string} name
+ * @property {string} label
+ * @property {string} [type]
+ *   - "text" (default), "textarea", "select", "radio", "ref"
+ * @property {boolean} [required]
+ * @property {boolean} [full]
+ * @property {string} [placeholder]
+ * @property {string} [default]
+ * @property {Array<string | {code:string,label:string,help?:string}>} [options]
+ *   - string[] for "select"; structured objects for "radio".
+ * @property {string} [refKey]
+ *
+ * @typedef {object} OpenModalSpec
+ * @property {string} title
+ * @property {string} [intro]
+ * @property {string} [submit]
+ * @property {FieldSpec[]} fields
+ * @property {(refKey: string) => any[]} [lookupRef]
+ *
+ * @param {OpenModalSpec} spec
+ * @returns {Promise<Record<string, string> | null>}
+ */
 export function openModal(spec) {
   return new Promise(resolve => {
     const backdrop = document.createElement('div');
@@ -268,7 +312,11 @@ export function openModal(spec) {
       wrap.appendChild(label);
 
       if (f.type === 'radio') {
-        for (const opt of f.options || []) {
+        // Radio's options are structured {code, label, help?} objects, not strings.
+        const radioOpts = /** @type {Array<{code:string,label:string,help?:string}>} */ (
+          f.options || []
+        );
+        for (const opt of radioOpts) {
           const id = `r_${f.name}_${opt.code}`;
           const row = document.createElement('label');
           row.className = 'modal-radio';
@@ -292,7 +340,9 @@ export function openModal(spec) {
         s.name = f.name;
         if (f.required) s.required = true;
         s.appendChild(new Option('—', ''));
-        for (const opt of f.options || []) {
+        // Select's options are plain strings (vs radio's structured objects).
+        const selectOpts = /** @type {string[]} */ (f.options || []);
+        for (const opt of selectOpts) {
           const o = new Option(opt, opt);
           if (opt === f.default) o.selected = true;
           s.appendChild(o);
@@ -381,6 +431,11 @@ export function openModal(spec) {
 /**
  * Build a `<div class="field">` with a labeled input/select/textarea.
  * Returns the wrapper div; the input itself has the field's `name`.
+ *
+ * @param {FieldSpec} field
+ * @param {*} value
+ * @param {(refKey: string) => any[]} [lookupRef]
+ * @returns {HTMLElement}
  */
 export function fieldInput(field, value, lookupRef = () => []) {
   const id = `f-${field.name}-${Math.random().toString(36).slice(2, 8)}`;
@@ -420,9 +475,11 @@ export function fieldInput(field, value, lookupRef = () => []) {
 /** Read every `[name]`d input inside `container` into a plain object,
  *  skipping empty strings. */
 export function readForm(container) {
+  /** @type {Record<string, string>} */
   const out = {};
-  $$('[name]', container).forEach(node => {
-    const v = node.value.trim();
+  $$('[name]', container).forEach(/** @type {Element} */ n => {
+    const node = /** @type {HTMLInputElement} */ (n);
+    const v = (node.value || '').trim();
     if (v !== '') out[node.name] = v;
   });
   return out;

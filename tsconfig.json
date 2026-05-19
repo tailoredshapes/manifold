@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "/static/manifold-ui.js": ["./manifold-ui/static/manifold-ui.js"]
+    },
+    "types": []
+  },
+  "include": [
+    "manifold-ui/static/*.js",
+    "yard/static/app.js",
+    "groundwork/static/app.js",
+    "cityhall/static/app.js",
+    "union/static/app.js",
+    "manifold-lobby/static/app.js",
+    "global.d.ts"
+  ]
+}
