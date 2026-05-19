@@ -4,17 +4,72 @@
 
 import { openModal } from '/static/manifold-ui.js';
 
-/** @typedef {{ kind?: string, severity?: string, state?: string }} AdvisoryFilter */
+/**
+ * @typedef {object} Advisory
+ * @property {string} id
+ * @property {string} kind
+ * @property {string} [subject_type]
+ * @property {string} [subject_id]
+ * @property {string} [subject_name]
+ * @property {string} severity
+ * @property {string} state
+ * @property {string} [rule]
+ * @property {string} [explain]
+ * @property {string} [raised_at]
+ * @property {string} [acknowledged_at]
+ * @property {string} [dismissed_at]
+ * @property {string} [resolved_at]
+ * @property {string} [dismiss_reason]
+ * @property {string} [dismiss_note]
+ * @property {string} [re_raise_count]
+ *   - Stringified by meshql like the rest of the scalar fields.
+ * @property {string} [last_action]
+ * @property {string} [assignee]
+ * @property {string} [programs]
+ *   - Comma-separated list of program IDs this advisory has been
+ *     associated with (via ProgramMembership), populated by lobby's
+ *     resolver. Empty/absent means "no program tag".
+ *
+ * @typedef {object} Program
+ * @property {string} id
+ * @property {string} name
+ * @property {string} [description]
+ * @property {string} [leadership]
+ * @property {string} [color]
+ *
+ * @typedef {object} LifecycleEntry
+ * @property {string} id
+ * @property {string} advisory_id
+ * @property {string} at
+ * @property {string} [actor_type]
+ * @property {string} [actor_id]
+ * @property {string} action
+ * @property {string} [reason]
+ * @property {string} [note]
+ *
+ * @typedef {object} Comment
+ * @property {string} id
+ * @property {string} [author]
+ * @property {string} [body]
+ * @property {string} [at]
+ *
+ * @typedef {object} SavedView
+ * @property {string} id
+ * @property {string} name
+ * @property {AdvisoryFilter} filter
+ *
+ * @typedef {{ kind?: string, severity?: string, state?: string }} AdvisoryFilter
+ */
 
 const state = {
   route: 'inbox',
-  /** @type {any[]} */
+  /** @type {Advisory[]} */
   advisories: [],
-  /** @type {any[]} */
+  /** @type {Program[]} */
   programs: [],
-  /** @type {any[]} */
+  /** @type {LifecycleEntry[]} */
   lifecycle: [],
-  /** @type {any[]} */
+  /** @type {Comment[]} */
   comments: [],
   /** @type {AdvisoryFilter} */
   filter: { kind: '', severity: '', state: 'open' },
@@ -24,6 +79,7 @@ const state = {
   selected: null,       // selected advisory id
 };
 
+/** @type {SavedView[]} */
 const SAVED_VIEWS = [
   { id: 'cto',       name: 'CTO summary',     filter: { severity: 'critical', state: 'open' } },
   { id: 'ea',        name: 'EA: structural',  filter: { kind: 'CircularDependency,UndocumentedInterface', state: 'open' } },
@@ -33,6 +89,11 @@ const SAVED_VIEWS = [
 
 // ── Data fetch ────────────────────────────────────────────────────────────
 
+/**
+ * @param {string} path
+ * @param {string} query
+ * @returns {Promise<any>}
+ */
 async function gql(path, query) {
   const r = await fetch(path, {
     method: 'POST',
@@ -44,6 +105,7 @@ async function gql(path, query) {
   return j.data;
 }
 
+/** @returns {Promise<void>} */
 async function loadAll() {
   const [adv, prog, life] = await Promise.all([
     gql('/advisory/graph', '{ getAll { id kind subject_type subject_id subject_name severity state rule explain raised_at acknowledged_at dismissed_at resolved_at dismiss_reason dismiss_note re_raise_count last_action assignee } }'),
@@ -57,6 +119,7 @@ async function loadAll() {
   state.lifecycle = (life?.getAll || []).sort((a, b) => (b.at || '').localeCompare(a.at || ''));
 }
 
+/** @param {string} advisoryId @returns {Promise<void>} */
 async function loadComments(advisoryId) {
   const d = await gql('/comment/graph',
     `{ getByAdvisoryId(advisory_id: "${advisoryId}") { id author body at } }`);
@@ -65,6 +128,11 @@ async function loadComments(advisoryId) {
 
 // ── Actions ───────────────────────────────────────────────────────────────
 
+/**
+ * @param {string} path
+ * @param {Record<string, any>} [body]
+ * @returns {Promise<Response>}
+ */
 async function post(path, body) {
   const r = await fetch(path, {
     method: 'POST',
@@ -75,11 +143,13 @@ async function post(path, body) {
   return r;
 }
 
+/** @param {string} id */
 async function ack(id) {
   await post(`/advisory/${id}/acknowledge`, {});
   await refresh();
 }
 
+/** @type {Array<{code:string,label:string,help?:string}>} */
 const DISMISS_REASONS = [
   { code: 'false-positive',        label: 'False positive',         help: 'The rule fired but the underlying concern isn\'t real.' },
   { code: 'accepted-risk',         label: 'Accepted risk',          help: 'Acknowledged, weighed, accepted by an owner.' },
@@ -88,6 +158,7 @@ const DISMISS_REASONS = [
   { code: 'other',                 label: 'Other',                  help: 'Use the note field to explain.' },
 ];
 
+/** @param {string} id */
 async function dismiss(id) {
   const adv = state.advisories.find(a => a.id === id);
   const choice = await openModal({
@@ -103,6 +174,7 @@ async function dismiss(id) {
   await post(`/advisory/${id}/dismiss`, { reason: choice.reason, note: choice.note || undefined });
   await refresh();
 }
+/** @param {string} id */
 async function escalate(id) {
   const choice = await openModal({
     title: 'Escalate advisory',
@@ -116,6 +188,7 @@ async function escalate(id) {
   await post(`/advisory/${id}/escalate`, { to: choice.to, note: choice.note || undefined });
   await refresh();
 }
+/** @param {string} id */
 async function assign(id) {
   const choice = await openModal({
     title: 'Assign advisory',
@@ -126,6 +199,7 @@ async function assign(id) {
   await post(`/advisory/${id}/assign`, { assignee: choice.assignee });
   await refresh();
 }
+/** @param {string} id */
 async function comment(id) {
   const choice = await openModal({
     title: 'Add comment',
@@ -145,6 +219,7 @@ async function deriveNow() {
   await refresh();
 }
 
+/** @returns {Promise<void>} */
 async function refresh() {
   await loadAll();
   if (state.selected) await loadComments(state.selected);
@@ -153,6 +228,7 @@ async function refresh() {
 
 // ── Filtering / saved views ───────────────────────────────────────────────
 
+/** @param {Advisory} a @returns {boolean} */
 function matchesFilter(a) {
   const f = state.filter;
   if (f.state === 'open' && (a.state === 'resolved' || a.state === 'dismissed')) return false;
@@ -165,6 +241,7 @@ function matchesFilter(a) {
   return true;
 }
 
+/** @param {string} id */
 function applySavedView(id) {
   const v = SAVED_VIEWS.find(v => v.id === id);
   if (!v) return;
@@ -223,6 +300,7 @@ function renderSidebar() {
   }
 }
 
+/** @param {string | null | undefined} raisedAt @returns {string} */
 function ageOf(raisedAt) {
   if (!raisedAt) return '—';
   const t = Date.parse(raisedAt);
@@ -304,6 +382,7 @@ function renderInbox() {
   c.appendChild(ul);
 }
 
+/** @param {Advisory} a @returns {HTMLElement} */
 function renderDrawer(a) {
   const drawer = document.createElement('div');
   drawer.className = 'drawer';
@@ -365,6 +444,7 @@ function renderDrawer(a) {
   return drawer;
 }
 
+/** @param {Advisory} a @returns {string} */
 function subjectSourceLink(a) {
   // Deep-link to the owning app's hash-route. Tildarc domains in prod; in
   // dev these are the docker-compose ports.
