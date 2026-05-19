@@ -368,6 +368,10 @@ function render() {
   else if (state.screen === 'lifecycle')         renderLifecycle(root);
   else if (state.screen.startsWith('settings:')) renderSettings(root, state.screen.slice('settings:'.length));
   else                                           renderEnvironments(root);
+
+  // URL mirrors state — keeps shareable links in lockstep with what
+  // the user is actually looking at.
+  syncUrl();
 }
 
 // ── Screen: Environments ─────────────────────────────────────────────────────
@@ -1230,6 +1234,10 @@ function buildPlanPanelRow(env) {
   const plan = state.resetPlans.get(env.id);
   if (!plan) {
     panel.appendChild(el('div', { class: 'plan-empty' }, 'Computing plan…'));
+    // Cold-load case: URL lands on #lifecycle/<envId> with no plan cached.
+    // togglePlan didn't run, so we kick the fetch here. ensurePlanFetched
+    // is idempotent — repeated renders during loading won't pile up requests.
+    ensurePlanFetched(env.id);
   } else {
     renderPlanPanel(panel, plan);
   }
@@ -1296,26 +1304,38 @@ function renderPlanPanel(panel, plan) {
   }
 }
 
-async function togglePlan(envId) {
+// Idempotent fetch — kicked off from togglePlan AND from buildPlanPanelRow
+// (when a cold load lands on #lifecycle/<envId> with no plan cached yet).
+const _inFlightPlans = new Set();
+async function ensurePlanFetched(envId) {
+  if (state.resetPlans.has(envId)) return;
+  if (_inFlightPlans.has(envId)) return;
+  _inFlightPlans.add(envId);
+  try {
+    const plan = await apiFetch(`/test_environment/${envId}/reset_plan`);
+    state.resetPlans.set(envId, plan);
+    if (state.screen === 'lifecycle' && state.expandedPlanEnvId === envId) {
+      render();
+    }
+  } catch (e) {
+    setError(e);
+  } finally {
+    _inFlightPlans.delete(envId);
+  }
+}
+
+function togglePlan(envId) {
   if (state.expandedPlanEnvId === envId) {
     state.expandedPlanEnvId = null;
     render();
     return;
   }
   state.expandedPlanEnvId = envId;
+  // Blockers (in-flight runs) are live — drop the cache so the open
+  // always reflects current state rather than a stale snapshot.
+  state.resetPlans.delete(envId);
   render();
-  // Fetch if not cached. Refresh on every open since blockers (in-flight
-  // runs) are live — staleness here would be worse than a quick refetch.
-  try {
-    const plan = await apiFetch(`/test_environment/${envId}/reset_plan`);
-    state.resetPlans.set(envId, plan);
-    // Only re-render if the user hasn't navigated away or closed in flight.
-    if (state.screen === 'lifecycle' && state.expandedPlanEnvId === envId) {
-      render();
-    }
-  } catch (e) {
-    setError(e);
-  }
+  ensurePlanFetched(envId);
 }
 
 function fmtTimestamp(iso) {
@@ -1469,33 +1489,89 @@ function isValidScreen(name) {
     .some(el => el.dataset.screen === name);
 }
 
-function setScreen(screen) {
-  state.screen = screen;
-  state.search = '';
-  $('#search').value = '';
+// Hash format: `#<screen>` or `#<screen>/<id>`. The id, when present,
+// targets a specific row/card/plan within that screen so URLs are shareable
+// ("here's the env I'm asking about"). We derive the hash from state on
+// every render so it always reflects what's on screen; expand/collapse
+// uses history.replaceState (not assigning location.hash) to avoid
+// piling up a back-button entry per click.
+
+function parseHash(raw) {
+  const s = (raw || '').replace(/^#/, '');
+  if (!s) return { screen: null, id: null };
+  const slash = s.indexOf('/');
+  if (slash < 0) return { screen: s, id: null };
+  return { screen: s.slice(0, slash), id: s.slice(slash + 1) || null };
+}
+
+// What `id` slot does this screen care about? Returns null for screens
+// without per-row focus (none currently — sync uses syncEnvId).
+function expandedIdForScreen(screen) {
+  if (screen === 'environments') return state.expandedEnvId;
+  if (screen === 'runs')         return state.expandedRunId;
+  if (screen === 'sync')         return state.syncEnvId;
+  if (screen === 'lifecycle')    return state.expandedPlanEnvId;
+  if (screen && screen.startsWith('settings:')) return state.expandedSettingId;
+  return null;
+}
+
+function applyExpandedId(screen, id) {
+  // Reset the per-screen expanded fields first so leftover state from
+  // another screen doesn't leak when the URL routes us elsewhere.
   state.expandedEnvId = null;
   state.expandedRunId = null;
   state.expandedSettingId = null;
+  state.expandedPlanEnvId = null;
+  // syncEnvId is reassigned (sync is more "selection" than "expansion").
+  if (screen === 'sync') {
+    state.syncEnvId = id || state.syncEnvId;
+  } else if (!id) {
+    // no-op
+  } else if (screen === 'environments')      state.expandedEnvId = id;
+  else if (screen === 'runs')                state.expandedRunId = id;
+  else if (screen === 'lifecycle')           state.expandedPlanEnvId = id;
+  else if (screen.startsWith('settings:'))   state.expandedSettingId = id;
+}
+
+function buildHashFromState() {
+  if (!state.screen) return '';
+  const id = expandedIdForScreen(state.screen);
+  return id ? `${state.screen}/${id}` : state.screen;
+}
+
+// Push current state into the URL. Called from render() so any state
+// mutation that leads to a re-render also keeps the URL fresh.
+function syncUrl() {
+  const want = buildHashFromState();
+  if (!want) return;
+  if (location.hash.slice(1) !== want) {
+    history.replaceState(null, '', `#${want}`);
+  }
+}
+
+function setScreen(screen, id = null) {
+  state.screen = screen;
+  state.search = '';
+  $('#search').value = '';
+  applyExpandedId(screen, id);
   closeMenu();
   render();
-
-  if (location.hash.slice(1) !== screen) {
-    location.hash = screen;
-  }
 }
 
 function initHashRouting() {
   window.addEventListener('hashchange', () => {
-    const key = location.hash.slice(1);
-    if (isValidScreen(key) && key !== state.screen) {
-      setScreen(key);
-    }
+    const { screen, id } = parseHash(location.hash);
+    if (!screen || !isValidScreen(screen)) return;
+    // Avoid render loop when the hash already matches what's on screen.
+    if (screen === state.screen && id === expandedIdForScreen(screen)) return;
+    setScreen(screen, id);
   });
-  const initial = location.hash.slice(1);
-  if (isValidScreen(initial)) {
-    state.screen = initial;
+  const { screen, id } = parseHash(location.hash);
+  if (screen && isValidScreen(screen)) {
+    state.screen = screen;
+    applyExpandedId(screen, id);
   } else {
-    location.replace('#' + state.screen);
+    history.replaceState(null, '', `#${state.screen}`);
   }
 }
 
