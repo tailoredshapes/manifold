@@ -1088,7 +1088,7 @@ function renderSync(root) {
   const leftCard  = el('div', { class: 'card sync-panel' });
   const envSelect = el('select', { onChange: e => { state.syncEnvId = e.target.value; render(); } });
   for (const e of state.data.testEnvironments) {
-    const o = el('option', { value: e.id }, e.name || e.id);
+    const o = /** @type {HTMLOptionElement} */ (el('option', { value: e.id }, e.name || e.id));
     if (e.id === state.syncEnvId) o.selected = true;
     envSelect.appendChild(o);
   }

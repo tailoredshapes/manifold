@@ -58,6 +58,11 @@ export const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel
  *
  * Children may be strings, numbers, or DOM nodes. Null/false/undefined
  * children are skipped (so you can short-circuit with `cond && el(...)`).
+ *
+ * @param {string} tag
+ * @param {Record<string, any>} [attrs]
+ * @param {...(Node | string | number | false | null | undefined | Array<Node | string | number | false | null | undefined>)} children
+ * @returns {HTMLElement}
  */
 export function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -73,7 +78,13 @@ export function el(tag, attrs = {}, ...children) {
   }
   for (const c of children.flat()) {
     if (c == null || c === false) continue;
-    node.appendChild(c.nodeType ? c : document.createTextNode(String(c)));
+    // c is string | number | Node here (null/false filtered above). Branch
+    // on Node-ness so tsc can narrow; the runtime check is unchanged.
+    if (typeof c === 'object' && /** @type {Node} */ (c).nodeType) {
+      node.appendChild(/** @type {Node} */ (c));
+    } else {
+      node.appendChild(document.createTextNode(String(c)));
+    }
   }
   return node;
 }
@@ -96,6 +107,10 @@ export function esc(s) {
  * Thin fetch wrapper that throws on non-2xx with the body in the message.
  * Returns parsed JSON for application/json responses; raw text otherwise;
  * null for 204.
+ *
+ * @param {string} url
+ * @param {RequestInit} [opts]
+ * @returns {Promise<any>}
  */
 export async function apiFetch(url, opts) {
   const res = await fetch(url, opts);
@@ -111,6 +126,11 @@ export async function apiFetch(url, opts) {
 /**
  * POST a GraphQL query to `path` and unwrap `data` from the response.
  * Throws on transport failure OR if the response includes `errors`.
+ *
+ * @param {string} path
+ * @param {string} query
+ * @param {Record<string, any>} [variables]
+ * @returns {Promise<any>}
  */
 export async function gqlQuery(path, query, variables = {}) {
   const res = await fetch(path, {
@@ -136,11 +156,28 @@ export async function gqlQuery(path, query, variables = {}) {
 // Load it once at boot, then crossLink() builds anchors to other apps
 // without hardcoding hostnames.
 
+/**
+ * @typedef {object} ManifoldConfig
+ * @property {string} [groundwork_public_url]
+ * @property {string} [union_public_url]
+ * @property {string} [cityhall_public_url]
+ * @property {string} [yard_public_url]
+ * @property {string} [lobby_public_url]
+ */
+
+/** @type {ManifoldConfig} */
 let _config = {};
 
+/** @param {ManifoldConfig} c */
 export function setManifoldConfig(c) { _config = c || {}; }
+
+/** @returns {ManifoldConfig} */
 export function getManifoldConfig() { return _config; }
 
+/**
+ * @param {string} [url]
+ * @returns {Promise<void>}
+ */
 export async function loadManifoldConfig(url = '/config.json') {
   try {
     const res = await fetch(url);
@@ -154,6 +191,12 @@ export async function loadManifoldConfig(url = '/config.json') {
  * Build a cross-app anchor pointing at `<base>#<screen>[/<id>]`. Falls
  * back to plain escaped text when the target app's public URL is unknown,
  * so a missing peer URL never produces a broken link.
+ *
+ * @param {string} appKey   - one of "groundwork" / "union" / "cityhall" / "yard" / "lobby"
+ * @param {string} screen   - hash route within the target app
+ * @param {string | null | undefined} id
+ * @param {string} label
+ * @returns {string} an `<a>` HTML fragment, or escaped text if the target URL isn't known
  */
 export function crossLink(appKey, screen, id, label) {
   const base = _config[`${appKey}_public_url`];
@@ -170,6 +213,10 @@ let _statusTimer = null;
  * Show a transient message in `#status-strip`. `kind` is "info" or
  * "error". Auto-dismisses after a short delay unless `{ sticky: true }`.
  * Pass an empty/falsy message to hide.
+ *
+ * @param {string} message
+ * @param {'info' | 'error'} [kind]
+ * @param {{ sticky?: boolean }} [opts]
  */
 export function setStatus(message, kind = 'info', { sticky = false } = {}) {
   const strip = $('#status-strip');
@@ -192,15 +239,21 @@ export function setStatus(message, kind = 'info', { sticky = false } = {}) {
   }
 }
 
-/** Convenience: show err.message in the status strip as an error. */
+/**
+ * Convenience: show err.message in the status strip as an error.
+ * @param {Error | string | null | undefined | false} err
+ */
 export function setError(err) {
   if (!err) return setStatus('');
-  setStatus(err.message || String(err), 'error');
+  setStatus((/** @type {Error} */ (err)).message || String(err), 'error');
 }
 
 // ── Footer meta ──────────────────────────────────────────────────────────
 
-/** Set the right-aligned counter text in the page footer. */
+/**
+ * Set the right-aligned counter text in the page footer.
+ * @param {string} text
+ */
 export function updateFooterMeta(text) {
   const node = document.getElementById('footer-meta');
   if (node) node.textContent = text || '';
@@ -445,17 +498,18 @@ export function fieldInput(field, value, lookupRef = () => []) {
   } else if (field.type === 'select') {
     input = el('select', { id, name: field.name });
     input.appendChild(el('option', { value: '' }, '—'));
-    for (const opt of field.options || []) {
-      const o = el('option', { value: opt }, opt);
+    const selectOpts = /** @type {string[]} */ (field.options || []);
+    for (const opt of selectOpts) {
+      const o = /** @type {HTMLOptionElement} */ (el('option', { value: opt }, opt));
       if (opt === value) o.selected = true;
       input.appendChild(o);
     }
   } else if (field.type === 'ref') {
     input = el('select', { id, name: field.name });
     input.appendChild(el('option', { value: '' }, '— none —'));
-    for (const item of lookupRef(field.refKey) || []) {
+    for (const item of lookupRef(field.refKey || '') || []) {
       const lbl = item.name || item.target_env_id || item.id;
-      const o = el('option', { value: item.id }, lbl);
+      const o = /** @type {HTMLOptionElement} */ (el('option', { value: item.id }, lbl));
       if (item.id === value) o.selected = true;
       input.appendChild(o);
     }

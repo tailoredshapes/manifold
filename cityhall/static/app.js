@@ -1098,7 +1098,9 @@ function renderBylawsScreen() {
   const cur = state.bylaws.selectedOrg;
   sel.innerHTML = '<option value="">— select —</option>';
   for (const n of state.data.orgNodes) {
-    const opt = el('option', { value: n.id }, `${n.name || n.id} (${n.kind || '?'})`);
+    const opt = /** @type {HTMLOptionElement} */ (
+      el('option', { value: n.id }, `${n.name || n.id} (${n.kind || '?'})`)
+    );
     if (n.id === cur) opt.selected = true;
     sel.appendChild(opt);
   }
