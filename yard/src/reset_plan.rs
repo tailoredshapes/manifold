@@ -15,7 +15,7 @@ use chrono::{DateTime, Utc};
 use meshql_core::Repository;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,50 +79,9 @@ pub async fn compute(inputs: PlanInputs<'_>) -> anyhow::Result<ResetPlan> {
         anyhow::anyhow!("test environment {} not found", inputs.target_env_id)
     })?;
 
-    // ── Steps: every sync whose target_env_id is us ──────────────────────
-    let direct_syncs: Vec<&DataSync> = syncs
-        .iter()
-        .filter(|s| s.target_env_id == inputs.target_env_id)
-        .collect();
-
-    let mut steps: Vec<ResetStep> = Vec::new();
-    let mut step_index_by_sync: HashMap<String, usize> = HashMap::new();
-    let mut order: usize = 0;
-
-    // For each direct sync, recursively include any sync that feeds OUR
-    // source env (one hop — deep cascades are out of scope for v0.1).
-    for sync in &direct_syncs {
-        if let Some(src_env_id) = sync.source_env_id.as_deref() {
-            let predecessor = syncs.iter().find(|s| s.target_env_id == src_env_id);
-            if let Some(pre) = predecessor {
-                if !step_index_by_sync.contains_key(&pre.id) {
-                    order += 1;
-                    let step = build_step(order, pre, &envs, &infras, &sources, &[]);
-                    step_index_by_sync.insert(pre.id.clone(), order);
-                    steps.push(step);
-                }
-            }
-        }
-    }
-    for sync in &direct_syncs {
-        if step_index_by_sync.contains_key(&sync.id) {
-            continue;
-        }
-        let preds: Vec<usize> = sync
-            .source_env_id
-            .as_deref()
-            .and_then(|src_id| syncs.iter().find(|s| s.target_env_id == src_id))
-            .and_then(|pre| step_index_by_sync.get(&pre.id).copied())
-            .map(|o| vec![o])
-            .unwrap_or_default();
-        order += 1;
-        let step = build_step(order, sync, &envs, &infras, &sources, &preds);
-        step_index_by_sync.insert(sync.id.clone(), order);
-        steps.push(step);
-    }
-
-    // ── Blockers ────────────────────────────────────────────────────────
-    let mut blockers: Vec<ResetBlocker> = Vec::new();
+    // Walk the full dataSync dependency chain → ordered steps + cycle blockers.
+    let (steps, mut blockers) =
+        plan_steps_and_cycles(inputs.target_env_id, &syncs, &envs, &infras, &sources);
 
     if steps.is_empty() {
         blockers.push(ResetBlocker {
@@ -195,6 +154,221 @@ pub async fn compute(inputs: PlanInputs<'_>) -> anyhow::Result<ResetPlan> {
         steps,
         blockers,
     })
+}
+
+/// Pure planning core: turns the loaded sync graph into an ordered list of
+/// steps plus any cycle / ambiguous-feeder blockers.
+///
+/// **Algorithm.** Each `DataSync` is a node. An edge A → B exists when
+/// B.target_env_id == A.source_env_id — i.e. B must complete before A so the
+/// data A is about to pull is fresh. We DFS from every sync whose
+/// `target_env_id` matches the requested target env, following source_env_id
+/// chains as far as they go. A standard white/grey/black coloring detects
+/// back-edges (cycles). Post-order emission yields a topological order
+/// (predecessors before dependents). Cycles don't abort the walk: the
+/// non-cyclic frontier is still planned, and each distinct cycle is reported
+/// as a `cycle_detected` blocker.
+fn plan_steps_and_cycles(
+    target_env_id: &str,
+    syncs: &[DataSync],
+    envs: &HashMap<String, EnvLite>,
+    infras: &HashMap<String, InfraLite>,
+    sources: &HashMap<String, SourceLite>,
+) -> (Vec<ResetStep>, Vec<ResetBlocker>) {
+    let sync_by_id: HashMap<&str, &DataSync> =
+        syncs.iter().map(|s| (s.id.as_str(), s)).collect();
+
+    // For env→sync lookup we need at most one feeder per env. If multiple
+    // syncs target the same env, prefer a deterministic pick (lowest id);
+    // we surface the duplication as a blocker so operators can untangle it.
+    let mut feeder_by_env: HashMap<&str, &DataSync> = HashMap::new();
+    let mut envs_with_multiple_feeders: HashSet<&str> = HashSet::new();
+    for sync in syncs {
+        let target = sync.target_env_id.as_str();
+        match feeder_by_env.get(target) {
+            None => {
+                feeder_by_env.insert(target, sync);
+            }
+            Some(existing) => {
+                envs_with_multiple_feeders.insert(target);
+                if sync.id < existing.id {
+                    feeder_by_env.insert(target, sync);
+                }
+            }
+        }
+    }
+
+    let direct_syncs: Vec<&DataSync> = syncs
+        .iter()
+        .filter(|s| s.target_env_id == target_env_id)
+        .collect();
+
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Color {
+        White,
+        Grey,
+        Black,
+    }
+    let mut color: HashMap<&str, Color> =
+        syncs.iter().map(|s| (s.id.as_str(), Color::White)).collect();
+    let mut stack_envs: Vec<&str> = Vec::new();
+    let mut post_order: Vec<&str> = Vec::new();
+    let mut cycles: Vec<Vec<String>> = Vec::new();
+
+    fn visit<'a>(
+        sync_id: &'a str,
+        sync_by_id: &HashMap<&'a str, &'a DataSync>,
+        feeder_by_env: &HashMap<&'a str, &'a DataSync>,
+        color: &mut HashMap<&'a str, Color>,
+        stack_envs: &mut Vec<&'a str>,
+        post_order: &mut Vec<&'a str>,
+        cycles: &mut Vec<Vec<String>>,
+    ) {
+        let Some(sync) = sync_by_id.get(sync_id).copied() else {
+            return;
+        };
+        match color.get(sync_id).copied().unwrap_or(Color::White) {
+            Color::Black => return,
+            Color::Grey => return, // shouldn't happen — caller guards
+            Color::White => {}
+        }
+        color.insert(sync_id, Color::Grey);
+        stack_envs.push(sync.target_env_id.as_str());
+
+        if let Some(src_env_id) = sync.source_env_id.as_deref() {
+            if let Some(cycle_start) = stack_envs.iter().position(|e| *e == src_env_id) {
+                // Back-edge to an env on the current path → cycle.
+                let mut cyc: Vec<String> = stack_envs[cycle_start..]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
+                cyc.push(src_env_id.to_string()); // close the loop visually
+                cycles.push(cyc);
+            } else if let Some(pred_sync) = feeder_by_env.get(src_env_id).copied() {
+                if color
+                    .get(pred_sync.id.as_str())
+                    .copied()
+                    .unwrap_or(Color::White)
+                    != Color::Black
+                {
+                    visit(
+                        pred_sync.id.as_str(),
+                        sync_by_id,
+                        feeder_by_env,
+                        color,
+                        stack_envs,
+                        post_order,
+                        cycles,
+                    );
+                }
+            }
+        }
+
+        stack_envs.pop();
+        color.insert(sync_id, Color::Black);
+        post_order.push(sync_id);
+    }
+
+    for sync in &direct_syncs {
+        if color.get(sync.id.as_str()).copied().unwrap_or(Color::White) == Color::White {
+            visit(
+                sync.id.as_str(),
+                &sync_by_id,
+                &feeder_by_env,
+                &mut color,
+                &mut stack_envs,
+                &mut post_order,
+                &mut cycles,
+            );
+        }
+    }
+
+    let mut steps: Vec<ResetStep> = Vec::new();
+    let mut step_index_by_sync: HashMap<String, usize> = HashMap::new();
+    for (idx, sync_id) in post_order.iter().enumerate() {
+        let order = idx + 1;
+        let Some(sync) = sync_by_id.get(sync_id).copied() else {
+            continue;
+        };
+        let preds: Vec<usize> = sync
+            .source_env_id
+            .as_deref()
+            .and_then(|src_id| feeder_by_env.get(src_id).copied())
+            .and_then(|pre| step_index_by_sync.get(&pre.id).copied())
+            .map(|o| vec![o])
+            .unwrap_or_default();
+        let step = build_step(order, sync, envs, infras, sources, &preds);
+        step_index_by_sync.insert(sync.id.clone(), order);
+        steps.push(step);
+    }
+
+    let mut blockers: Vec<ResetBlocker> = Vec::new();
+
+    if !cycles.is_empty() {
+        // One blocker per distinct cycle. Dedupe on the env-id set, since
+        // the same SCC can be reached from multiple DFS entry points.
+        let mut seen: HashSet<Vec<String>> = HashSet::new();
+        for cyc in &cycles {
+            let mut key: Vec<String> = cyc
+                .iter()
+                .cloned()
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect();
+            key.sort();
+            if !seen.insert(key) {
+                continue;
+            }
+            let names: Vec<String> = cyc
+                .iter()
+                .map(|id| {
+                    envs.get(id)
+                        .map(|e| e.name.clone())
+                        .unwrap_or_else(|| id.clone())
+                })
+                .collect();
+            let refs: Vec<String> = {
+                let mut s: HashSet<String> = HashSet::new();
+                cyc.iter()
+                    .filter(|id| s.insert((*id).clone()))
+                    .cloned()
+                    .collect()
+            };
+            blockers.push(ResetBlocker {
+                kind: "cycle_detected".into(),
+                message: format!(
+                    "Cycle in dataSync source chain: {}",
+                    names.join(" \u{2192} ")
+                ),
+                references: refs,
+            });
+        }
+    }
+
+    if !envs_with_multiple_feeders.is_empty() {
+        let mut env_ids: Vec<&str> = envs_with_multiple_feeders.iter().copied().collect();
+        env_ids.sort(); // deterministic order for stable test assertions
+        let names: Vec<String> = env_ids
+            .iter()
+            .map(|id| {
+                envs.get(*id)
+                    .map(|e| e.name.clone())
+                    .unwrap_or_else(|| (*id).to_string())
+            })
+            .collect();
+        blockers.push(ResetBlocker {
+            kind: "ambiguous_feeder".into(),
+            message: format!(
+                "{} env{} have multiple syncs targeting them; planner picked one deterministically — review: {}",
+                env_ids.len(),
+                if env_ids.len() == 1 { "" } else { "s" },
+                names.join(", ")
+            ),
+            references: env_ids.iter().map(|s| (*s).to_string()).collect(),
+        });
+    }
+
+    (steps, blockers)
 }
 
 fn build_step(
@@ -415,4 +589,207 @@ async fn load_last_sync_at(
         }
     }
     Ok(latest_raw)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn env(id: &str, name: &str) -> (String, EnvLite) {
+        (
+            id.to_string(),
+            EnvLite {
+                name: name.to_string(),
+                cost_per_hour: None,
+                infrastructure_id: None,
+            },
+        )
+    }
+
+    fn sync(id: &str, target: &str, source_env: Option<&str>) -> DataSync {
+        DataSync {
+            id: id.to_string(),
+            kind: "snapshot".into(),
+            target_env_id: target.to_string(),
+            source_env_id: source_env.map(String::from),
+            source_data_id: None,
+            refresh_policy: None,
+            estimated_minutes: Some(1.0),
+            masking_summary: None,
+        }
+    }
+
+    #[test]
+    fn multi_hop_chain_orders_predecessors_first() {
+        // C ← B ← A (target A pulls from B, B pulls from C)
+        let envs: HashMap<String, EnvLite> =
+            [env("env-a", "A"), env("env-b", "B"), env("env-c", "C")]
+                .into_iter()
+                .collect();
+        let syncs = vec![
+            sync("sync-a", "env-a", Some("env-b")),
+            sync("sync-b", "env-b", Some("env-c")),
+            sync("sync-c", "env-c", None),
+        ];
+        let (steps, blockers) = plan_steps_and_cycles(
+            "env-a",
+            &syncs,
+            &envs,
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        assert_eq!(blockers.len(), 0, "no blockers expected: {:?}", blockers);
+        assert_eq!(steps.len(), 3, "expected 3 steps, got {:?}", steps);
+
+        // Topological order: sync-c (no source) → sync-b → sync-a.
+        assert_eq!(steps[0].data_sync_id, "sync-c");
+        assert_eq!(steps[0].order, 1);
+        assert!(steps[0].predecessor_orders.is_empty());
+
+        assert_eq!(steps[1].data_sync_id, "sync-b");
+        assert_eq!(steps[1].order, 2);
+        assert_eq!(steps[1].predecessor_orders, vec![1]);
+
+        assert_eq!(steps[2].data_sync_id, "sync-a");
+        assert_eq!(steps[2].order, 3);
+        assert_eq!(steps[2].predecessor_orders, vec![2]);
+    }
+
+    #[test]
+    fn cycle_emits_cycle_detected_blocker_and_still_plans_acyclic_portion() {
+        // env-a ← env-b ← env-a  (two-cycle)
+        let envs: HashMap<String, EnvLite> =
+            [env("env-a", "A"), env("env-b", "B")].into_iter().collect();
+        let syncs = vec![
+            sync("sync-a", "env-a", Some("env-b")),
+            sync("sync-b", "env-b", Some("env-a")),
+        ];
+        let (steps, blockers) = plan_steps_and_cycles(
+            "env-a",
+            &syncs,
+            &envs,
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+
+        let cycle_blockers: Vec<&ResetBlocker> = blockers
+            .iter()
+            .filter(|b| b.kind == "cycle_detected")
+            .collect();
+        assert_eq!(
+            cycle_blockers.len(),
+            1,
+            "expected exactly one cycle blocker, got: {:?}",
+            blockers
+        );
+        let cycle = cycle_blockers[0];
+        assert!(
+            cycle.message.contains("Cycle in dataSync source chain"),
+            "unexpected cycle message: {}",
+            cycle.message
+        );
+        assert!(cycle.references.contains(&"env-a".to_string()));
+        assert!(cycle.references.contains(&"env-b".to_string()));
+
+        // Best-effort: both syncs should still be planned (post-order off the
+        // grey-hit doesn't abort the parent's emission).
+        assert_eq!(steps.len(), 2);
+    }
+
+    #[test]
+    fn three_cycle_is_detected() {
+        // env-a ← env-b ← env-c ← env-a
+        let envs: HashMap<String, EnvLite> =
+            [env("env-a", "A"), env("env-b", "B"), env("env-c", "C")]
+                .into_iter()
+                .collect();
+        let syncs = vec![
+            sync("sync-a", "env-a", Some("env-b")),
+            sync("sync-b", "env-b", Some("env-c")),
+            sync("sync-c", "env-c", Some("env-a")),
+        ];
+        let (_steps, blockers) = plan_steps_and_cycles(
+            "env-a",
+            &syncs,
+            &envs,
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+        assert!(
+            blockers.iter().any(|b| b.kind == "cycle_detected"),
+            "expected cycle_detected blocker, got: {:?}",
+            blockers
+        );
+    }
+
+    #[test]
+    fn sync_with_only_source_data_id_has_no_predecessor() {
+        // External data source, no upstream env to refresh first.
+        let envs: HashMap<String, EnvLite> = [env("env-a", "A")].into_iter().collect();
+        let sources: HashMap<String, SourceLite> = [(
+            "src-1".to_string(),
+            SourceLite {
+                name: "prod-snapshot".into(),
+            },
+        )]
+        .into_iter()
+        .collect();
+        let mut s = sync("sync-a", "env-a", None);
+        s.source_data_id = Some("src-1".into());
+        let syncs = vec![s];
+        let (steps, blockers) =
+            plan_steps_and_cycles("env-a", &syncs, &envs, &HashMap::new(), &sources);
+        assert!(blockers.is_empty(), "unexpected blockers: {:?}", blockers);
+        assert_eq!(steps.len(), 1);
+        assert!(steps[0].predecessor_orders.is_empty());
+        assert!(steps[0].source_label.contains("prod-snapshot"));
+    }
+
+    #[test]
+    fn multiple_feeders_for_one_env_surfaces_ambiguous_feeder_blocker() {
+        let envs: HashMap<String, EnvLite> =
+            [env("env-a", "A"), env("env-b", "B")].into_iter().collect();
+        let syncs = vec![
+            sync("sync-a", "env-a", Some("env-b")),
+            // Two syncs feeding env-b — operator misconfig.
+            sync("sync-b1", "env-b", None),
+            sync("sync-b2", "env-b", None),
+        ];
+        let (steps, blockers) = plan_steps_and_cycles(
+            "env-a",
+            &syncs,
+            &envs,
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+        assert!(
+            blockers.iter().any(|b| b.kind == "ambiguous_feeder"),
+            "expected ambiguous_feeder blocker, got: {:?}",
+            blockers
+        );
+        // Deterministic pick: lowest id (sync-b1) is the chosen feeder.
+        let env_b_step = steps
+            .iter()
+            .find(|s| s.target_env_id == "env-b")
+            .expect("expected an env-b step");
+        assert_eq!(env_b_step.data_sync_id, "sync-b1");
+    }
+
+    #[test]
+    fn single_direct_sync_with_no_source_emits_one_step() {
+        let envs: HashMap<String, EnvLite> = [env("env-a", "A")].into_iter().collect();
+        let syncs = vec![sync("sync-a", "env-a", None)];
+        let (steps, blockers) = plan_steps_and_cycles(
+            "env-a",
+            &syncs,
+            &envs,
+            &HashMap::new(),
+            &HashMap::new(),
+        );
+        assert!(blockers.is_empty());
+        assert_eq!(steps.len(), 1);
+        assert_eq!(steps[0].order, 1);
+        assert!(steps[0].predecessor_orders.is_empty());
+    }
 }
