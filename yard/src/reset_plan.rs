@@ -177,8 +177,11 @@ pub async fn compute(inputs: PlanInputs<'_>) -> anyhow::Result<ResetPlan> {
         });
     }
 
-    let estimated_total_minutes: f64 = steps.iter().map(|s| s.estimated_minutes).sum();
-    let estimated_total_cost: f64 = steps.iter().map(|s| s.estimated_cost).sum();
+    // `+ 0.0` strips negative-zero — summing an empty step list produces
+    // -0.0 on some platforms and the wire JSON renders as `-0.0`, which is
+    // ugly. Doesn't change any non-zero value.
+    let estimated_total_minutes: f64 = steps.iter().map(|s| s.estimated_minutes).sum::<f64>() + 0.0;
+    let estimated_total_cost: f64 = steps.iter().map(|s| s.estimated_cost).sum::<f64>() + 0.0;
 
     let last_sync_at = load_last_sync_at(inputs.sync_run_repo, inputs.target_env_id).await?;
 
