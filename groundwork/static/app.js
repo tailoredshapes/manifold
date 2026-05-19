@@ -192,8 +192,11 @@ const ENTITIES = {
   },
 };
 
-// Contracts lookups want labels like "v1.2 (Customer API)" rather than the
-// raw id — built once when needed by the ref-select renderer.
+/**
+ * Contracts lookups want labels like "v1.2 (Customer API)" rather than the
+ * raw id — built once when needed by the ref-select renderer.
+ * @returns {Array<{id: string, name: string}>}
+ */
 function contractsForLookup() {
   return state.data.contracts.map(c => {
     const svcName = state.data.services.find(s => s.id === c.service_id)?.name || '?';
@@ -202,36 +205,115 @@ function contractsForLookup() {
   });
 }
 
+// ── Domain types ──────────────────────────────────────────────────────────────
+
+/**
+ * @typedef {object} TeamRef
+ * @property {string} [id]
+ * @property {string} [name]
+ *
+ * @typedef {object} Deployable
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [description]
+ * @property {string} [repo_url]
+ * @property {string} [team_id]
+ * @property {string} [deployment_status]
+ *   - "operational" | "degraded" | "down" | "unknown" (string-typed for
+ *     fixture flexibility; UI buckets unknown values into "unknown").
+ * @property {TeamRef} [team]
+ *
+ * @typedef {object} Service
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [type]
+ * @property {string} [description]
+ * @property {string} [endpoint]
+ *
+ * @typedef {object} Exposes
+ * @property {string} id
+ * @property {string} deployable_id
+ * @property {string} service_id
+ * @property {string} [port]
+ * @property {string} [protocol]
+ *
+ * @typedef {object} Dependency
+ * @property {string} id
+ * @property {string} deployable_id
+ * @property {string} service_id
+ * @property {string} [protocol]
+ * @property {string} [auth_method]
+ * @property {string} [criticality]
+ *
+ * @typedef {object} Contract
+ * @property {string} id
+ * @property {string} service_id
+ * @property {string} [spec_url]
+ * @property {string} [version]
+ * @property {string} [format]
+ *
+ * @typedef {object} Sla
+ * @property {string} id
+ * @property {string} contract_id
+ * @property {string} [metric]
+ * @property {string} [target]
+ * @property {string} [window]
+ *
+ * @typedef {object} TestEnvRef
+ *   Subset returned by yard's getByDeployableId federation.
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [kind]
+ * @property {string} [cost_per_hour]
+ * @property {string} [spinup_minutes]
+ * @property {string} [teardown_policy]
+ * @property {string} [max_duration_minutes]
+ */
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const state = {
   // 'catalog' | 'graph' | 'governance' | `deployable/${id}` | `admin/${entityKey}`
   screen: 'catalog',
-  data: { deployables: [], exposes: [], services: [], dependencies: [], contracts: [], slas: [] },
+  data: {
+    /** @type {Deployable[]} */   deployables: [],
+    /** @type {Exposes[]} */      exposes: [],
+    /** @type {Service[]} */      services: [],
+    /** @type {Dependency[]} */   dependencies: [],
+    /** @type {Contract[]} */     contracts: [],
+    /** @type {Sla[]} */          slas: [],
+  },
   // Catalog filters
   search: '',
   statusFilter: '',
-  // Admin screen: which row is expanded for inline edit
+  /** @type {string | null} */
   expandedId: null,
-  // Federated yard test envs, keyed by deployable_id (best-effort cache).
+  /** @type {Map<string, TestEnvRef[]>} — yard test envs keyed by deployable_id (best-effort cache). */
   testEnvsByDeployable: new Map(),
   // Graph instances — tracked so re-entering tabs doesn't leak listeners.
-  graph: { cy: null, tableMode: false },
-  detailGraph: { cy: null, deployableId: null },
+  graph: { /** @type {any} */ cy: null, tableMode: false },
+  detailGraph: { /** @type {any} */ cy: null, /** @type {string | null} */ deployableId: null },
 };
 
 // ── Data load ─────────────────────────────────────────────────────────────────
 
+/** @param {string} entityKey @returns {Promise<void>} */
 async function loadEntity(entityKey) {
   const cfg = ENTITIES[entityKey];
   const data = await gqlQuery(cfg.graph.path, cfg.graph.list);
   state.data[entityKey] = Array.isArray(data.getAll) ? data.getAll : [];
 }
 
+/** @returns {Promise<void>} */
 async function loadAll() {
   await Promise.all(Object.keys(ENTITIES).map(loadEntity));
 }
 
+/**
+ * @param {string} entityKey
+ * @param {Record<string, any>} fields
+ * @returns {Promise<any>}
+ */
 async function createRecord(entityKey, fields) {
   const cfg = ENTITIES[entityKey];
   return apiFetch(cfg.api, {
@@ -241,6 +323,12 @@ async function createRecord(entityKey, fields) {
   });
 }
 
+/**
+ * @param {string} entityKey
+ * @param {string} id
+ * @param {Record<string, any>} fields
+ * @returns {Promise<any>}
+ */
 async function updateRecord(entityKey, id, fields) {
   const cfg = ENTITIES[entityKey];
   return apiFetch(`${cfg.api}/${id}`, {
@@ -250,14 +338,24 @@ async function updateRecord(entityKey, id, fields) {
   });
 }
 
+/**
+ * @param {string} entityKey
+ * @param {string} id
+ * @returns {Promise<any>}
+ */
 async function deleteRecord(entityKey, id) {
   const cfg = ENTITIES[entityKey];
   return apiFetch(`${cfg.api}/${id}`, { method: 'DELETE' });
 }
 
-// Cross-app: ask yard for the test environments tied to this deployable.
-// Best-effort — auth may not pass cross-origin to yard.tildarc.com, in
-// which case the section just renders empty. CORS is open on meshql-server.
+/**
+ * Cross-app: ask yard for the test environments tied to this deployable.
+ * Best-effort — auth may not pass cross-origin to yard.tildarc.com, in
+ * which case the section just renders empty. CORS is open on meshql-server.
+ *
+ * @param {string} deployableId
+ * @returns {Promise<TestEnvRef[]>}
+ */
 async function fetchTestEnvsForDeployable(deployableId) {
   if (state.testEnvsByDeployable.has(deployableId)) {
     return state.testEnvsByDeployable.get(deployableId);
@@ -284,19 +382,25 @@ const $  = (sel, root = document) => root.querySelector(sel);
 /** @param {string} sel @param {ParentNode} [root] */
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-// Build an intra-app anchor.
+/** @param {string} screen @param {string} label @returns {string} */
 function intraLink(screen, label) {
   return `<a href="#${esc(screen)}">${esc(label)}</a>`;
 }
 
+/** @param {string} id @returns {Deployable | undefined} */
 function deployableById(id) {
   return state.data.deployables.find(d => d.id === id);
 }
+/** @param {string} id @returns {Service | undefined} */
 function serviceById(id) {
   return state.data.services.find(s => s.id === id);
 }
 
-// Services this deployable exposes (resolved through the `exposes` table).
+/**
+ * Services this deployable exposes (resolved through the `exposes` table).
+ * @param {string} deployableId
+ * @returns {Array<{exposesId: string, service_id: string, port?: string, protocol?: string, service: Service | undefined}>}
+ */
 function servicesExposedBy(deployableId) {
   const ids = state.data.exposes
     .filter(e => e.deployable_id === deployableId)
@@ -304,14 +408,23 @@ function servicesExposedBy(deployableId) {
   return ids.map(row => ({ ...row, service: serviceById(row.service_id) }));
 }
 
-// Dependencies declared by this deployable (rows in the `dependencies` table).
+/**
+ * Dependencies declared by this deployable (rows in the `dependencies` table).
+ * @param {string} deployableId
+ * @returns {Dependency[]}
+ */
 function dependenciesOf(deployableId) {
   return state.data.dependencies.filter(d => d.deployable_id === deployableId);
 }
 
-// Reverse-direction: every (deployable, service) pair where the service is
-// exposed by this deployable AND some other deployable has a dependency on
-// that service. Returns array of { dependency, depender }.
+/**
+ * Reverse-direction: every (deployable, service) pair where the service is
+ * exposed by this deployable AND some other deployable has a dependency on
+ * that service.
+ *
+ * @param {string} deployableId
+ * @returns {Array<{dependency: Dependency, depender: Deployable | undefined, service: Service | undefined}>}
+ */
 function dependentsOf(deployableId) {
   const exposedServiceIds = new Set(
     state.data.exposes
@@ -334,6 +447,7 @@ function dependentsOf(deployableId) {
 
 // ── Screen routing ────────────────────────────────────────────────────────────
 
+/** @param {string} screen */
 function setScreen(screen) {
   state.screen = screen;
   state.search = '';
@@ -368,7 +482,7 @@ function setScreen(screen) {
 }
 
 function render() {
-  const root = $('#screen-root');
+  const root = /** @type {HTMLElement} */ ($('#screen-root'));
   root.innerHTML = '';
   // Tear down any prior detail-graph cytoscape so listeners don't pile up.
   if (state.detailGraph.cy) {
@@ -387,6 +501,7 @@ function render() {
 
 // ── Catalog screen ────────────────────────────────────────────────────────────
 
+/** @param {HTMLElement} root */
 function renderCatalog(root) {
   const all = state.data.deployables;
   const needle = state.search.trim().toLowerCase();
@@ -459,6 +574,12 @@ function renderCatalog(root) {
   root.appendChild(grid);
 }
 
+/**
+ * @param {Deployable} d
+ * @param {number} nExposes
+ * @param {number} nDeps
+ * @returns {HTMLElement}
+ */
 function buildDeployableCard(d, nExposes, nDeps) {
   const card = document.createElement('div');
   card.className = 'card deployable-card';
@@ -494,6 +615,13 @@ function buildDeployableCard(d, nExposes, nDeps) {
   return card;
 }
 
+/**
+ * @param {object} spec
+ * @param {string} spec.title
+ * @param {string} spec.lede
+ * @param {string} [spec.hint] - HTML-safe; rendered via innerHTML
+ * @returns {HTMLElement}
+ */
 function emptyState({ title, lede, hint }) {
   const div = document.createElement('div');
   div.className = 'empty-card';
@@ -519,6 +647,7 @@ function emptyState({ title, lede, hint }) {
 // list the specific gaps so they can be acted on, then a "by team" view
 // for the ownership cut.
 
+/** @param {HTMLElement} root */
 function renderGovernance(root) {
   const deployables  = state.data.deployables;
   const services     = state.data.services;
@@ -628,6 +757,13 @@ function buildStatTile({ label, figure, denom, gap, sub }) {
   return tile;
 }
 
+/**
+ * @param {Service[]} servicesNoContract
+ * @param {Exposes[]} exposes
+ * @param {Deployable[]} deployables
+ * @param {Dependency[]} dependencies
+ * @returns {HTMLElement}
+ */
 function buildContractGapsSection(servicesNoContract, exposes, deployables, dependencies) {
   const section = document.createElement('section');
   section.className = 'detail-section';
@@ -684,6 +820,11 @@ function buildContractGapsSection(servicesNoContract, exposes, deployables, depe
   return section;
 }
 
+/**
+ * @param {Contract[]} contractsNoSla
+ * @param {Service[]} services
+ * @returns {HTMLElement}
+ */
 function buildSlaGapsSection(contractsNoSla, services) {
   const section = document.createElement('section');
   section.className = 'detail-section';
@@ -718,6 +859,7 @@ function buildSlaGapsSection(contractsNoSla, services) {
   return section;
 }
 
+/** @param {Deployable[]} unstaffed @returns {HTMLElement} */
 function buildUnstaffedSection(unstaffed) {
   const section = document.createElement('section');
   section.className = 'detail-section';
@@ -742,6 +884,13 @@ function buildUnstaffedSection(unstaffed) {
   return section;
 }
 
+/**
+ * @param {Deployable[]} deployables
+ * @param {Exposes[]} exposes
+ * @param {Contract[]} contracts
+ * @param {Sla[]} slas
+ * @returns {HTMLElement}
+ */
 function buildByTeamSection(deployables, exposes, contracts, slas) {
   const section = document.createElement('section');
   section.className = 'detail-section';
@@ -823,6 +972,7 @@ function buildByTeamSection(deployables, exposes, contracts, slas) {
 
 // ── Deployable detail screen ─────────────────────────────────────────────────
 
+/** @param {HTMLElement} root @param {string} id */
 function renderDeployableDetail(root, id) {
   const d = deployableById(id);
   if (!d) {
@@ -903,10 +1053,16 @@ function renderDeployableDetail(root, id) {
   requestAnimationFrame(() => renderFocusedGraph(d.id));
 }
 
+/** @param {string} url @returns {string} */
 function stripScheme(url) {
   return url.replace(/^https?:\/\//, '');
 }
 
+/**
+ * @param {ReturnType<typeof servicesExposedBy>} exposed
+ * @param {string} deployableId
+ * @returns {HTMLElement}
+ */
 function renderServicesSection(exposed, deployableId) {
   const section = document.createElement('section');
   section.className = 'detail-section';
@@ -955,6 +1111,11 @@ function renderServicesSection(exposed, deployableId) {
   return section;
 }
 
+/**
+ * @param {Dependency[]} deps
+ * @param {string} deployableId
+ * @returns {HTMLElement}
+ */
 function renderDependenciesSection(deps, deployableId) {
   const section = document.createElement('section');
   section.className = 'detail-section';
@@ -1011,6 +1172,10 @@ function renderDependenciesSection(deps, deployableId) {
   return section;
 }
 
+/**
+ * @param {ReturnType<typeof dependentsOf>} dependents
+ * @returns {HTMLElement}
+ */
 function renderDependentsSection(dependents) {
   const section = document.createElement('section');
   section.className = 'detail-section';
@@ -1044,6 +1209,7 @@ function renderDependentsSection(dependents) {
   return section;
 }
 
+/** @param {string} deployableId @returns {HTMLElement} */
 function renderEnvsSectionShell(deployableId) {
   const section = document.createElement('section');
   section.className = 'detail-section';
@@ -1060,6 +1226,11 @@ function renderEnvsSectionShell(deployableId) {
   return section;
 }
 
+/**
+ * @param {Element} slot
+ * @param {TestEnvRef[]} envs
+ * @param {string} deployableId
+ */
 function populateEnvsList(slot, envs, deployableId) {
   slot.classList.remove('lede');
   slot.innerHTML = '';
@@ -1116,6 +1287,7 @@ async function createNewDeployable() {
   } catch (e) { setError(e); }
 }
 
+/** @param {Deployable} d */
 async function editDeployable(d) {
   const fields = ENTITIES.deployables.newFields.map(f => ({ ...f, default: d[f.name] ?? '' }));
   const payload = await openModal({
@@ -1132,6 +1304,7 @@ async function editDeployable(d) {
   } catch (e) { setError(e); }
 }
 
+/** @param {Deployable} d */
 async function deleteDeployable(d) {
   if (!confirm(`Delete deployable "${d.name || d.id}"? This does not remove its exposes/dependencies.`)) return;
   try {
@@ -1142,6 +1315,7 @@ async function deleteDeployable(d) {
   } catch (e) { setError(e); }
 }
 
+/** @param {string} deployableId */
 async function addDependencyForDeployable(deployableId) {
   // Caller is already on the deployable's detail page — fix the deployable_id
   // so the modal only asks for what's new (the service and metadata).
@@ -1162,6 +1336,7 @@ async function addDependencyForDeployable(deployableId) {
   } catch (e) { setError(e); }
 }
 
+/** @param {string} deployableId */
 async function addExposesForDeployable(deployableId) {
   const fields = ENTITIES.exposes.newFields.filter(f => f.name !== 'deployable_id');
   const payload = await openModal({
@@ -1182,6 +1357,7 @@ async function addExposesForDeployable(deployableId) {
 
 // ── Focused subgraph (1-hop neighborhood around a deployable) ────────────────
 
+/** @param {string} deployableId */
 function renderFocusedGraph(deployableId) {
   const cyEl = document.getElementById('dep-mini-graph');
   if (!cyEl) return;
@@ -1243,6 +1419,7 @@ function renderFocusedGraph(deployableId) {
 
 // ── Admin (backstage CRUD) ────────────────────────────────────────────────────
 
+/** @param {HTMLElement} root @param {string} entityKey */
 function renderAdmin(root, entityKey) {
   const cfg = ENTITIES[entityKey];
   if (!cfg) {
@@ -1293,6 +1470,7 @@ function renderAdmin(root, entityKey) {
   root.appendChild(list);
 }
 
+/** @param {string} entityKey @param {Record<string, any>} item @returns {HTMLElement} */
 function buildAdminRow(entityKey, item) {
   const cfg = ENTITIES[entityKey];
   const id = item.id;
@@ -1337,6 +1515,7 @@ function buildAdminRow(entityKey, item) {
   return li;
 }
 
+/** @param {string} entityKey @param {string} id @param {Record<string, any>} payload @returns {string} */
 function buildAdminDetailHTML(entityKey, id, payload) {
   const cfg = ENTITIES[entityKey];
   let html = '';
@@ -1388,6 +1567,7 @@ function buildAdminDetailHTML(entityKey, id, payload) {
   return html;
 }
 
+/** @param {string} fkName @param {string} val @returns {string} */
 function resolveReadonlyFK(fkName, val) {
   if (!val) return '—';
   if (fkName === 'deployable_id') {
@@ -1407,6 +1587,7 @@ function resolveReadonlyFK(fkName, val) {
   return esc(val);
 }
 
+/** @param {string} entityKey @param {string} id @param {HTMLElement} li */
 async function saveAdminRow(entityKey, id, li) {
   const cfg = ENTITIES[entityKey];
   const fields = {};
@@ -1431,6 +1612,7 @@ async function saveAdminRow(entityKey, id, li) {
   } catch (e) { setError(e); }
 }
 
+/** @param {string} entityKey @param {string} id */
 async function confirmDeleteAdmin(entityKey, id) {
   const cfg = ENTITIES[entityKey];
   if (!confirm(`Delete this ${cfg.label}?`)) return;
@@ -1443,6 +1625,7 @@ async function confirmDeleteAdmin(entityKey, id) {
   } catch (e) { setError(e); }
 }
 
+/** @param {string} entityKey */
 async function createNewForAdmin(entityKey) {
   const cfg = ENTITIES[entityKey];
   // For SLAs, the contracts ref needs richer labels; substitute the lookup.
@@ -1467,6 +1650,7 @@ async function createNewForAdmin(entityKey) {
 
 // ── Full graph screen (preserved from prior implementation) ──────────────────
 
+/** @param {HTMLElement} root */
 function renderGraphScreen(root) {
   updateFooterMeta(
     `${state.data.deployables.length} deployables · ${state.data.dependencies.length} dependencies`
@@ -1515,6 +1699,11 @@ function renderGraphScreen(root) {
   requestAnimationFrame(() => renderFullGraph());
 }
 
+/**
+ * @param {Dependency[]} dependencies
+ * @param {Exposes[]} exposes
+ * @returns {Array<{data: {id: string, source: string, target: string, criticality: string}}>}
+ */
 function composeGraphEdges(dependencies, exposes) {
   const exposesByService = new Map();
   for (const ex of exposes) {
@@ -1541,6 +1730,10 @@ function composeGraphEdges(dependencies, exposes) {
   return edges;
 }
 
+/**
+ * @param {Deployable[]} deployables
+ * @returns {Array<{data: {id: string, label: string, status: string, team: string, team_id: string}}>}
+ */
 function composeGraphNodes(deployables) {
   const known = new Set(['operational', 'degraded', 'down', 'unknown']);
   return deployables.map(d => {
@@ -1658,6 +1851,7 @@ function renderFullGraph() {
   renderGraphTable(deployables, safeEdges);
 }
 
+/** @param {{id: string, label?: string, status?: string, team?: string}} nodeData */
 function showGraphDetail(nodeData) {
   const panel = document.getElementById('graph-detail');
   if (!panel) return;
@@ -1691,6 +1885,7 @@ function showGraphDetail(nodeData) {
   panel.hidden = false;
 }
 
+/** @param {Deployable[]} deployables */
 function populateTeamFilter(deployables) {
   const sel = document.getElementById('filter-team');
   if (!sel) return;
@@ -1762,6 +1957,7 @@ function applyGraphFilters() {
   });
 }
 
+/** @param {boolean} tableMode */
 function applyGraphViewMode(tableMode) {
   const cyEl = document.getElementById('cy');
   const tableWrap = document.getElementById('graph-table-wrap');
@@ -1784,6 +1980,10 @@ function applyGraphViewMode(tableMode) {
   }
 }
 
+/**
+ * @param {Deployable[]} deployables
+ * @param {ReturnType<typeof composeGraphEdges>} edges
+ */
 function renderGraphTable(deployables, edges) {
   const tbody = document.querySelector('#graph-table tbody');
   if (!tbody) return;
