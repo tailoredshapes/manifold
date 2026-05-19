@@ -7,7 +7,7 @@
 import {
   $, $$, el, esc,
   apiFetch, gqlQuery,
-  loadManifoldConfig, crossLink,
+  loadManifoldConfig, getManifoldConfig, crossLink,
   setStatus, setError, updateFooterMeta,
   emptyCard, fieldInput, readForm,
   openModal,
