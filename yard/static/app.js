@@ -520,7 +520,13 @@ function render() {
   // Default footer meta — individual screens overwrite below.
   updateFooterMeta('');
 
-  if (state.screen === 'environments')           renderEnvironments(root);
+  if (state.screen === 'environments') {
+    // When an env id is set (via URL or card click), render the dedicated
+    // detail page instead of the catalog. URL stays `#environments/<envId>`
+    // so shareable links keep working.
+    if (state.expandedEnvId) renderEnvDetail(root, state.expandedEnvId);
+    else                     renderEnvironments(root);
+  }
   else if (state.screen === 'runs')              renderRuns(root);
   else if (state.screen === 'sync')              renderSync(root);
   else if (state.screen === 'lifecycle')         renderLifecycle(root);
@@ -621,10 +627,9 @@ function pillKindClass(kind) {
 /** @param {TestEnvironment} item @returns {HTMLElement} */
 function buildEnvCard(item) {
   const id = item.id;
-  const expanded = state.expandedEnvId === id;
 
   const card = el('div', {
-    class: 'card env-card' + (expanded ? ' expanded' : ''),
+    class: 'card env-card',
     dataset: { id },
   });
 
@@ -655,7 +660,7 @@ function buildEnvCard(item) {
   if (item.deployable_id) {
     const depRow = el('div', { class: 'constraints' });
     depRow.innerHTML = 'deployable: ' + crossLink('groundwork', 'deployables', item.deployable_id, item.deployable_id.slice(0, 8));
-    // Anchor inside card shouldn't toggle expansion.
+    // Anchor inside card shouldn't trigger detail navigation.
     depRow.addEventListener('click', e => e.stopPropagation());
     card.appendChild(depRow);
   }
@@ -670,13 +675,10 @@ function buildEnvCard(item) {
     el('span', { class: 'id' }, id ? id.slice(0, 8) : ''),
   ));
 
-  // Detail
-  if (expanded) card.appendChild(buildEnvDetail(item));
-
-  // Click to expand (ignore clicks inside the detail panel)
-  card.addEventListener('click', (e) => {
-    if (e.target.closest('.env-detail')) return;
-    state.expandedEnvId = expanded ? null : id;
+  // Click → navigate to the env detail page. Anchors inside the card
+  // (cross-app deeplinks etc.) call e.stopPropagation() so they don't trigger.
+  card.addEventListener('click', () => {
+    state.expandedEnvId = id;
     render();
   });
 
@@ -691,8 +693,193 @@ function statBlock(label, value) {
   );
 }
 
+// Dedicated detail page for a single test environment. Sections, in order:
+// header (name + kind pill + status), inline editable fields, dependency
+// graph (the mock/test/prod colored neighborhood — full width now that the
+// tile constraint is gone), run history rollup + recent runs on this env,
+// reset-plan summary (last refresh + freshness chip + jump to Lifecycle).
+//
+// Hash format is the same `#environments/<envId>` we already encode for
+// shareable URLs; the render dispatcher routes here when expandedEnvId is set.
+/** @param {HTMLElement} root @param {string} envId */
+function renderEnvDetail(root, envId) {
+  const item = state.data.testEnvironments.find(e => e.id === envId);
+  if (!item) {
+    root.innerHTML = '';
+    root.appendChild(el('a', { href: '#environments', class: 'back-link' }, 'Environments'));
+    root.appendChild(el('div', { class: 'empty' }, 'Environment not found.'));
+    return;
+  }
+
+  updateFooterMeta(`${item.name || item.id}`);
+
+  // ── Back link ──
+  root.appendChild(el('a', { href: '#environments', class: 'back-link' }, 'Environments'));
+
+  // ── Header ──
+  const av = state.availability.get(envId) || 'unknown';
+  const header = el('div', { class: 'detail-header' });
+  const titleBlock = el('div', { class: 'title-block' },
+    el('h1', {}, item.name || '(unnamed)'),
+    el('div', { class: 'meta' },
+      el('span', { class: pillKindClass(item.kind) }, item.kind || 'unknown'),
+      el('span', { class: 'meta-sep', 'aria-hidden': 'true' }, '·'),
+      el('span', { class: 'status-label' },
+        el('span', { class: 'dot s-' + av }),
+        statusLabel(av),
+      ),
+      el('span', { class: 'meta-sep', 'aria-hidden': 'true' }, '·'),
+      el('span', { class: 'id' }, item.id.slice(0, 8)),
+    ),
+  );
+  header.appendChild(titleBlock);
+  root.appendChild(header);
+
+  // ── Editable fields section ──
+  const cfg = ENTITIES.testEnvironments;
+  const editable = ['kind', 'cost_per_hour', 'spinup_minutes', 'teardown_policy',
+                    'max_duration_minutes', 'concurrency_limit', 'rate_limit',
+                    'contractual_limit', 'notes'];
+  const form = el('div', { class: 'form-grid' });
+  for (const fname of editable) {
+    const f = cfg.fields.find(x => x.name === fname);
+    if (!f) continue;
+    form.appendChild(yardFieldInput(f, item[fname]));
+  }
+  const fieldsSection = el('section', { class: 'detail-section' },
+    el('h2', {}, 'Fields'),
+    form,
+    el('div', { class: 'row-actions' },
+      el('button', { class: 'primary',
+        onClick: async () => {
+          const payload = readForm(form);
+          if (item.name) payload.name = item.name;
+          try {
+            await updateRecord('testEnvironments', envId, payload);
+            await loadAll();
+            setStatus('Saved');
+            render();
+          } catch (err) { setError(err); }
+        },
+      }, 'Save'),
+      el('button', { class: 'danger',
+        onClick: async () => {
+          if (!confirm(`Delete environment "${item.name || envId}"?`)) return;
+          try {
+            await deleteRecord('testEnvironments', envId);
+            await loadAll();
+            state.expandedEnvId = null;
+            setStatus('Deleted');
+            setScreen('environments');
+          } catch (err) { setError(err); }
+        },
+      }, 'Delete'),
+    ),
+  );
+  root.appendChild(fieldsSection);
+
+  // ── Dependency graph (mock/test/prod colored) ──
+  const depBlock = el('div', { class: 'env-dep-graph env-dep-graph--full' });
+  const depCanvas = el('div', { class: 'env-dep-canvas', id: `env-dep-${envId}` });
+  const depLegend = el('div', { class: 'env-dep-legend' },
+    el('span', {}, el('span', { class: 'swatch focal' }), 'this env'),
+    el('span', {}, el('span', { class: 'swatch real' }), 'external / real'),
+    el('span', {}, el('span', { class: 'swatch test' }), 'sandbox / isolated / multi-tenant'),
+    el('span', {}, el('span', { class: 'swatch fake' }), 'mock / stub / missing'),
+  );
+  depBlock.appendChild(depCanvas);
+  depBlock.appendChild(depLegend);
+  root.appendChild(el('section', { class: 'detail-section' },
+    el('h2', {}, 'Dependencies'),
+    depBlock,
+  ));
+  // Canvas needs to be in the DOM before cytoscape mounts.
+  requestAnimationFrame(() => renderEnvDepGraph(item));
+
+  // ── Run history + recent runs section ──
+  const historySection = el('section', { class: 'detail-section' },
+    el('h2', {}, 'Run history'),
+  );
+  const histSlot = el('div', { class: 'history-block' });
+  const cached = state.history.get(envId);
+  if (cached) {
+    histSlot.appendChild(renderHistoryStats(cached));
+  } else {
+    histSlot.appendChild(el('div', { class: 'lede' }, 'Loading…'));
+    fetchHistory(envId).then(h => {
+      state.history.set(envId, h);
+      if (state.expandedEnvId === envId) render();
+    }).catch(() => {
+      histSlot.innerHTML = '';
+      histSlot.appendChild(el('div', { class: 'lede' }, 'No run history available.'));
+    });
+  }
+  historySection.appendChild(histSlot);
+
+  // Recent runs table — last 10 finished, newest first
+  const envRuns = state.data.testRuns
+    .filter(r => r.test_environment_id === envId)
+    .slice()
+    .sort((a, b) => (b.started_at || '').localeCompare(a.started_at || ''))
+    .slice(0, 10);
+  if (envRuns.length > 0) {
+    historySection.appendChild(el('h3', { class: 'subsection' }, `Recent runs · ${envRuns.length}`));
+    const list = document.createElement('div');
+    list.className = 'relationship-list';
+    for (const r of envRuns) {
+      const row = el('div', { class: 'row' });
+      row.innerHTML = `
+        <span class="target">
+          <a href="#runs/${esc(r.id)}">${esc(r.started_at || r.id.slice(0, 8))}</a>
+          <span class="target-meta">${esc(r.test_suite_id || '—')} · ${fmtMinutes(r.duration_minutes)}</span>
+        </span>
+        <span class="badge s-${esc(r.status || 'pending')}">${esc(r.status || 'pending')}</span>
+        <span></span>
+      `;
+      list.appendChild(row);
+    }
+    historySection.appendChild(list);
+  }
+  root.appendChild(historySection);
+
+  // ── Reset-plan summary ──
+  const lifecycleSection = el('section', { class: 'detail-section' },
+    el('h2', {}, 'Data lifecycle'),
+  );
+  const latestSync = state.data.syncRuns
+    .filter(s => s.status === 'succeeded' && s.target_env_id === envId)
+    .reduce((/** @type {SyncRun | undefined} */ best, s) =>
+      (!best || (s.finished_at || '') > (best.finished_at || '')) ? s : best,
+      undefined);
+  const feedingSyncs = state.data.dataSyncs.filter(s => s.target_env_id === envId);
+  const fr = computeFreshness(latestSync, feedingSyncs);
+  const lifecycleRow = el('div', { class: 'lifecycle-summary' },
+    el('div', { class: 'lifecycle-summary-row' },
+      el('span', { class: 'lifecycle-label' }, 'Last refresh:'),
+      el('span', {}, latestSync?.finished_at ? fmtTimestamp(latestSync.finished_at) : '—'),
+    ),
+    el('div', { class: 'lifecycle-summary-row' },
+      el('span', { class: 'lifecycle-label' }, 'Freshness:'),
+      el('span', { class: 'freshness ' + fr.state }, fr.label),
+    ),
+    el('div', { class: 'lifecycle-summary-row' },
+      el('span', { class: 'lifecycle-label' }, 'Feeding syncs:'),
+      el('span', {}, `${feedingSyncs.length} ${feedingSyncs.length === 1 ? 'sync' : 'syncs'}`),
+    ),
+  );
+  lifecycleSection.appendChild(lifecycleRow);
+  lifecycleSection.appendChild(el('div', { class: 'row-actions', style: 'margin-top: 12px' },
+    el('a', { href: `#lifecycle/${envId}`, class: 'primary plan-link' }, 'Plan reset →'),
+  ));
+  root.appendChild(lifecycleSection);
+}
+
 /** @param {TestEnvironment} item @returns {HTMLElement} */
 function buildEnvDetail(item) {
+  // Legacy inline-detail builder kept for the Settings:testEnvironments admin
+  // view, where the in-place edit-on-expand pattern still applies. The
+  // environments tab no longer uses this — clicking a card navigates to
+  // renderEnvDetail() above.
   const id = item.id;
   const cfg = ENTITIES.testEnvironments;
   const detail = el('div', { class: 'env-detail' });

@@ -161,6 +161,142 @@
       grid-template-columns: repeat(3, 1fr);
     }
 
+    /* ── Env detail page (clicking a card navigates here) ────────────── */
+    .back-link {
+      display: inline-block;
+      color: var(--text-muted);
+      font-size: 13px;
+      text-decoration: none;
+      margin-bottom: 18px;
+      transition: color var(--transition);
+    }
+    .back-link:hover { color: var(--text); }
+    .back-link::before { content: '← '; }
+
+    .detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 32px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .detail-header .title-block h1 {
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      line-height: 1.15;
+    }
+    .detail-header .meta {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    .detail-header .meta .meta-sep { color: var(--text-soft); }
+    .detail-header .meta .id {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-soft);
+    }
+
+    .detail-section {
+      margin-bottom: 36px;
+    }
+    .detail-section > h2 {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+    }
+    .detail-section .subsection {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 18px 0 10px;
+    }
+    .detail-section .lede {
+      font-size: 13px;
+      color: var(--text-soft);
+      font-style: italic;
+      padding: 6px 0;
+    }
+
+    /* Lifecycle summary block on the env detail page. */
+    .lifecycle-summary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      display: grid;
+      gap: 8px;
+    }
+    .lifecycle-summary-row {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      font-size: 13px;
+    }
+    .lifecycle-summary .lifecycle-label {
+      width: 130px;
+      color: var(--text-muted);
+      font-size: 12px;
+    }
+    .row-actions .plan-link {
+      display: inline-block;
+      text-decoration: none;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--ink);
+      color: #fff;
+      border: 1px solid var(--ink);
+      font-size: 14px;
+      font-weight: 500;
+      transition: background var(--transition), border-color var(--transition);
+    }
+    .row-actions .plan-link:hover {
+      background: var(--ink-hover);
+      border-color: var(--ink-hover);
+    }
+
+    /* Relationship-list pattern reused from groundwork for the recent-runs
+       table on the env detail page. */
+    .relationship-list {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      overflow: hidden;
+    }
+    .relationship-list .row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      column-gap: 14px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      align-items: center;
+    }
+    .relationship-list .row:last-child { border-bottom: 0; }
+    .relationship-list .row .target {
+      font-weight: 500;
+      color: var(--text);
+    }
+    .relationship-list .row .target a { color: var(--text); }
+    .relationship-list .row .target .target-meta {
+      display: block;
+      font-weight: 400;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
     /* ── Per-env dependency graph (env-card detail panel) ─────────────── */
     .env-dep-graph {
       background: var(--surface);
@@ -172,6 +308,9 @@
       height: 260px;
       background: var(--bg);
     }
+    /* On the dedicated env-detail page the dependency graph gets room
+       to breathe — no longer crammed into a 300px-wide tile. */
+    .env-dep-graph--full .env-dep-canvas { height: 420px; }
     .env-dep-graph .env-dep-legend {
       display: flex;
       gap: 16px;
