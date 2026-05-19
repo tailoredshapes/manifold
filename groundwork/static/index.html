@@ -273,6 +273,99 @@
     .badge.medium { color: var(--warn);    border-color: var(--warn);    background: var(--warn-soft); }
     .badge.low    { color: var(--success); border-color: var(--success); background: var(--success-soft); }
 
+    /* ── Governance: coverage stat tiles + grouped lists ──────────────── */
+    .stat-tiles {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-tile {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .stat-tile .label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+    .stat-tile .figure {
+      font-family: var(--font-serif);
+      font-size: 28px;
+      color: var(--text);
+      line-height: 1.1;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-tile .figure .denom {
+      color: var(--text-soft);
+      font-size: 18px;
+      margin-left: 2px;
+    }
+    .stat-tile .sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-tile.gap .figure  { color: var(--danger); }
+    .stat-tile.gap .sub     { color: var(--danger); }
+    .stat-tile.warn .figure { color: var(--warn); }
+    .stat-tile.warn .sub    { color: var(--warn); }
+
+    /* Team rollup: one card per team, list of deployables underneath. */
+    .team-group + .team-group { margin-top: 18px; }
+    .team-group .team-head {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    .team-group .team-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+    .team-group .team-meta {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-soft);
+      text-transform: none;
+      letter-spacing: 0;
+      font-variant-numeric: tabular-nums;
+    }
+    .team-group.unstaffed .team-name {
+      font-style: italic;
+      color: var(--text-muted);
+    }
+    .team-group .team-deployables {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 8px 16px;
+      font-size: 13px;
+    }
+    .team-group .team-deployables a {
+      color: var(--text);
+      text-decoration: underline;
+      text-decoration-color: var(--text-muted);
+    }
+    .team-group .team-deployables a:hover { text-decoration-color: var(--text); }
+    .team-group .team-deployables .dep-status {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-left: 6px;
+      text-transform: lowercase;
+    }
+
     /* ── Focused subgraph on detail page ──────────────────────────────── */
     .dep-mini-graph {
       height: 320px;
@@ -522,6 +615,7 @@
     <nav class="tabs" id="primary-nav">
       <button class="tab active" data-screen="catalog">Catalog</button>
       <button class="tab" data-screen="graph">Graph</button>
+      <button class="tab" data-screen="governance">Governance</button>
     </nav>
 
     <div class="header-actions">

@@ -205,7 +205,7 @@ function contractsForLookup() {
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const state = {
-  // 'catalog' | 'graph' | `deployable/${id}` | `admin/${entityKey}`
+  // 'catalog' | 'graph' | 'governance' | `deployable/${id}` | `admin/${entityKey}`
   screen: 'catalog',
   data: { deployables: [], exposes: [], services: [], dependencies: [], contracts: [], slas: [] },
   // Catalog filters
@@ -353,6 +353,7 @@ function setScreen(screen) {
   // Title hint
   if (screen === 'catalog')              document.title = 'Groundwork — Catalog';
   else if (screen === 'graph')           document.title = 'Groundwork — Graph';
+  else if (screen === 'governance')      document.title = 'Groundwork — Governance';
   else if (screen.startsWith('deployable/')) {
     const d = deployableById(screen.slice('deployable/'.length));
     document.title = `Groundwork — ${d?.name || 'deployable'}`;
@@ -376,6 +377,7 @@ function render() {
 
   if (state.screen === 'catalog')                        renderCatalog(root);
   else if (state.screen === 'graph')                     renderGraphScreen(root);
+  else if (state.screen === 'governance')                renderGovernance(root);
   else if (state.screen.startsWith('deployable/'))       renderDeployableDetail(root, state.screen.slice('deployable/'.length));
   else if (state.screen.startsWith('admin/'))            renderAdmin(root, state.screen.slice('admin/'.length));
   else                                                   renderCatalog(root);
@@ -499,6 +501,314 @@ function emptyState({ title, lede, hint }) {
     `<p class="lede">${esc(lede)}</p>` +
     `<p class="hint">${hint}</p>`;
   return div;
+}
+
+// ── Governance screen ────────────────────────────────────────────────────────
+//
+// The compliance lens: are the things that SHOULD be governed actually
+// governed? Three axes:
+//   - Used services SHOULD have a contract (a service that has dependents
+//     but no contract is a real risk — nothing pinned about its shape).
+//   - Contracts SHOULD have at least one SLA (otherwise no operational
+//     accountability behind the API shape).
+//   - Deployables SHOULD have a team owner (unstaffed = nobody on the hook).
+//
+// Stat tiles up top give the rolled-up percentages; the sections below
+// list the specific gaps so they can be acted on, then a "by team" view
+// for the ownership cut.
+
+function renderGovernance(root) {
+  const deployables  = state.data.deployables;
+  const services     = state.data.services;
+  const contracts    = state.data.contracts;
+  const slas         = state.data.slas;
+  const exposes      = state.data.exposes;
+  const dependencies = state.data.dependencies;
+
+  const usedServiceIds       = new Set(dependencies.map(d => d.service_id));
+  const contractedServiceIds = new Set(contracts.map(c => c.service_id));
+  const slaContractIds       = new Set(slas.map(s => s.contract_id));
+
+  const usedServices            = services.filter(s => usedServiceIds.has(s.id));
+  const servicesUsedNoContract  = usedServices.filter(s => !contractedServiceIds.has(s.id));
+  const contractsNoSla          = contracts.filter(c => !slaContractIds.has(c.id));
+  const unstaffedDeployables    = deployables.filter(d => !d.team_id);
+
+  updateFooterMeta(
+    `${servicesUsedNoContract.length} contract gap${servicesUsedNoContract.length === 1 ? '' : 's'} · ` +
+    `${contractsNoSla.length} SLA gap${contractsNoSla.length === 1 ? '' : 's'} · ` +
+    `${unstaffedDeployables.length} unstaffed`
+  );
+
+  const head = document.createElement('div');
+  head.className = 'section-head';
+  head.innerHTML = `
+    <div>
+      <h1>Governance</h1>
+      <div class="meta">Coverage of contracts, SLAs, and ownership across the catalog.</div>
+    </div>`;
+  root.appendChild(head);
+
+  // ── Stat tiles ──
+  const tiles = document.createElement('div');
+  tiles.className = 'stat-tiles';
+  tiles.appendChild(buildStatTile({
+    label: 'Deployables',
+    figure: deployables.length,
+  }));
+  tiles.appendChild(buildStatTile({
+    label: 'With team',
+    figure: deployables.length - unstaffedDeployables.length,
+    denom: deployables.length,
+    gap: unstaffedDeployables.length > 0,
+    sub: unstaffedDeployables.length > 0
+      ? `${unstaffedDeployables.length} unstaffed`
+      : 'fully staffed',
+  }));
+  tiles.appendChild(buildStatTile({
+    label: 'Used services with contract',
+    figure: usedServices.length - servicesUsedNoContract.length,
+    denom: usedServices.length,
+    gap: servicesUsedNoContract.length > 0,
+    sub: usedServices.length === 0
+      ? 'no services depended on'
+      : (servicesUsedNoContract.length > 0
+          ? `${servicesUsedNoContract.length} without contract`
+          : 'fully covered'),
+  }));
+  tiles.appendChild(buildStatTile({
+    label: 'Contracts with SLA',
+    figure: contracts.length - contractsNoSla.length,
+    denom: contracts.length,
+    gap: contractsNoSla.length > 0,
+    sub: contracts.length === 0
+      ? 'no contracts yet'
+      : (contractsNoSla.length > 0
+          ? `${contractsNoSla.length} missing SLA`
+          : 'fully covered'),
+  }));
+  root.appendChild(tiles);
+
+  // ── Gaps section: used services without a contract ──
+  root.appendChild(buildContractGapsSection(servicesUsedNoContract, exposes, deployables, dependencies));
+
+  // ── Gaps section: contracts without an SLA ──
+  root.appendChild(buildSlaGapsSection(contractsNoSla, services));
+
+  // ── Gaps section: unstaffed deployables ──
+  if (unstaffedDeployables.length > 0) {
+    root.appendChild(buildUnstaffedSection(unstaffedDeployables));
+  }
+
+  // ── By team: rollup ──
+  root.appendChild(buildByTeamSection(deployables, exposes, contracts, slas));
+}
+
+function buildStatTile({ label, figure, denom, gap, sub }) {
+  const tile = document.createElement('div');
+  tile.className = 'stat-tile' + (gap ? ' gap' : '');
+  const pct = (denom != null && denom > 0)
+    ? ` <span class="denom">/ ${denom}</span>`
+    : '';
+  tile.innerHTML = `
+    <div class="label">${esc(label)}</div>
+    <div class="figure">${figure}${pct}</div>
+    ${sub ? `<div class="sub">${esc(sub)}</div>` : ''}
+  `;
+  return tile;
+}
+
+function buildContractGapsSection(servicesNoContract, exposes, deployables, dependencies) {
+  const section = document.createElement('section');
+  section.className = 'detail-section';
+  section.innerHTML = `<h2>Services in use without a contract</h2>`;
+  if (servicesNoContract.length === 0) {
+    const lede = document.createElement('div');
+    lede.className = 'lede';
+    lede.textContent = 'Every used service has at least one contract registered.';
+    section.appendChild(lede);
+    return section;
+  }
+  // Pre-compute, per service: which deployable exposes it, and how many
+  // dependents (rows in `dependencies`) point at it. Helps the operator
+  // prioritise — a service used by 6 deployables is a bigger gap than one
+  // used by 1.
+  const exposesByService = new Map();
+  for (const e of exposes) {
+    if (!exposesByService.has(e.service_id)) exposesByService.set(e.service_id, []);
+    exposesByService.get(e.service_id).push(e.deployable_id);
+  }
+  const dependentsByService = new Map();
+  for (const d of dependencies) {
+    dependentsByService.set(d.service_id, (dependentsByService.get(d.service_id) || 0) + 1);
+  }
+
+  const list = document.createElement('div');
+  list.className = 'relationship-list';
+  // Sort by dependent count desc — most-depended-on gaps first.
+  const sorted = [...servicesNoContract].sort((a, b) =>
+    (dependentsByService.get(b.id) || 0) - (dependentsByService.get(a.id) || 0)
+  );
+  for (const svc of sorted) {
+    const providerIds = exposesByService.get(svc.id) || [];
+    const providers = providerIds
+      .map(id => deployables.find(d => d.id === id))
+      .filter(Boolean);
+    const providerHtml = providers.length
+      ? providers.map(p => `<a href="#deployable/${esc(p.id)}">${esc(p.name || p.id)}</a>`).join(', ')
+      : '<span style="font-style:italic">no provider registered</span>';
+    const nDeps = dependentsByService.get(svc.id) || 0;
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.innerHTML = `
+      <span class="target">
+        ${esc(svc.name || svc.id)}
+        <span class="target-meta">exposed by ${providerHtml}</span>
+      </span>
+      <span class="badge medium">${nDeps} dep${nDeps === 1 ? '' : 's'}</span>
+      <span></span>
+    `;
+    list.appendChild(r);
+  }
+  section.appendChild(list);
+  return section;
+}
+
+function buildSlaGapsSection(contractsNoSla, services) {
+  const section = document.createElement('section');
+  section.className = 'detail-section';
+  section.innerHTML = `<h2>Contracts without an SLA</h2>`;
+  if (contractsNoSla.length === 0) {
+    const lede = document.createElement('div');
+    lede.className = 'lede';
+    lede.textContent = 'Every contract has at least one SLA attached.';
+    section.appendChild(lede);
+    return section;
+  }
+  const list = document.createElement('div');
+  list.className = 'relationship-list';
+  for (const c of contractsNoSla) {
+    const svc = services.find(s => s.id === c.service_id);
+    const svcName = svc?.name || c.service_id;
+    const ver = c.version ? `v${esc(c.version)}` : '';
+    const fmt = c.format || '';
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.innerHTML = `
+      <span class="target">
+        ${esc(svcName)}
+        <span class="target-meta">${[ver, fmt].filter(Boolean).join(' · ') || c.id.slice(0, 8)}</span>
+      </span>
+      ${fmt ? `<span class="pill">${esc(fmt)}</span>` : '<span></span>'}
+      <span></span>
+    `;
+    list.appendChild(r);
+  }
+  section.appendChild(list);
+  return section;
+}
+
+function buildUnstaffedSection(unstaffed) {
+  const section = document.createElement('section');
+  section.className = 'detail-section';
+  section.innerHTML = `<h2>Deployables without a team</h2>`;
+  const list = document.createElement('div');
+  list.className = 'relationship-list';
+  for (const d of unstaffed) {
+    const status = d.deployment_status || 'unknown';
+    const r = document.createElement('div');
+    r.className = 'row';
+    r.innerHTML = `
+      <span class="target">
+        <a href="#deployable/${esc(d.id)}">${esc(d.name || d.id)}</a>
+        ${d.description ? `<span class="target-meta">${esc(d.description)}</span>` : ''}
+      </span>
+      <span class="status-label"><span class="status-dot ${esc(status)}"></span>${esc(status)}</span>
+      <span></span>
+    `;
+    list.appendChild(r);
+  }
+  section.appendChild(list);
+  return section;
+}
+
+function buildByTeamSection(deployables, exposes, contracts, slas) {
+  const section = document.createElement('section');
+  section.className = 'detail-section';
+  section.innerHTML = `<h2>By team</h2>`;
+
+  // Group deployables by team name (or 'Unstaffed').
+  const groups = new Map();
+  const UNSTAFFED = '— Unstaffed';
+  for (const d of deployables) {
+    const key = d.team?.name || UNSTAFFED;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(d);
+  }
+  // Sort: named teams alphabetically, Unstaffed last.
+  const sortedKeys = [...groups.keys()].sort((a, b) => {
+    if (a === UNSTAFFED) return 1;
+    if (b === UNSTAFFED) return -1;
+    return a.localeCompare(b);
+  });
+
+  // Per-team aggregates: contract count = sum over each deployable's
+  // exposed services that have at least one contract; SLA count = sum
+  // over contracts that have at least one SLA. Approximation — services
+  // shared across teams will get counted once per team that exposes them.
+  const contractsByService = new Map();
+  for (const c of contracts) {
+    if (!contractsByService.has(c.service_id)) contractsByService.set(c.service_id, []);
+    contractsByService.get(c.service_id).push(c);
+  }
+  const slasByContract = new Map();
+  for (const s of slas) {
+    if (!slasByContract.has(s.contract_id)) slasByContract.set(s.contract_id, 0);
+    slasByContract.set(s.contract_id, slasByContract.get(s.contract_id) + 1);
+  }
+  const teamContractAggregate = (deps) => {
+    const svcIds = new Set();
+    for (const d of deps) {
+      for (const e of exposes) {
+        if (e.deployable_id === d.id) svcIds.add(e.service_id);
+      }
+    }
+    let cContracts = 0;
+    let cSlas = 0;
+    for (const sid of svcIds) {
+      const cs = contractsByService.get(sid) || [];
+      cContracts += cs.length;
+      for (const c of cs) cSlas += (slasByContract.get(c.id) || 0);
+    }
+    return { svcCount: svcIds.size, cContracts, cSlas };
+  };
+
+  for (const key of sortedKeys) {
+    const deps = groups.get(key);
+    const isUnstaffed = key === UNSTAFFED;
+    const agg = teamContractAggregate(deps);
+    const wrap = document.createElement('div');
+    wrap.className = 'team-group' + (isUnstaffed ? ' unstaffed' : '');
+    const meta = isUnstaffed
+      ? `${deps.length} deployable${deps.length === 1 ? '' : 's'}`
+      : `${deps.length} deployable${deps.length === 1 ? '' : 's'} · ${agg.svcCount} service${agg.svcCount === 1 ? '' : 's'} exposed · ${agg.cContracts} contract${agg.cContracts === 1 ? '' : 's'} · ${agg.cSlas} SLA${agg.cSlas === 1 ? '' : 's'}`;
+    const headHtml = `
+      <div class="team-head">
+        <span class="team-name">${esc(key)}</span>
+        <span class="team-meta">${meta}</span>
+      </div>`;
+    const sortedDeps = [...deps].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const depHtml = sortedDeps.map(d => {
+      const status = d.deployment_status || 'unknown';
+      return `<div>
+        <a href="#deployable/${esc(d.id)}">${esc(d.name || d.id)}</a>
+        <span class="dep-status">${esc(status)}</span>
+      </div>`;
+    }).join('');
+    wrap.innerHTML = headHtml + `<div class="team-deployables">${depHtml}</div>`;
+    section.appendChild(wrap);
+  }
+  return section;
 }
 
 // ── Deployable detail screen ─────────────────────────────────────────────────
@@ -1513,7 +1823,7 @@ function renderGraphTable(deployables, edges) {
 // ── Hash routing ──────────────────────────────────────────────────────────────
 
 const KNOWN_SCREEN = (key) =>
-  key === 'catalog' || key === 'graph' ||
+  key === 'catalog' || key === 'graph' || key === 'governance' ||
   key.startsWith('deployable/') ||
   (key.startsWith('admin/') && ENTITIES[key.slice('admin/'.length)]);
 
@@ -1534,12 +1844,12 @@ function closeMenu() { $('#settings-menu').classList.remove('open'); }
 function toggleMenu(){ $('#settings-menu').classList.toggle('open'); }
 
 function newActionForCurrentScreen() {
-  if (state.screen === 'catalog' || state.screen === 'graph') return createNewDeployable;
-  if (state.screen.startsWith('deployable/')) return createNewDeployable;
   if (state.screen.startsWith('admin/')) {
     const key = state.screen.slice('admin/'.length);
     return () => createNewForAdmin(key);
   }
+  // catalog, graph, governance, deployable/* — primary creation flow is
+  // always a new deployable.
   return createNewDeployable;
 }
 
