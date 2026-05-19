@@ -17,7 +17,9 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
-use yard::{cityhall_client, estimator, groundwork_client, history, sync, validators};
+use yard::{
+    cityhall_client, estimator, groundwork_client, history, reset_plan, sync, validators,
+};
 
 const TEST_ENVIRONMENT_GRAPHQL: &str = include_str!("../config/graph/test_environment.graphql");
 const TEST_INFRASTRUCTURE_GRAPHQL: &str =
@@ -27,6 +29,7 @@ const DATA_SOURCE_GRAPHQL: &str = include_str!("../config/graph/data_source.grap
 const DATA_SYNC_GRAPHQL: &str = include_str!("../config/graph/data_sync.graphql");
 const TEST_RUN_GRAPHQL: &str = include_str!("../config/graph/test_run.graphql");
 const TEST_SUITE_GRAPHQL: &str = include_str!("../config/graph/test_suite.graphql");
+const SYNC_RUN_GRAPHQL: &str = include_str!("../config/graph/sync_run.graphql");
 const INDEX_HTML: &str = include_str!("../static/index.html");
 const APP_JS: &str = include_str!("../static/app.js");
 const AUTH_MODEL: &str = include_str!("../config/auth/model.conf");
@@ -119,6 +122,7 @@ pub struct AppState {
     pub data_sync: Entity,
     pub test_run: Entity,
     pub test_suite: Entity,
+    pub sync_run: Entity,
     pub groundwork: Arc<dyn estimator::GroundworkLookup>,
     pub cityhall: Arc<dyn estimator::ChangeRequestLookup>,
 }
@@ -245,6 +249,37 @@ async fn get_test_environment_availability(
     }
 }
 
+async fn get_test_environment_reset_plan(
+    State(state): State<AppState>,
+    Path(env_id): Path<String>,
+) -> Response {
+    let inputs = reset_plan::PlanInputs {
+        target_env_id: &env_id,
+        test_environment_repo: &state.test_environment.repo,
+        test_infrastructure_repo: &state.test_infrastructure.repo,
+        data_sync_repo: &state.data_sync.repo,
+        data_source_repo: &state.data_source.repo,
+        test_run_repo: &state.test_run.repo,
+        sync_run_repo: &state.sync_run.repo,
+    };
+    match reset_plan::compute(inputs).await {
+        Ok(plan) => (
+            axum::http::StatusCode::OK,
+            [(header::CONTENT_TYPE, "application/json")],
+            serde_json::to_string(&plan).unwrap_or_default(),
+        )
+            .into_response(),
+        Err(e) => {
+            let status = if e.to_string().contains("not found") {
+                axum::http::StatusCode::NOT_FOUND
+            } else {
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR
+            };
+            (status, format!("reset_plan: {e}")).into_response()
+        }
+    }
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 #[tokio::main]
@@ -287,6 +322,7 @@ async fn main() -> anyhow::Result<()> {
     let data_sync = make_entity(&data_dir, "data_sync").await;
     let test_run = make_entity(&data_dir, "test_run").await;
     let test_suite = make_entity(&data_dir, "test_suite").await;
+    let sync_run = make_entity(&data_dir, "sync_run").await;
 
     let groundwork: Arc<dyn estimator::GroundworkLookup> = Arc::new(
         groundwork_client::HttpGroundworkClient::new(groundwork_url.clone()),
@@ -303,6 +339,7 @@ async fn main() -> anyhow::Result<()> {
         data_sync: data_sync.clone(),
         test_run: test_run.clone(),
         test_suite: test_suite.clone(),
+        sync_run: sync_run.clone(),
         groundwork,
         cityhall,
     };
@@ -329,6 +366,9 @@ async fn main() -> anyhow::Result<()> {
     let test_suite_schema_json: serde_json::Value =
         serde_json::from_str(include_str!("../config/json/test_suite.schema.json"))
             .expect("invalid test_suite schema JSON");
+    let sync_run_schema_json: serde_json::Value =
+        serde_json::from_str(include_str!("../config/json/sync_run.schema.json"))
+            .expect("invalid sync_run schema JSON");
 
     // ── Graphlette configs ──────────────────────────────────────────────────
     let test_environment_root = RootConfig::builder()
@@ -482,6 +522,48 @@ async fn main() -> anyhow::Result<()> {
         )
         .build();
 
+    let sync_run_root = RootConfig::builder()
+        .singleton("getById", r#"{"id": "{{id}}"}"#)
+        .vector("getAll", "{}")
+        .vector(
+            "getByTargetEnvId",
+            r#"{"payload.target_env_id": "{{target_env_id}}"}"#,
+        )
+        .vector(
+            "getBySourceEnvId",
+            r#"{"payload.source_env_id": "{{source_env_id}}"}"#,
+        )
+        .vector(
+            "getByDataSyncId",
+            r#"{"payload.data_sync_id": "{{data_sync_id}}"}"#,
+        )
+        .vector("getByStatus", r#"{"payload.status": "{{status}}"}"#)
+        .singleton_resolver(
+            "data_sync",
+            Some("data_sync_id"),
+            "getById",
+            format!("{}/data_sync/graph", external_self_url(port)),
+        )
+        .singleton_resolver(
+            "target_env",
+            Some("target_env_id"),
+            "getById",
+            format!("{}/test_environment/graph", external_self_url(port)),
+        )
+        .singleton_resolver(
+            "source_env",
+            Some("source_env_id"),
+            "getById",
+            format!("{}/test_environment/graph", external_self_url(port)),
+        )
+        .singleton_resolver(
+            "source_data",
+            Some("source_data_id"),
+            "getById",
+            format!("{}/data_source/graph", external_self_url(port)),
+        )
+        .build();
+
     let config = ServerConfig {
         port,
         graphlettes: vec![
@@ -526,6 +608,12 @@ async fn main() -> anyhow::Result<()> {
                 schema_text: TEST_SUITE_GRAPHQL.into(),
                 root_config: test_suite_root,
                 searcher: test_suite.searcher.clone(),
+            },
+            GraphletteConfig {
+                path: "/sync_run/graph".into(),
+                schema_text: SYNC_RUN_GRAPHQL.into(),
+                root_config: sync_run_root,
+                searcher: sync_run.searcher.clone(),
             },
         ],
         restlettes: vec![],
@@ -603,6 +691,15 @@ async fn main() -> anyhow::Result<()> {
         None,
         None,
     );
+    let sync_run_restlette = meshql_server::build_restlette_router_ext(
+        "/sync_run/api",
+        sync_run.repo.clone(),
+        auth.clone(),
+        None,
+        Some(validators::base_schema_validator(&sync_run_schema_json)),
+        None,
+        None,
+    );
 
     let custom_routes = Router::new()
         .route(
@@ -617,6 +714,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/test_environment/:id/availability",
             get(get_test_environment_availability),
+        )
+        .route(
+            "/test_environment/:id/reset_plan",
+            get(get_test_environment_reset_plan),
         )
         .with_state(app_state);
 
@@ -642,6 +743,7 @@ async fn main() -> anyhow::Result<()> {
         .merge(data_sync_restlette)
         .merge(test_run_restlette)
         .merge(test_suite_restlette)
+        .merge(sync_run_restlette)
         .merge(custom_routes);
 
     let app = meshql_server::build_app_with_auth(config, auth, extra).await?;

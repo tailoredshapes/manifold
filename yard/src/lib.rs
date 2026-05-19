@@ -8,5 +8,6 @@ pub mod estimator;
 pub mod groundwork_client;
 pub mod history;
 pub mod mcp;
+pub mod reset_plan;
 pub mod sync;
 pub mod validators;

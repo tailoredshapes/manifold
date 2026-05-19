@@ -1,0 +1,49 @@
+type SyncRun {
+    id: ID
+    data_sync_id: String!
+    source_env_id: String
+    target_env_id: String!
+    source_data_id: String
+    masking_summary: String
+    source_revision: String
+    triggered_by: String
+    started_at: String
+    finished_at: String
+    status: String
+    duration_minutes: String
+    error_message: String
+    data_sync: DataSync
+    target_env: TestEnvironment
+    source_env: TestEnvironment
+    source_data: DataSource
+}
+type DataSync {
+    id: ID
+    kind: String
+    target_env_id: String
+    source_env_id: String
+    source_data_id: String
+    refresh_policy: String
+    estimated_minutes: String
+}
+type TestEnvironment {
+    id: ID
+    name: String
+    kind: String
+    deployable_id: String
+}
+type DataSource {
+    id: ID
+    name: String
+    kind: String
+    location: String
+    refresh_policy: String
+}
+type Query {
+    getById(id: ID, at: Float): SyncRun
+    getAll(at: Float): [SyncRun]
+    getByTargetEnvId(target_env_id: String, at: Float): [SyncRun]
+    getBySourceEnvId(source_env_id: String, at: Float): [SyncRun]
+    getByDataSyncId(data_sync_id: String, at: Float): [SyncRun]
+    getByStatus(status: String, at: Float): [SyncRun]
+}

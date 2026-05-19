@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["data_sync_id", "target_env_id"],
+  "properties": {
+    "data_sync_id":    { "type": "string" },
+    "source_env_id":   { "type": "string" },
+    "target_env_id":   { "type": "string" },
+    "source_data_id":  { "type": "string" },
+    "masking_summary": { "type": "string" },
+    "source_revision": { "type": "string" },
+    "triggered_by":    { "type": "string" },
+    "started_at":      { "type": "string" },
+    "finished_at":     { "type": "string" },
+    "status":          { "type": "string", "enum": ["running", "succeeded", "failed", "cancelled"] },
+    "duration_minutes":{ "type": "string" },
+    "error_message":   { "type": "string" }
+  },
+  "additionalProperties": true
+}
