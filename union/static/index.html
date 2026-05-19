@@ -8,10 +8,9 @@
   <!-- Shared Manifold UI kit: design tokens + primitive component styles.
        Union's inline <style> aliases the kit's tokens under union-specific
        names (--muted, --font, --t, --shadow-card, --row-stripe, --row-hover)
-       and overrides a couple of values, then defines its own component class
-       taxonomy. Modal scaffold is union's own (#modal-backdrop + native
-       <form> with FormData submission); convergence is its own separate
-       pass. White-label overrides applied to the kit propagate through. -->
+       and overrides a couple of values; primitive button taxonomy
+       (.primary / .danger / .ghost) and form controls come from the kit.
+       White-label overrides applied to the kit propagate through. -->
   <link rel="stylesheet" href="/static/manifold-ui.css" />
 
   <style>
@@ -134,78 +133,12 @@
 
     .toolbar .spacer { flex: 1; }
 
-    input[type="text"], input[type="search"], select, textarea {
-      font-family: var(--font);
-      font-size: 14px;
-      color: var(--text);
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 8px 10px;
-      outline: none;
-      transition: border-color var(--t), box-shadow var(--t);
-    }
-
-    input[type="text"]:focus, input[type="search"]:focus, select:focus, textarea:focus {
-      border-color: var(--ink);
-      box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.15);
-    }
-
-    button:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.15);
-    }
-
-    a {
-      color: var(--text);
-      text-decoration: underline;
-      text-decoration-color: var(--text-muted);
-    }
-    a:hover { text-decoration-color: var(--text); }
-
+    /* Form controls, anchors, and primitive button styles (.primary /
+       .danger / .ghost) all come from manifold-ui.css. Union keeps only
+       its placeholder alias and the local icon-button size variant. */
     input::placeholder { color: var(--muted); }
 
-    #search {
-      width: 280px;
-    }
-
-    button {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text);
-      font-family: var(--font);
-      font-size: 14px;
-      padding: 7px 14px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: background var(--t), box-shadow var(--t), border-color var(--t), color var(--t);
-    }
-
-    button:hover {
-      background: var(--row-hover);
-      box-shadow: var(--shadow-hover);
-    }
-
-    button.primary {
-      background: var(--ink);
-      border-color: var(--ink);
-      color: #fff;
-    }
-
-    button.primary:hover {
-      background: var(--ink-hover);
-      border-color: var(--ink-hover);
-      color: #fff;
-    }
-
-    button.danger {
-      color: var(--danger);
-    }
-
-    button.danger:hover {
-      background: #fef2f2;
-      border-color: var(--danger);
-    }
+    #search { width: 280px; }
 
     button.icon {
       padding: 6px 10px;
