@@ -148,35 +148,175 @@ const ENTITIES = {
   },
 };
 
+// ── Domain types ─────────────────────────────────────────────────────────────
+
+/**
+ * @typedef {object} DeployableRef
+ * @property {string} [id]
+ * @property {string} [name]
+ *
+ * @typedef {object} TestEnvironment
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [kind]
+ * @property {string} [deployable_id]
+ * @property {string} [service_id]
+ * @property {string} [infrastructure_id]
+ * @property {string} [mock_source_id]
+ * @property {string} [cost_per_hour]
+ * @property {string} [spinup_minutes]
+ * @property {string} [teardown_policy]
+ * @property {string} [max_duration_minutes]
+ * @property {string} [concurrency_limit]
+ * @property {string} [rate_limit]
+ * @property {string} [contractual_limit]
+ * @property {string} [notes]
+ * @property {DeployableRef} [deployable]
+ *
+ * @typedef {object} TestInfrastructure
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [provider]
+ * @property {string} [region]
+ * @property {string} [instance_type]
+ * @property {string} [cost_per_hour]
+ * @property {string} [notes]
+ *
+ * @typedef {object} MockSource
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [repo_url]
+ * @property {string} [path]
+ * @property {string} [language]
+ * @property {string} [notes]
+ *
+ * @typedef {object} DataSource
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [kind]
+ * @property {string} [location]
+ * @property {string} [refresh_policy]
+ * @property {string} [notes]
+ *
+ * @typedef {object} DataSync
+ * @property {string} id
+ * @property {string} [kind]
+ * @property {string} target_env_id
+ * @property {string} [source_env_id]
+ * @property {string} [source_data_id]
+ * @property {string} [refresh_policy]
+ * @property {string} [estimated_minutes]
+ * @property {string} [notes]
+ *
+ * @typedef {object} TestRun
+ * @property {string} id
+ * @property {string} test_environment_id
+ * @property {string} [change_request_id]
+ * @property {string} [test_suite_id]
+ * @property {string} [team_id]
+ * @property {string} [started_at]
+ * @property {string} [finished_at]
+ * @property {string} [status]
+ * @property {string} [duration_minutes]
+ * @property {string} [cost_actual]
+ *
+ * @typedef {object} TestSuite
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [deployable_id]
+ * @property {string} [runner]
+ * @property {string} [command]
+ * @property {string} [description]
+ *
+ * @typedef {object} SyncRun
+ * @property {string} id
+ * @property {string} data_sync_id
+ * @property {string} [source_env_id]
+ * @property {string} target_env_id
+ * @property {string} [source_data_id]
+ * @property {string} [masking_summary]
+ * @property {string} [source_revision]
+ * @property {string} [triggered_by]
+ * @property {string} [started_at]
+ * @property {string} [finished_at]
+ * @property {string} [status]
+ * @property {string} [duration_minutes]
+ * @property {string} [error_message]
+ *
+ * @typedef {object} ResetStep
+ * @property {number} order
+ * @property {string} data_sync_id
+ * @property {string} source_label
+ * @property {string} target_env_id
+ * @property {string} target_env_name
+ * @property {string} kind
+ * @property {string} [refresh_policy]
+ * @property {number} estimated_minutes
+ * @property {number} estimated_cost
+ * @property {string} [masking_summary]
+ * @property {number[]} predecessor_orders
+ *
+ * @typedef {object} ResetBlocker
+ * @property {string} kind
+ * @property {string} message
+ * @property {string[]} references
+ *
+ * @typedef {object} ResetPlan
+ * @property {string} target_env_id
+ * @property {string} target_env_name
+ * @property {string} computed_at
+ * @property {string | null} [last_sync_at]
+ * @property {number} estimated_total_minutes
+ * @property {number} estimated_total_cost
+ * @property {ResetStep[]} steps
+ * @property {ResetBlocker[]} blockers
+ *
+ * @typedef {{ status: 'available' | 'cap' | 'blocked' | 'unknown' | string, raw?: any }} AvailabilityClassification
+ * @typedef {'available' | 'cap' | 'blocked' | 'unknown'} AvailabilityState
+ */
+
 // ── State ────────────────────────────────────────────────────────────────────
 
 const state = {
   screen: 'environments',                  // environments | runs | sync | lifecycle | settings:<entity>
   data: {
-    testEnvironments: [],
-    testInfrastructures: [],
-    mockSources: [],
-    dataSources: [],
-    dataSyncs: [],
-    testRuns: [],
-    testSuites: [],
-    syncRuns: [],
+    /** @type {TestEnvironment[]} */    testEnvironments: [],
+    /** @type {TestInfrastructure[]} */ testInfrastructures: [],
+    /** @type {MockSource[]} */         mockSources: [],
+    /** @type {DataSource[]} */         dataSources: [],
+    /** @type {DataSync[]} */           dataSyncs: [],
+    /** @type {TestRun[]} */            testRuns: [],
+    /** @type {TestSuite[]} */          testSuites: [],
+    /** @type {SyncRun[]} */            syncRuns: [],
   },
   // Cross-app config now lives inside manifold-ui (loadManifoldConfig).
-  availability: new Map(),                 // env id → { status: 'available'|'cap'|'blocked'|'unknown', raw }
+  /** @type {Map<string, AvailabilityState>} */
+  availability: new Map(),                 // env id → status bucket
+  /** @type {Map<string, any>} */
   history:      new Map(),                 // env id → history payload
+  /** @type {string | null} */
   expandedEnvId: null,
+  /** @type {string | null} */
   expandedRunId: null,
+  /** @type {string | null} */
   expandedSettingId: null,
+  /** @type {string | null} */
   expandedPlanEnvId: null,                 // Lifecycle: which env's reset-plan panel is open
+  /** @type {Map<string, ResetPlan>} */
   resetPlans: new Map(),                   // env id → ResetPlan (fetched lazily)
   // Cross-app cache of groundwork data needed for the per-env dependency
   // graph. Fetched once on demand the first time an env-card is expanded.
-  gwGraph: { loaded: false, deployables: [], services: [], exposes: [], dependencies: [] },
-  // Per-env cytoscape instances for the dep-graph rendered into env-card
-  // detail panels. Tracked so re-renders don't leak old listeners.
-  envDepCy: new Map(),                     // env id → cytoscape instance
+  gwGraph: {
+    loaded: false,
+    /** @type {Array<{id: string, name?: string}>} */ deployables: [],
+    /** @type {Array<{id: string, name?: string, type?: string}>} */ services: [],
+    /** @type {Array<{id: string, deployable_id: string, service_id: string}>} */ exposes: [],
+    /** @type {Array<{id: string, deployable_id: string, service_id: string, criticality?: string}>} */ dependencies: [],
+  },
+  /** @type {Map<string, any>} — env id → cytoscape instance, tracked so re-renders don't leak listeners */
+  envDepCy: new Map(),
   runFilter: 'all',                        // all | <RUN_STATUS>
+  /** @type {string | null} */
   syncEnvId: null,
   search: '',
   loading: false,
@@ -186,6 +326,7 @@ const state = {
 
 // ── Data load ────────────────────────────────────────────────────────────────
 
+/** @returns {Promise<void>} */
 async function loadAll() {
   const [
     testEnvironments,
@@ -240,6 +381,7 @@ async function loadAll() {
   state.data.syncRuns            = Array.isArray(syncRuns) ? syncRuns : [];
 }
 
+/** @param {string} key @param {Record<string, any>} payload @returns {Promise<any>} */
 async function createRecord(key, payload) {
   return apiFetch(ENTITIES[key].api, {
     method: 'POST',
@@ -248,6 +390,7 @@ async function createRecord(key, payload) {
   });
 }
 
+/** @param {string} key @param {string} id @param {Record<string, any>} payload @returns {Promise<any>} */
 async function updateRecord(key, id, payload) {
   return apiFetch(`${ENTITIES[key].api}/${id}`, {
     method: 'PUT',
@@ -256,20 +399,24 @@ async function updateRecord(key, id, payload) {
   });
 }
 
+/** @param {string} key @param {string} id @returns {Promise<any>} */
 async function deleteRecord(key, id) {
   return apiFetch(`${ENTITIES[key].api}/${id}`, { method: 'DELETE' });
 }
 
+/** @param {string} envId @returns {Promise<any>} */
 async function fetchAvailability(envId) {
   return apiFetch(`/test_environment/${envId}/availability`);
 }
 
+/** @param {string} envId @returns {Promise<any>} */
 async function fetchHistory(envId) {
   return apiFetch(`/test_environment/${envId}/history`);
 }
 
 // ── Availability classification ──────────────────────────────────────────────
 
+/** @param {any} raw @returns {AvailabilityState} */
 function classifyAvailability(raw) {
   if (!raw || typeof raw !== 'object') return 'unknown';
   const explicit = (raw.status || raw.state || '').toLowerCase();
@@ -287,6 +434,7 @@ function classifyAvailability(raw) {
   return 'unknown';
 }
 
+/** @param {string} s @returns {string} */
 function statusLabel(s) {
   switch (s) {
     case 'available': return 'available';
@@ -298,21 +446,24 @@ function statusLabel(s) {
 
 // ── Formatting ───────────────────────────────────────────────────────────────
 
+/** @param {string | number | null | undefined} v @returns {string} */
 function fmtCost(v) {
   if (v == null || v === '') return '—';
-  const n = parseFloat(v);
+  const n = parseFloat(String(v));
   if (Number.isFinite(n)) return `$${n.toFixed(2)}/h`;
   return String(v);
 }
 
+/** @param {string | number | null | undefined} v @returns {string} */
 function fmtMinutes(v) {
   if (v == null || v === '') return '—';
   return `${v} min`;
 }
 
+/** @param {string | number | null | undefined} v @param {number} [digits] @returns {string} */
 function fmtNum(v, digits = 2) {
   if (v == null || v === '') return '—';
-  const n = parseFloat(v);
+  const n = parseFloat(String(v));
   if (Number.isFinite(n)) return n.toFixed(digits);
   return String(v);
 }
@@ -333,6 +484,7 @@ const yardFieldInput = (field, value) => fieldInput(field, value, refLookup);
 // (or null on cancel/Esc/backdrop). No state to track, no separate save
 // handler, no scaffold in markup.
 
+/** @param {string} entityKey */
 async function createNew(entityKey) {
   const cfg = ENTITIES[entityKey];
   if (!cfg) return;
@@ -358,7 +510,7 @@ async function createNew(entityKey) {
 // ── Screens: dispatcher ──────────────────────────────────────────────────────
 
 function render() {
-  const root = $('#screen-root');
+  const root = /** @type {HTMLElement} */ ($('#screen-root'));
   root.innerHTML = '';
   $$('#primary-nav .tab').forEach(t => {
     // Tabs become "active" for both top-nav screens and any settings:* sub-screen.
@@ -382,6 +534,7 @@ function render() {
 
 // ── Screen: Environments ─────────────────────────────────────────────────────
 
+/** @param {HTMLElement} root */
 function renderEnvironments(root) {
   const envs = state.data.testEnvironments;
   const needle = state.search.trim().toLowerCase();
@@ -459,11 +612,13 @@ function renderEnvironments(root) {
   queueMicrotask(() => loadAvailabilityForVisible(visible));
 }
 
+/** @param {string | null | undefined} kind @returns {string} */
 function pillKindClass(kind) {
   const k = (kind || '').replace(/[^a-z-]/gi, '').toLowerCase();
   return 'pill k-' + (k || 'unknown');
 }
 
+/** @param {TestEnvironment} item @returns {HTMLElement} */
 function buildEnvCard(item) {
   const id = item.id;
   const expanded = state.expandedEnvId === id;
@@ -528,6 +683,7 @@ function buildEnvCard(item) {
   return card;
 }
 
+/** @param {string} label @param {string} value @returns {HTMLElement} */
 function statBlock(label, value) {
   return el('div', { class: 'stat' },
     el('div', { class: 'lbl' }, label),
@@ -535,6 +691,7 @@ function statBlock(label, value) {
   );
 }
 
+/** @param {TestEnvironment} item @returns {HTMLElement} */
 function buildEnvDetail(item) {
   const id = item.id;
   const cfg = ENTITIES.testEnvironments;
@@ -625,6 +782,7 @@ function buildEnvDetail(item) {
   return detail;
 }
 
+/** @param {any} h @returns {HTMLElement} */
 function renderHistoryStats(h) {
   const grid = el('div', { class: 'stat-grid' });
   const runCount = h.run_count ?? h.runs ?? h.total ?? 0;
@@ -650,6 +808,7 @@ function renderHistoryStats(h) {
 // state instead of an error. (Dev edge at localhost:8090 injects synthetic
 // headers, so the graph works end-to-end there.)
 
+/** @returns {Promise<void>} */
 async function ensureGroundworkGraphLoaded() {
   if (state.gwGraph.loaded) return;
   const gwBase = getManifoldConfig()?.groundwork_public_url;
@@ -688,6 +847,7 @@ async function ensureGroundworkGraphLoaded() {
 // `test`    → sandbox, isolated, multi-tenant (real code, not prod)
 // `fake`    → mock, stub
 // `missing` → no env serving the upstream deployable at all
+/** @param {string | null | undefined} kind @returns {'real' | 'test' | 'fake'} */
 function classifyEnvKind(kind) {
   const k = (kind || '').toLowerCase();
   if (k === 'external')                                       return 'real';
@@ -697,8 +857,10 @@ function classifyEnvKind(kind) {
 }
 
 // Pick the most-real classification across a set of envs.
+/** @param {TestEnvironment[]} envs @returns {'real' | 'test' | 'fake' | 'missing'} */
 function bestClassification(envs) {
   if (!envs.length) return 'missing';
+  /** @type {'real' | 'test' | 'fake'} */
   let best = 'fake';
   const rank = { fake: 0, test: 1, real: 2 };
   for (const e of envs) {
@@ -744,6 +906,7 @@ const ENV_DEP_STYLE = [
   },
 ];
 
+/** @param {TestEnvironment} env */
 async function renderEnvDepGraph(env) {
   const container = document.getElementById(`env-dep-${env.id}`);
   if (!container) return;
@@ -860,6 +1023,7 @@ async function renderEnvDepGraph(env) {
   });
 }
 
+/** @param {TestEnvironment[]} envs */
 async function loadAvailabilityForVisible(envs) {
   const work = envs.map(async (e) => {
     if (state.availability.has(e.id)) return;
@@ -887,6 +1051,7 @@ async function loadAvailabilityForVisible(envs) {
 
 // ── Screen: Runs ─────────────────────────────────────────────────────────────
 
+/** @param {HTMLElement} root */
 function renderRuns(root) {
   const runs = state.data.testRuns.slice().sort((a, b) => {
     const ax = a.started_at || '';
@@ -1059,6 +1224,7 @@ function renderRuns(root) {
 
 // ── Screen: Sync dashboard ───────────────────────────────────────────────────
 
+/** @param {HTMLElement} root */
 function renderSync(root) {
   const syncCount = state.data.dataSyncs.length;
   updateFooterMeta(
@@ -1188,6 +1354,11 @@ function renderSync(root) {
 
 // ── SVG line chart (vanilla, no library) ─────────────────────────────────────
 
+/**
+ * @param {Array<TestRun & { syncMinutes?: number }>} runs
+ * @param {number} estimatedSum
+ * @returns {SVGSVGElement}
+ */
 function buildSvgChart(runs, estimatedSum) {
   const W = 640, H = 280;
   const M = { top: 20, right: 16, bottom: 36, left: 44 };
@@ -1304,6 +1475,7 @@ function buildSvgChart(runs, estimatedSum) {
   return svg;
 }
 
+/** @param {number} v @returns {number} */
 function niceCeil(v) {
   if (v <= 0) return 1;
   const exp  = Math.pow(10, Math.floor(Math.log10(v)));
@@ -1333,6 +1505,7 @@ const REFRESH_INTERVAL_HOURS = {
   periodic: 24,
 };
 
+/** @param {HTMLElement} root */
 function renderLifecycle(root) {
   const envs = state.data.testEnvironments;
   const syncs = state.data.dataSyncs;
@@ -1404,6 +1577,11 @@ function renderLifecycle(root) {
 }
 
 // freshness state: one of { fresh, aging, overdue, never, unconfigured }
+/**
+ * @param {SyncRun | undefined} latest
+ * @param {DataSync[]} feedingSyncs
+ * @returns {{ state: string, label: string, age: number | null }}
+ */
 function computeFreshness(latest, feedingSyncs) {
   if (feedingSyncs.length === 0) {
     return { state: 'unconfigured', label: 'no sync', age: null };
@@ -1431,6 +1609,7 @@ function computeFreshness(latest, feedingSyncs) {
   return { state: 'overdue', label: fmtAge(ageHours), age: ageHours };
 }
 
+/** @param {string | null | undefined} iso @returns {number | null} */
 function ageHoursFromIso(iso) {
   if (!iso) return null;
   const t = Date.parse(iso);
@@ -1438,6 +1617,7 @@ function ageHoursFromIso(iso) {
   return (Date.now() - t) / (1000 * 60 * 60);
 }
 
+/** @param {number | null} hours @returns {string} */
 function fmtAge(hours) {
   if (hours == null) return '—';
   if (hours < 1)    return `${Math.round(hours * 60)}m ago`;
@@ -1445,6 +1625,12 @@ function fmtAge(hours) {
   return `${Math.round(hours / 24)}d ago`;
 }
 
+/**
+ * @param {TestEnvironment} env
+ * @param {SyncRun | undefined} latest
+ * @param {ReturnType<typeof computeFreshness>} fr
+ * @returns {HTMLElement}
+ */
 function buildLifecycleRow(env, latest, fr) {
   const tr = el('tr', { dataset: { id: env.id } });
   tr.appendChild(el('td', {},
@@ -1475,6 +1661,7 @@ function buildLifecycleRow(env, latest, fr) {
   return tr;
 }
 
+/** @param {TestEnvironment} env @returns {HTMLElement} */
 function buildPlanPanelRow(env) {
   const tr = el('tr', { class: 'plan-row' });
   const td = el('td', { colspan: '6' });
@@ -1494,6 +1681,7 @@ function buildPlanPanelRow(env) {
   return tr;
 }
 
+/** @param {HTMLElement} panel @param {ResetPlan} plan */
 function renderPlanPanel(panel, plan) {
   panel.innerHTML = '';
 
@@ -1555,6 +1743,7 @@ function renderPlanPanel(panel, plan) {
 // Idempotent fetch — kicked off from togglePlan AND from buildPlanPanelRow
 // (when a cold load lands on #lifecycle/<envId> with no plan cached yet).
 const _inFlightPlans = new Set();
+/** @param {string} envId */
 async function ensurePlanFetched(envId) {
   if (state.resetPlans.has(envId)) return;
   if (_inFlightPlans.has(envId)) return;
@@ -1572,6 +1761,7 @@ async function ensurePlanFetched(envId) {
   }
 }
 
+/** @param {string} envId */
 function togglePlan(envId) {
   if (state.expandedPlanEnvId === envId) {
     state.expandedPlanEnvId = null;
@@ -1586,6 +1776,7 @@ function togglePlan(envId) {
   ensurePlanFetched(envId);
 }
 
+/** @param {string | null | undefined} iso @returns {string} */
 function fmtTimestamp(iso) {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -1603,6 +1794,7 @@ const SETTINGS_EMPTY = {
   testSuites:          { title: 'No test suites yet',     lede: 'Tests are stories about deployables. Catalogue them.' },
 };
 
+/** @param {HTMLElement} root @param {string} entityKey */
 function renderSettings(root, entityKey) {
   const cfg = ENTITIES[entityKey];
   if (!cfg) {
@@ -1721,6 +1913,7 @@ function renderSettings(root, entityKey) {
 
 // ── New-button helper (entity per screen) ────────────────────────────────────
 
+/** @returns {string} */
 function newEntityKeyForCurrentScreen() {
   if (state.screen === 'environments') return 'testEnvironments';
   if (state.screen === 'runs')         return 'testRuns';
@@ -1731,6 +1924,7 @@ function newEntityKeyForCurrentScreen() {
 
 // ── Wire-up ──────────────────────────────────────────────────────────────────
 
+/** @param {string | null | undefined} name @returns {boolean} */
 function isValidScreen(name) {
   if (!name) return false;
   return Array.from(document.querySelectorAll('[data-screen]'))
@@ -1744,6 +1938,7 @@ function isValidScreen(name) {
 // uses history.replaceState (not assigning location.hash) to avoid
 // piling up a back-button entry per click.
 
+/** @param {string | null | undefined} raw @returns {{ screen: string | null, id: string | null }} */
 function parseHash(raw) {
   const s = (raw || '').replace(/^#/, '');
   if (!s) return { screen: null, id: null };
@@ -1754,6 +1949,7 @@ function parseHash(raw) {
 
 // What `id` slot does this screen care about? Returns null for screens
 // without per-row focus (none currently — sync uses syncEnvId).
+/** @param {string} screen @returns {string | null} */
 function expandedIdForScreen(screen) {
   if (screen === 'environments') return state.expandedEnvId;
   if (screen === 'runs')         return state.expandedRunId;
@@ -1763,6 +1959,7 @@ function expandedIdForScreen(screen) {
   return null;
 }
 
+/** @param {string} screen @param {string | null} id */
 function applyExpandedId(screen, id) {
   // Reset the per-screen expanded fields first so leftover state from
   // another screen doesn't leak when the URL routes us elsewhere.
@@ -1781,6 +1978,7 @@ function applyExpandedId(screen, id) {
   else if (screen.startsWith('settings:'))   state.expandedSettingId = id;
 }
 
+/** @returns {string} */
 function buildHashFromState() {
   if (!state.screen) return '';
   const id = expandedIdForScreen(state.screen);
@@ -1797,6 +1995,7 @@ function syncUrl() {
   }
 }
 
+/** @param {string} screen @param {string | null} [id] */
 function setScreen(screen, id = null) {
   state.screen = screen;
   state.search = '';
