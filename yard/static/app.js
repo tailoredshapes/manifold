@@ -151,7 +151,7 @@ const ENTITIES = {
 // ── State ────────────────────────────────────────────────────────────────────
 
 const state = {
-  screen: 'environments',                  // environments | runs | sync | settings:<entity>
+  screen: 'environments',                  // environments | runs | sync | lifecycle | settings:<entity>
   data: {
     testEnvironments: [],
     testInfrastructures: [],
@@ -160,6 +160,7 @@ const state = {
     dataSyncs: [],
     testRuns: [],
     testSuites: [],
+    syncRuns: [],
   },
   // Cross-app config now lives inside manifold-ui (loadManifoldConfig).
   availability: new Map(),                 // env id → { status: 'available'|'cap'|'blocked'|'unknown', raw }
@@ -167,6 +168,8 @@ const state = {
   expandedEnvId: null,
   expandedRunId: null,
   expandedSettingId: null,
+  expandedPlanEnvId: null,                 // Lifecycle: which env's reset-plan panel is open
+  resetPlans: new Map(),                   // env id → ResetPlan (fetched lazily)
   runFilter: 'all',                        // all | <RUN_STATUS>
   syncEnvId: null,
   search: '',
@@ -186,6 +189,7 @@ async function loadAll() {
     dataSyncs,
     testRuns,
     testSuites,
+    syncRuns,
   ] = await Promise.all([
     gqlQuery(
       '/test_environment/graph',
@@ -215,6 +219,10 @@ async function loadAll() {
       '/test_suite/graph',
       '{ getAll { id name deployable_id runner command description } }'
     ).then(d => d.getAll).catch(() => []),
+    gqlQuery(
+      '/sync_run/graph',
+      '{ getAll { id data_sync_id source_env_id target_env_id source_data_id masking_summary source_revision triggered_by started_at finished_at status duration_minutes error_message } }'
+    ).then(d => d.getAll).catch(() => []),
   ]);
   state.data.testEnvironments    = Array.isArray(testEnvironments) ? testEnvironments : [];
   state.data.testInfrastructures = Array.isArray(testInfrastructures) ? testInfrastructures : [];
@@ -223,6 +231,7 @@ async function loadAll() {
   state.data.dataSyncs           = Array.isArray(dataSyncs) ? dataSyncs : [];
   state.data.testRuns            = Array.isArray(testRuns) ? testRuns : [];
   state.data.testSuites          = Array.isArray(testSuites) ? testSuites : [];
+  state.data.syncRuns            = Array.isArray(syncRuns) ? syncRuns : [];
 }
 
 async function createRecord(key, payload) {
@@ -356,6 +365,7 @@ function render() {
   if (state.screen === 'environments')           renderEnvironments(root);
   else if (state.screen === 'runs')              renderRuns(root);
   else if (state.screen === 'sync')              renderSync(root);
+  else if (state.screen === 'lifecycle')         renderLifecycle(root);
   else if (state.screen.startsWith('settings:')) renderSettings(root, state.screen.slice('settings:'.length));
   else                                           renderEnvironments(root);
 }
@@ -1052,6 +1062,268 @@ function niceCeil(v) {
   else if (frac <= 5)  nice = 5;
   else                 nice = 10;
   return nice * exp;
+}
+
+// ── Screen: Lifecycle (data governance) ──────────────────────────────────────
+//
+// Operator-facing dashboard for the data side of every environment. Per env:
+// when was it last refreshed (latest succeeded SyncRun to that env), is the
+// refresh overdue versus the declared refresh_policy on its feeding sync, and
+// what would resetting it cost? The "Plan reset" panel expands inline and
+// calls /test_environment/<id>/reset_plan — same shape as cityhall's
+// ComputedPlan so the two surfaces feel symmetric.
+
+// Heuristic refresh-policy → expected interval in hours. Used to compare
+// against time-since-last-sync to surface staleness. Policies that don't
+// map to a wall-clock window (per_test_run, versioned, on_demand) are
+// treated as "not applicable" rather than overdue.
+const REFRESH_INTERVAL_HOURS = {
+  periodic: 24,
+};
+
+function renderLifecycle(root) {
+  const envs = state.data.testEnvironments;
+  const syncs = state.data.dataSyncs;
+  const runs = state.data.syncRuns;
+
+  updateFooterMeta(
+    `${envs.length} ${envs.length === 1 ? 'environment' : 'environments'} · ${syncs.length} syncs · ${runs.length} sync runs`
+  );
+
+  root.appendChild(
+    el('div', { class: 'section-head' },
+      el('div', {},
+        el('h1', {}, 'Data lifecycle'),
+        el('div', { class: 'meta' },
+          'When was each env last refreshed, what would resetting it cost, what would it break.'),
+      ),
+    ),
+  );
+
+  if (envs.length === 0) {
+    root.appendChild(emptyCard({
+      title: 'No environments yet',
+      lede: 'Lifecycle answers questions about the data inside an environment. Register one first.',
+    }));
+    return;
+  }
+
+  // Pre-compute: per-env latest succeeded SyncRun + its feeding syncs.
+  const latestSyncByEnv = new Map();
+  for (const r of runs) {
+    if (r.status !== 'succeeded') continue;
+    if (!r.finished_at) continue;
+    const prev = latestSyncByEnv.get(r.target_env_id);
+    if (!prev || (r.finished_at || '') > (prev.finished_at || '')) {
+      latestSyncByEnv.set(r.target_env_id, r);
+    }
+  }
+  const syncsByTarget = new Map();
+  for (const s of syncs) {
+    if (!syncsByTarget.has(s.target_env_id)) syncsByTarget.set(s.target_env_id, []);
+    syncsByTarget.get(s.target_env_id).push(s);
+  }
+
+  const table = el('table', { class: 'lifecycle-table' });
+  const thead = el('thead', {},
+    el('tr', {},
+      el('th', {}, 'Environment'),
+      el('th', {}, 'Kind'),
+      el('th', {}, 'Last refresh'),
+      el('th', {}, 'Freshness'),
+      el('th', {}, 'Reset cost'),
+      el('th', {}, ''),
+    ),
+  );
+  table.appendChild(thead);
+  const tbody = el('tbody', {});
+  const sorted = [...envs].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  for (const env of sorted) {
+    const latest = latestSyncByEnv.get(env.id);
+    const feedingSyncs = syncsByTarget.get(env.id) || [];
+    const fr = computeFreshness(latest, feedingSyncs);
+    tbody.appendChild(buildLifecycleRow(env, latest, fr));
+    if (state.expandedPlanEnvId === env.id) {
+      tbody.appendChild(buildPlanPanelRow(env));
+    }
+  }
+  table.appendChild(tbody);
+  root.appendChild(table);
+}
+
+// freshness state: one of { fresh, aging, overdue, never, unconfigured }
+function computeFreshness(latest, feedingSyncs) {
+  if (feedingSyncs.length === 0) {
+    return { state: 'unconfigured', label: 'no sync', age: null };
+  }
+  if (!latest) {
+    return { state: 'never', label: 'never refreshed', age: null };
+  }
+  const ageHours = ageHoursFromIso(latest.finished_at);
+  if (ageHours == null) return { state: 'unconfigured', label: 'unknown', age: null };
+
+  // Pick the strictest interval among the feeding syncs' policies. Policies
+  // that aren't time-based (per_test_run, versioned, on_demand) don't
+  // contribute — they're "fresh on demand."
+  let intervalH = null;
+  for (const s of feedingSyncs) {
+    const h = REFRESH_INTERVAL_HOURS[s.refresh_policy];
+    if (h != null && (intervalH == null || h < intervalH)) intervalH = h;
+  }
+  if (intervalH == null) {
+    // Time-based policy not declared — show the age but don't mark stale.
+    return { state: 'fresh', label: fmtAge(ageHours), age: ageHours };
+  }
+  if (ageHours <= intervalH * 0.75)      return { state: 'fresh',    label: fmtAge(ageHours), age: ageHours };
+  if (ageHours <= intervalH)             return { state: 'aging',    label: fmtAge(ageHours), age: ageHours };
+  return { state: 'overdue', label: fmtAge(ageHours), age: ageHours };
+}
+
+function ageHoursFromIso(iso) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  if (Number.isNaN(t)) return null;
+  return (Date.now() - t) / (1000 * 60 * 60);
+}
+
+function fmtAge(hours) {
+  if (hours == null) return '—';
+  if (hours < 1)    return `${Math.round(hours * 60)}m ago`;
+  if (hours < 48)   return `${Math.round(hours)}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+function buildLifecycleRow(env, latest, fr) {
+  const tr = el('tr', { dataset: { id: env.id } });
+  tr.appendChild(el('td', {},
+    el('div', { class: 'name' }, env.name || '(unnamed)'),
+    el('div', { class: 'id' }, env.id ? env.id.slice(0, 8) : ''),
+  ));
+  tr.appendChild(el('td', {}, env.kind || '—'));
+  tr.appendChild(el('td', { class: 'age' }, latest?.finished_at ? fmtTimestamp(latest.finished_at) : '—'));
+  tr.appendChild(el('td', {}, el('span', { class: 'freshness ' + fr.state }, fr.label)));
+
+  const plan = state.resetPlans.get(env.id);
+  const costCell = el('td', { class: 'age' });
+  if (plan) {
+    costCell.textContent = plan.estimated_total_cost > 0
+      ? `$${plan.estimated_total_cost.toFixed(2)} · ${Math.round(plan.estimated_total_minutes)}m`
+      : `${Math.round(plan.estimated_total_minutes)}m`;
+  } else {
+    costCell.innerHTML = '<span style="color:var(--text-soft)">—</span>';
+  }
+  tr.appendChild(costCell);
+
+  const expanded = state.expandedPlanEnvId === env.id;
+  const btn = el('button', { class: expanded ? '' : 'primary' }, expanded ? 'Close' : 'Plan reset');
+  btn.addEventListener('click', () => togglePlan(env.id));
+  tr.appendChild(el('td', {}, btn));
+
+  if (expanded) tr.classList.add('expanded');
+  return tr;
+}
+
+function buildPlanPanelRow(env) {
+  const tr = el('tr', { class: 'plan-row' });
+  const td = el('td', { colspan: '6' });
+  const panel = el('div', { class: 'plan-panel' });
+  const plan = state.resetPlans.get(env.id);
+  if (!plan) {
+    panel.appendChild(el('div', { class: 'plan-empty' }, 'Computing plan…'));
+  } else {
+    renderPlanPanel(panel, plan);
+  }
+  td.appendChild(panel);
+  tr.appendChild(td);
+  return tr;
+}
+
+function renderPlanPanel(panel, plan) {
+  panel.innerHTML = '';
+
+  // Summary
+  const summary = el('div', { class: 'plan-summary' });
+  summary.appendChild(el('span', {}, el('strong', {}, plan.steps.length), `step${plan.steps.length === 1 ? '' : 's'}`));
+  summary.appendChild(el('span', {}, el('strong', {}, `${Math.round(plan.estimated_total_minutes)}m`), 'estimated'));
+  summary.appendChild(el('span', {}, el('strong', {}, `$${plan.estimated_total_cost.toFixed(2)}`), 'cost'));
+  if (plan.last_sync_at) {
+    summary.appendChild(el('span', {}, el('strong', {}, 'last:'), fmtAge(ageHoursFromIso(plan.last_sync_at))));
+  } else {
+    summary.appendChild(el('span', {}, el('strong', {}, 'last:'), 'never'));
+  }
+  panel.appendChild(summary);
+
+  // Blockers (if any) — render before steps so they sit up top.
+  if (plan.blockers.length > 0) {
+    panel.appendChild(el('div', { class: 'plan-section-head' }, 'Blockers'));
+    const blockerWrap = el('div', { class: 'plan-blockers' });
+    for (const b of plan.blockers) {
+      blockerWrap.appendChild(el('div', { class: 'blocker' },
+        el('span', { class: 'kind' }, b.kind.replace(/_/g, ' ')),
+        b.message,
+      ));
+    }
+    panel.appendChild(blockerWrap);
+  }
+
+  // Steps
+  if (plan.steps.length === 0) {
+    panel.appendChild(el('div', { class: 'plan-empty' },
+      'No data syncs feed this environment. Register a data_sync row in Settings → Sync to enable reset planning.'));
+  } else {
+    panel.appendChild(el('div', { class: 'plan-section-head' }, 'Procedure'));
+    const ol = el('ol', { class: 'plan-steps' });
+    for (const s of plan.steps) {
+      const li = el('li', {});
+      li.appendChild(el('div', { class: 'step-head' },
+        el('span', { class: 'step-target' }, `${s.source_label} → ${s.target_env_name}`),
+        el('span', { class: 'step-cost' },
+          s.estimated_cost > 0
+            ? `${Math.round(s.estimated_minutes)}m · $${s.estimated_cost.toFixed(2)}`
+            : `${Math.round(s.estimated_minutes)}m`),
+      ));
+      const meta = el('div', { class: 'step-meta' });
+      meta.appendChild(el('span', { class: 'pill' }, s.kind));
+      if (s.refresh_policy) meta.appendChild(el('span', { class: 'pill' }, s.refresh_policy));
+      if (s.masking_summary) meta.appendChild(el('span', { class: 'pill' }, `masking: ${s.masking_summary}`));
+      li.appendChild(meta);
+      if (s.predecessor_orders && s.predecessor_orders.length > 0) {
+        li.appendChild(el('div', { class: 'step-pred' }, `after step ${s.predecessor_orders.join(', ')}`));
+      }
+      ol.appendChild(li);
+    }
+    panel.appendChild(ol);
+  }
+}
+
+async function togglePlan(envId) {
+  if (state.expandedPlanEnvId === envId) {
+    state.expandedPlanEnvId = null;
+    render();
+    return;
+  }
+  state.expandedPlanEnvId = envId;
+  render();
+  // Fetch if not cached. Refresh on every open since blockers (in-flight
+  // runs) are live — staleness here would be worse than a quick refetch.
+  try {
+    const plan = await apiFetch(`/test_environment/${envId}/reset_plan`);
+    state.resetPlans.set(envId, plan);
+    // Only re-render if the user hasn't navigated away or closed in flight.
+    if (state.screen === 'lifecycle' && state.expandedPlanEnvId === envId) {
+      render();
+    }
+  } catch (e) {
+    setError(e);
+  }
+}
+
+function fmtTimestamp(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  // Compact form: "May 19 14:32"
+  return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 // ── Screen: Settings (simple CRUD) ───────────────────────────────────────────

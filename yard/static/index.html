@@ -180,6 +180,159 @@
       color: var(--text-muted);
     }
 
+    /* ── Lifecycle (data governance) screen ───────────────────────────── */
+    .lifecycle-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .lifecycle-table th, .lifecycle-table td {
+      padding: 10px 14px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--border);
+    }
+    .lifecycle-table th {
+      background: var(--surface-alt);
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 11px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .lifecycle-table tbody tr:last-child td { border-bottom: 0; }
+    .lifecycle-table tbody tr.expanded td { background: var(--surface-alt); }
+    .lifecycle-table .name { font-weight: 500; color: var(--text); }
+    .lifecycle-table .id   { font-family: var(--font-mono); font-size: 11px; color: var(--text-soft); }
+    .lifecycle-table .age  { font-variant-numeric: tabular-nums; }
+
+    /* Freshness chip: pill-shaped staleness indicator. */
+    .freshness {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      background: var(--surface);
+      text-transform: lowercase;
+      white-space: nowrap;
+    }
+    .freshness.fresh    { color: var(--success); border-color: var(--success); background: var(--success-soft); }
+    .freshness.aging    { color: var(--warn);    border-color: var(--warn);    background: var(--warn-soft); }
+    .freshness.overdue,
+    .freshness.stale    { color: var(--danger);  border-color: var(--danger);  background: var(--danger-soft); }
+    .freshness.never    { color: var(--text-soft); border: 1px dashed var(--border-strong); }
+    .freshness.unconfigured { color: var(--text-muted); border-style: dotted; }
+
+    /* Expanded plan row: spans all columns, holds the step list + blockers. */
+    .plan-row td { padding: 0; background: var(--surface); }
+    .plan-panel {
+      padding: 16px 20px 18px;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .plan-panel .plan-summary {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-panel .plan-summary strong { color: var(--text); margin-right: 4px; }
+    .plan-panel .plan-section-head {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      margin: 12px 0 8px;
+    }
+    .plan-steps {
+      counter-reset: planstep;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .plan-steps li {
+      position: relative;
+      padding: 8px 12px 8px 38px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    .plan-steps li::before {
+      counter-increment: planstep;
+      content: counter(planstep);
+      position: absolute;
+      left: 10px;
+      top: 8px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: var(--ink);
+      color: #fff;
+      text-align: center;
+      line-height: 22px;
+      font-size: 11px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .plan-steps .step-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+    .plan-steps .step-target { color: var(--text); font-weight: 500; }
+    .plan-steps .step-cost   { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .plan-steps .step-meta   { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .plan-steps .step-meta .pill { margin-right: 6px; }
+    .plan-steps .step-pred {
+      font-size: 11px;
+      color: var(--text-soft);
+      margin-top: 4px;
+      font-style: italic;
+    }
+    .plan-blockers {
+      margin-top: 6px;
+    }
+    .plan-blockers .blocker {
+      padding: 8px 12px;
+      border-left: 3px solid var(--danger);
+      background: var(--danger-soft);
+      color: var(--text);
+      font-size: 13px;
+      margin-bottom: 6px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+    .plan-blockers .blocker .kind {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--danger);
+      margin-right: 6px;
+    }
+    .plan-empty {
+      padding: 14px 16px;
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-size: 13px;
+      background: var(--surface);
+    }
+
     /* ── Sync dashboard ───────────────────────────────────────────────── */
     .sync-grid {
       display: grid;
@@ -250,6 +403,7 @@
       <button class="tab active" data-screen="environments">Environments</button>
       <button class="tab" data-screen="runs">Runs</button>
       <button class="tab" data-screen="sync">Sync</button>
+      <button class="tab" data-screen="lifecycle">Lifecycle</button>
     </nav>
 
     <div class="header-actions">
