@@ -535,7 +535,7 @@ function buildTreeNode(node, byParent, needle) {
   }
 
   const addBylawBtn = el('button', {
-    class: 'btn subtle sm',
+    class: 'ghost sm',
     title: 'Attach a bylaw to this node',
     onclick: (e) => {
       e.stopPropagation();
@@ -713,7 +713,7 @@ function renderChangeRequests() {
       el('td', {}, statusPill(cr.status)),
       targetsCell,
       el('td', { style: 'text-align: right;' }, el('button', {
-        class: 'btn sm',
+        class: 'sm',
         onclick: () => editChangeRequest(cr),
       }, 'View')),
     ]));
@@ -1277,7 +1277,7 @@ function renderBylawsTable() {
       el('td', {}, b.description || el('span', { class: 'muted' }, '—')),
       el('td', { class: 'mono' }, detailParts.join(' · ') || '—'),
       el('td', { style: 'text-align: right;' }, el('button', {
-        class: 'btn sm danger',
+        class: 'danger sm',
         onclick: () => deleteBylaw(b.id),
       }, 'Delete')),
     ]));

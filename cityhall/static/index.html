@@ -7,9 +7,9 @@
 
   <!-- Shared Manifold UI kit: design tokens + primitive component styles.
        Cityhall's inline <style> below aliases the kit's tokens under
-       cityhall-specific names and overrides a few values, then defines its
-       own component class taxonomy (.btn / .field-grid / custom-arrow
-       select). White-label overrides applied to the kit propagate through. -->
+       cityhall-specific names and overrides a few values; primitive button
+       and form-grid taxonomy comes from the kit. White-label overrides
+       applied to the kit propagate through. -->
   <link rel="stylesheet" href="/static/manifold-ui.css" />
 
   <style>
@@ -196,49 +196,12 @@
       border-radius: 0 0 var(--radius) var(--radius);
     }
 
-    /* ── Buttons ───────────────────────────────────────────────────────────── */
-    .btn {
-      background: transparent;
-      border: 1px solid var(--border);
-      color: var(--text);
-      font: inherit;
-      font-size: 14px;
-      padding: 7px 14px;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      transition: background var(--t), box-shadow var(--t), border-color var(--t), color var(--t);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn:hover {
-      background: var(--row-hover);
-      box-shadow: var(--shadow-hover);
-    }
-    .btn:focus-visible {
-      outline: none;
-      box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.15);
-    }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; background: transparent; }
-    .btn.primary {
-      background: var(--ink);
-      border-color: var(--ink);
-      color: #fff;
-    }
-    .btn.primary:hover {
-      background: var(--ink-hover);
-      border-color: var(--ink-hover);
-      color: #fff;
-    }
-    .btn.danger { color: var(--danger); border-color: var(--border); }
-    .btn.danger:hover { background: #fef2f2; border-color: var(--danger); }
-    .btn.subtle {
-      border-color: transparent;
-      color: var(--muted);
-      padding: 4px 8px;
-    }
-    .btn.subtle:hover { background: var(--row-hover); color: var(--text); box-shadow: none; }
-    .btn.sm { font-size: 12px; padding: 4px 10px; }
+    /* ── Buttons ───────────────────────────────────────────────────────────── *
+       Base button styles + .primary / .danger / .ghost modifiers all come
+       from manifold-ui.css. Cityhall keeps only the locally-defined size
+       variant (.sm) and the :disabled state. */
+    button:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+    button.sm { font-size: 12px; padding: 4px 10px; }
 
     /* ── Inputs ────────────────────────────────────────────────────────────── */
     label.field-label {
@@ -275,13 +238,12 @@
       padding-right: 28px;
     }
 
-    .field { margin-bottom: 14px; }
-    .field-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-    }
-    .field-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    /* ── Form layout ───────────────────────────────────────────────────────── *
+       .form-grid / .form-grid .field come from manifold-ui.css. Cityhall
+       keeps two narrow extensions: an extra-cols variant and spacing for
+       standalone fields used outside a grid (e.g. the wizard panes). */
+    .form-grid.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .wizard-pane > .field { margin-bottom: 14px; }
 
     /* ── Badges / pills ────────────────────────────────────────────────────── */
     .pill {
@@ -717,7 +679,7 @@
       </div>
       <div class="actions">
         <input type="search" id="org-search" placeholder="Search nodes…" style="width: 260px;" />
-        <button class="btn primary" id="org-new">+ New node</button>
+        <button class="primary" id="org-new">+ New node</button>
       </div>
     </div>
 
@@ -733,15 +695,15 @@
     <div class="card hidden" id="org-form-card">
       <div class="card-head">
         <h2>New org node</h2>
-        <button class="btn subtle" id="org-form-cancel">Cancel</button>
+        <button class="ghost" id="org-form-cancel">Cancel</button>
       </div>
       <div class="card-body">
-        <div class="field-grid">
-          <div>
+        <div class="form-grid">
+          <div class="field">
             <label class="field-label" for="org-f-name">Name</label>
             <input type="text" id="org-f-name" />
           </div>
-          <div>
+          <div class="field">
             <label class="field-label" for="org-f-kind">Kind</label>
             <select id="org-f-kind">
               <option value="enterprise">enterprise</option>
@@ -751,19 +713,19 @@
               <option value="team">team</option>
             </select>
           </div>
-          <div>
+          <div class="field">
             <label class="field-label" for="org-f-parent">Parent</label>
             <select id="org-f-parent"><option value="">— none —</option></select>
           </div>
-          <div>
+          <div class="field">
             <label class="field-label" for="org-f-team">Team id (Union)</label>
             <input type="text" id="org-f-team" placeholder="optional team id" />
           </div>
         </div>
       </div>
       <div class="card-foot">
-        <button class="btn" id="org-form-cancel-2">Cancel</button>
-        <button class="btn primary" id="org-form-save">Create node</button>
+        <button id="org-form-cancel-2">Cancel</button>
+        <button class="primary" id="org-form-save">Create node</button>
       </div>
     </div>
   </section>
@@ -777,7 +739,7 @@
       </div>
       <div class="actions">
         <input type="search" id="cr-search" placeholder="Search summary…" style="width: 260px;" />
-        <button class="btn primary" id="cr-new">+ New change request</button>
+        <button class="primary" id="cr-new">+ New change request</button>
       </div>
     </div>
 
@@ -800,8 +762,8 @@
             <label class="field-label" for="cr-description">Description</label>
             <textarea id="cr-description" rows="4" placeholder="What is changing, why, and any operational notes."></textarea>
           </div>
-          <div class="field-grid">
-            <div>
+          <div class="form-grid">
+            <div class="field">
               <label class="field-label" for="cr-tier">Target tier</label>
               <select id="cr-tier">
                 <option value="dev">dev</option>
@@ -810,7 +772,7 @@
                 <option value="prod">prod</option>
               </select>
             </div>
-            <div>
+            <div class="field">
               <label class="field-label" for="cr-requested-by">Requested by (Person id)</label>
               <input type="text" id="cr-requested-by" placeholder="optional" />
             </div>
@@ -832,7 +794,7 @@
         <div class="wizard-pane hidden" data-pane="3">
           <div class="row" style="margin-bottom: 12px;">
             <h3 class="section grow">Computed gates</h3>
-            <button class="btn sm" id="cr-recompute">Recompute</button>
+            <button class="sm" id="cr-recompute">Recompute</button>
           </div>
           <div id="cr-plan-output" class="stack">
             <div class="muted" style="font-size: 13px;">Computing plan…</div>
@@ -854,10 +816,10 @@
       </div>
 
       <div class="card-foot">
-        <button class="btn" id="cr-cancel">Cancel</button>
+        <button id="cr-cancel">Cancel</button>
         <span class="grow"></span>
-        <button class="btn" id="cr-back">Back</button>
-        <button class="btn primary" id="cr-next">Next</button>
+        <button id="cr-back">Back</button>
+        <button class="primary" id="cr-next">Next</button>
       </div>
     </div>
 
@@ -917,12 +879,12 @@
         <h2>New / edit bylaw</h2>
       </div>
       <div class="card-body">
-        <div class="field-grid">
-          <div>
+        <div class="form-grid">
+          <div class="field">
             <label class="field-label" for="bl-org">Org node</label>
             <select id="bl-org"><option value="">— select —</option></select>
           </div>
-          <div>
+          <div class="field">
             <label class="field-label" for="bl-gate">Gate type</label>
             <select id="bl-gate">
               <option value="AutoGate">AutoGate</option>
@@ -932,36 +894,36 @@
               <option value="FreezePeriod">FreezePeriod</option>
             </select>
           </div>
-          <div>
+          <div class="field">
             <label class="field-label" for="bl-priority">Priority</label>
             <input type="text" id="bl-priority" placeholder="e.g. 100" />
           </div>
-          <div>
+          <div class="field">
             <label class="field-label" for="bl-desc">Description</label>
             <input type="text" id="bl-desc" placeholder="Human-readable rationale" />
           </div>
 
-          <div class="field-cond" data-cond="WindowGate FreezePeriod">
+          <div class="field field-cond" data-cond="WindowGate FreezePeriod">
             <label class="field-label" for="bl-window">Window <span class="muted">(required)</span></label>
             <input type="text" id="bl-window" placeholder="e.g. Mon-Fri 09:00-17:00 UTC" />
           </div>
-          <div class="field-cond" data-cond="QuiesceGate">
+          <div class="field field-cond" data-cond="QuiesceGate">
             <label class="field-label" for="bl-quiesce">Quiesce for <span class="muted">(required)</span></label>
             <input type="text" id="bl-quiesce" placeholder="e.g. 30m" />
           </div>
-          <div class="field-cond" data-cond="ApprovalGate">
+          <div class="field field-cond" data-cond="ApprovalGate">
             <label class="field-label" for="bl-approvers">Approvers <span class="muted">(required)</span></label>
             <input type="text" id="bl-approvers" placeholder="comma-separated person ids" />
           </div>
-          <div>
+          <div class="field">
             <label class="field-label" for="bl-conditions">Conditions (JSON)</label>
             <input type="text" id="bl-conditions" placeholder='optional, e.g. {"region":"us-east"}' />
           </div>
         </div>
       </div>
       <div class="card-foot">
-        <button class="btn" id="bl-reset">Reset</button>
-        <button class="btn primary" id="bl-save">Save bylaw</button>
+        <button id="bl-reset">Reset</button>
+        <button class="primary" id="bl-save">Save bylaw</button>
       </div>
     </div>
 
