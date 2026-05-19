@@ -170,6 +170,12 @@ const state = {
   expandedSettingId: null,
   expandedPlanEnvId: null,                 // Lifecycle: which env's reset-plan panel is open
   resetPlans: new Map(),                   // env id → ResetPlan (fetched lazily)
+  // Cross-app cache of groundwork data needed for the per-env dependency
+  // graph. Fetched once on demand the first time an env-card is expanded.
+  gwGraph: { loaded: false, deployables: [], services: [], exposes: [], dependencies: [] },
+  // Per-env cytoscape instances for the dep-graph rendered into env-card
+  // detail panels. Tracked so re-renders don't leak old listeners.
+  envDepCy: new Map(),                     // env id → cytoscape instance
   runFilter: 'all',                        // all | <RUN_STATUS>
   syncEnvId: null,
   search: '',
@@ -556,6 +562,24 @@ function buildEnvDetail(item) {
     histBlock.appendChild(renderHistoryStats(cached));
   }
 
+  // Dependency-graph block. The cytoscape canvas is created lazily on the
+  // first render; the legend always shows what the colour-coding means so
+  // it doesn't need to be inferred from node colours alone.
+  const depBlock = el('div', { class: 'env-dep-graph' });
+  const depCanvas = el('div', { class: 'env-dep-canvas', id: `env-dep-${id}` });
+  const depLegend = el('div', { class: 'env-dep-legend' },
+    el('span', {}, el('span', { class: 'swatch focal' }), 'this env'),
+    el('span', {}, el('span', { class: 'swatch real' }), 'external / real'),
+    el('span', {}, el('span', { class: 'swatch test' }), 'sandbox / isolated / multi-tenant'),
+    el('span', {}, el('span', { class: 'swatch fake' }), 'mock / stub / missing'),
+  );
+  depBlock.appendChild(depCanvas);
+  depBlock.appendChild(depLegend);
+  detail.appendChild(depBlock);
+  // Trigger the (idempotent) fetch + render on next frame so the canvas
+  // is in the DOM before cytoscape mounts.
+  requestAnimationFrame(() => renderEnvDepGraph(item));
+
   // Actions
   const actions = el('div', { class: 'row-actions' },
     el('button', { class: 'primary',
@@ -610,6 +634,230 @@ function renderHistoryStats(h) {
   grid.appendChild(statBlock('Pass rate',    passRate));
   grid.appendChild(statBlock('Avg duration', avgDur != null ? fmtMinutes(avgDur) : '—'));
   return grid;
+}
+
+// ── Per-env dependency graph ────────────────────────────────────────────────
+//
+// For an env A (whose code is deployable D), walk D's groundwork dependencies
+// (each is a service S that some other deployable D' exposes) and find the
+// yard environments serving D'. Color the resulting node by the most-real
+// kind available across those envs: external (green), test envs (yellow),
+// mock/stub (red). When no env serves D', the node is "missing" (also red).
+//
+// Cross-origin caveat: groundwork.tildarc.com requires auth; production
+// browser sessions on yard.tildarc.com don't pass identity headers across
+// origins. The fetch is best-effort — failure renders a friendly empty
+// state instead of an error. (Dev edge at localhost:8090 injects synthetic
+// headers, so the graph works end-to-end there.)
+
+async function ensureGroundworkGraphLoaded() {
+  if (state.gwGraph.loaded) return;
+  const gwBase = getManifoldConfig()?.groundwork_public_url;
+  if (!gwBase) {
+    state.gwGraph.loaded = true; // mark loaded to skip retries
+    return;
+  }
+  const base = gwBase.replace(/\/$/, '');
+  try {
+    const [deps, exps, depls, svcs] = await Promise.all([
+      gqlQuery(`${base}/dependency/graph`,
+        '{ getAll { id deployable_id service_id criticality } }').then(d => d.getAll || []).catch(() => []),
+      gqlQuery(`${base}/exposes/graph`,
+        '{ getAll { id deployable_id service_id } }').then(d => d.getAll || []).catch(() => []),
+      gqlQuery(`${base}/deployable/graph`,
+        '{ getAll { id name } }').then(d => d.getAll || []).catch(() => []),
+      gqlQuery(`${base}/service/graph`,
+        '{ getAll { id name type } }').then(d => d.getAll || []).catch(() => []),
+    ]);
+    state.gwGraph = {
+      loaded: true,
+      dependencies: deps,
+      exposes: exps,
+      deployables: depls,
+      services: svcs,
+    };
+  } catch {
+    // Mark as loaded so we don't keep retrying — the renderer will show
+    // an explanatory empty state.
+    state.gwGraph.loaded = true;
+  }
+}
+
+// One of: 'real' | 'test' | 'fake' | 'missing'.
+// `real`    → external (the actual prod / third-party thing)
+// `test`    → sandbox, isolated, multi-tenant (real code, not prod)
+// `fake`    → mock, stub
+// `missing` → no env serving the upstream deployable at all
+function classifyEnvKind(kind) {
+  const k = (kind || '').toLowerCase();
+  if (k === 'external')                                       return 'real';
+  if (k === 'sandbox' || k === 'isolated' || k === 'multi-tenant') return 'test';
+  if (k === 'mock' || k === 'stub')                           return 'fake';
+  return 'test'; // unknown kind — better than red
+}
+
+// Pick the most-real classification across a set of envs.
+function bestClassification(envs) {
+  if (!envs.length) return 'missing';
+  let best = 'fake';
+  const rank = { fake: 0, test: 1, real: 2 };
+  for (const e of envs) {
+    const c = classifyEnvKind(e.kind);
+    if (rank[c] > rank[best]) best = c;
+  }
+  return best;
+}
+
+const ENV_DEP_STYLE = [
+  {
+    selector: 'node',
+    style: {
+      label: 'data(label)',
+      'background-color': '#9ca3af',
+      'text-valign': 'bottom',
+      'text-halign': 'center',
+      'text-margin-y': 4,
+      'font-size': 10,
+      'font-family': 'ui-sans-serif, system-ui, "SF Pro Text", Inter, sans-serif',
+      width: 16,
+      height: 16,
+      color: '#111827',
+      'border-width': 1,
+      'border-color': '#ffffff',
+    },
+  },
+  { selector: 'node[cls = "focal"]',   style: { 'background-color': '#111827', width: 22, height: 22, 'font-weight': 600 } },
+  { selector: 'node[cls = "real"]',    style: { 'background-color': '#16a34a' } },
+  { selector: 'node[cls = "test"]',    style: { 'background-color': '#f59e0b' } },
+  { selector: 'node[cls = "fake"]',    style: { 'background-color': '#dc2626' } },
+  { selector: 'node[cls = "missing"]', style: { 'background-color': '#dc2626', 'border-color': '#dc2626', 'border-style': 'dotted', 'border-width': 2 } },
+  {
+    selector: 'edge',
+    style: {
+      width: 1.5,
+      'line-color': '#cbd5e1',
+      'curve-style': 'bezier',
+      'target-arrow-shape': 'triangle',
+      'target-arrow-color': '#cbd5e1',
+      opacity: 0.85,
+    },
+  },
+];
+
+async function renderEnvDepGraph(env) {
+  const container = document.getElementById(`env-dep-${env.id}`);
+  if (!container) return;
+  if (typeof cytoscape !== 'function') {
+    container.parentElement.innerHTML =
+      '<div class="env-dep-empty">cytoscape failed to load</div>';
+    return;
+  }
+
+  // Tear down any prior instance for this env (re-renders can happen when
+  // the user expands → collapses → re-expands the same card).
+  const prev = state.envDepCy.get(env.id);
+  if (prev) { try { prev.destroy(); } catch { /* noop */ } state.envDepCy.delete(env.id); }
+
+  await ensureGroundworkGraphLoaded();
+  const gw = state.gwGraph;
+
+  if (!env.deployable_id || gw.deployables.length === 0) {
+    container.parentElement.innerHTML =
+      '<div class="env-dep-empty">' +
+      (!env.deployable_id
+        ? 'This env has no deployable_id — nothing to chart.'
+        : 'Groundwork catalog unavailable — can\'t map dependencies right now.') +
+      '</div>';
+    return;
+  }
+
+  const focalDeployable = gw.deployables.find(d => d.id === env.deployable_id);
+  const focalLabel = focalDeployable?.name || env.deployable_id.slice(0, 8);
+
+  // For each dep of the focal deployable: find the upstream service, the
+  // deployable(s) exposing it, and the yard envs serving those deployables.
+  const focalDeps = gw.dependencies.filter(d => d.deployable_id === env.deployable_id);
+  const envsByDeployable = new Map();
+  for (const e of state.data.testEnvironments) {
+    if (!e.deployable_id) continue;
+    if (!envsByDeployable.has(e.deployable_id)) envsByDeployable.set(e.deployable_id, []);
+    envsByDeployable.get(e.deployable_id).push(e);
+  }
+
+  const nodes = [{ data: { id: env.deployable_id, label: focalLabel, cls: 'focal' } }];
+  const edges = [];
+  const seenUpstream = new Set([env.deployable_id]);
+
+  for (const dep of focalDeps) {
+    const exposers = gw.exposes.filter(x => x.service_id === dep.service_id);
+    const svcName = gw.services.find(s => s.id === dep.service_id)?.name || 'service';
+
+    if (exposers.length === 0) {
+      // No deployable exposes this service. Show a "missing" node anchored
+      // to the service name itself.
+      const missingId = `missing:${dep.service_id}`;
+      if (!seenUpstream.has(missingId)) {
+        nodes.push({ data: { id: missingId, label: svcName, cls: 'missing' } });
+        seenUpstream.add(missingId);
+      }
+      edges.push({ data: { id: `e:${env.deployable_id}->${missingId}`, source: env.deployable_id, target: missingId } });
+      continue;
+    }
+    for (const ex of exposers) {
+      const upDepId = ex.deployable_id;
+      if (upDepId === env.deployable_id) continue; // self-loop
+      const upName = gw.deployables.find(d => d.id === upDepId)?.name || upDepId.slice(0, 8);
+      const envsForUp = envsByDeployable.get(upDepId) || [];
+      const cls = bestClassification(envsForUp);
+
+      if (!seenUpstream.has(upDepId)) {
+        nodes.push({ data: { id: upDepId, label: upName, cls } });
+        seenUpstream.add(upDepId);
+      }
+      edges.push({ data: { id: `e:${env.deployable_id}->${upDepId}:${dep.service_id}`, source: env.deployable_id, target: upDepId } });
+    }
+  }
+
+  if (nodes.length === 1) {
+    // Only the focal node — no dependencies registered.
+    container.parentElement.innerHTML =
+      '<div class="env-dep-empty">' +
+      `${esc(focalLabel)} has no registered dependencies in Groundwork.` +
+      '</div>';
+    return;
+  }
+
+  const cy = cytoscape({
+    container,
+    elements: [...nodes, ...edges],
+    style: ENV_DEP_STYLE,
+    layout: {
+      name: 'cose',
+      animate: false,
+      fit: true,
+      padding: 30,
+      randomize: false,
+      idealEdgeLength: 90,
+      nodeRepulsion: 200000,
+      numIter: 600,
+    },
+    wheelSensitivity: 0.2,
+    minZoom: 0.3,
+    maxZoom: 3,
+  });
+  state.envDepCy.set(env.id, cy);
+
+  // Click an upstream node → if the public URL for groundwork is known,
+  // open that deployable's detail page (great for "who owns this red dep?").
+  cy.on('tap', 'node', evt => {
+    const nodeId = evt.target.id();
+    if (nodeId === env.deployable_id || nodeId.startsWith('missing:')) return;
+    const gwBase = getManifoldConfig()?.groundwork_public_url;
+    if (gwBase) {
+      window.open(`${gwBase.replace(/\/$/, '')}/#deployable/${encodeURIComponent(nodeId)}`,
+        '_blank', 'noopener');
+    }
+  });
 }
 
 async function loadAvailabilityForVisible(envs) {

@@ -161,6 +161,47 @@
       grid-template-columns: repeat(3, 1fr);
     }
 
+    /* ── Per-env dependency graph (env-card detail panel) ─────────────── */
+    .env-dep-graph {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+    .env-dep-graph .env-dep-canvas {
+      height: 260px;
+      background: var(--bg);
+    }
+    .env-dep-graph .env-dep-legend {
+      display: flex;
+      gap: 16px;
+      padding: 6px 12px 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .env-dep-graph .env-dep-legend .swatch {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      vertical-align: middle;
+      margin-right: 5px;
+    }
+    .env-dep-graph .env-dep-legend .swatch.real    { background: var(--success); }
+    .env-dep-graph .env-dep-legend .swatch.test    { background: var(--warn); }
+    .env-dep-graph .env-dep-legend .swatch.fake    { background: var(--danger); }
+    .env-dep-graph .env-dep-legend .swatch.focal   { background: var(--ink); }
+    .env-dep-graph .env-dep-empty {
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-style: italic;
+    }
+
     /* ── Badge modifiers: run statuses ────────────────────────────────── */
     .badge.s-passed    { color: var(--success); border-color: var(--success); background: var(--success-soft); }
     .badge.s-failed,
@@ -439,6 +480,7 @@
 <!-- No persistent modal scaffold — manifold-ui's openModal() builds and
      removes its own DOM on demand. -->
 
+<script src="/static/vendor/cytoscape.min.js"></script>
 <script type="module" src="/static/app.js"></script>
 </body>
 </html>

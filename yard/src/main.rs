@@ -32,6 +32,7 @@ const TEST_SUITE_GRAPHQL: &str = include_str!("../config/graph/test_suite.graphq
 const SYNC_RUN_GRAPHQL: &str = include_str!("../config/graph/sync_run.graphql");
 const INDEX_HTML: &str = include_str!("../static/index.html");
 const APP_JS: &str = include_str!("../static/app.js");
+const CYTOSCAPE_JS: &str = include_str!("../static/vendor/cytoscape.min.js");
 const AUTH_MODEL: &str = include_str!("../config/auth/model.conf");
 const AUTH_POLICY: &str = include_str!("../config/auth/policy.csv");
 
@@ -51,6 +52,20 @@ async fn serve_app_js() -> Response {
             (header::CACHE_CONTROL, "no-cache, must-revalidate"),
         ],
         APP_JS,
+    )
+        .into_response()
+}
+
+async fn serve_cytoscape_js() -> Response {
+    (
+        [
+            (
+                header::CONTENT_TYPE,
+                "application/javascript; charset=utf-8",
+            ),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        CYTOSCAPE_JS,
     )
         .into_response()
 }
@@ -732,6 +747,7 @@ async fn main() -> anyhow::Result<()> {
     let extra = Router::new()
         .route("/", get(serve_index))
         .route("/static/app.js", get(serve_app_js))
+        .route("/static/vendor/cytoscape.min.js", get(serve_cytoscape_js))
         .route("/static/manifold-ui.css", get(serve_manifold_ui_css))
         .route("/static/manifold-ui.js", get(serve_manifold_ui_js))
         .route("/health", get(health_check))
