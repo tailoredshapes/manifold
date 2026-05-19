@@ -35,9 +35,93 @@ const ENDPOINTS = {
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
+/**
+ * @typedef {object} OrgNode
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [kind]
+ * @property {string} [parent_id]
+ * @property {string} [team_id]
+ *
+ * @typedef {object} Bylaw
+ * @property {string} id
+ * @property {string} org_node_id
+ * @property {string} [gate_type]
+ * @property {string} [priority]
+ * @property {string} [description]
+ * @property {string} [conditions]
+ * @property {string} [window]
+ * @property {string} [quiesce_for]
+ * @property {string} [approvers]
+ *
+ * @typedef {object} ChangeRequest
+ * @property {string} id
+ * @property {string} [summary]
+ * @property {string} [description]
+ * @property {string} [tier]
+ * @property {string} [status]
+ * @property {string} [target_deployables]
+ * @property {string} [target_versions]
+ * @property {string} [requested_by]
+ *
+ * @typedef {object} DeploymentPlan
+ * @property {string} id
+ * @property {string} change_request_id
+ * @property {string} [tier]
+ * @property {string} [summary]
+ * @property {string} [steps]
+ * @property {string} [blockers]
+ * @property {string} [computed_at]
+ *
+ * @typedef {object} GanttOutput
+ * @property {string} id
+ * @property {string} deployment_plan_id
+ * @property {string} [tier]
+ * @property {string} [mermaid]
+ *
+ * @typedef {object} PlanGate
+ * @property {string} gate_type
+ * @property {string} source_org_node
+ * @property {string | null} [description]
+ * @property {string | null} [window]
+ * @property {string | null} [approvers]
+ * @property {string | null} [quiesce_for]
+ *
+ * @typedef {object} PlanStep
+ * @property {number} order
+ * @property {string} deployable_id
+ * @property {string} deployable_name
+ * @property {string} action
+ * @property {number[]} predecessor_orders
+ * @property {PlanGate[]} gates
+ * @property {number} estimated_minutes
+ * @property {string} [window_start]
+ * @property {string} [window_end]
+ * @property {string} [test_environment_id]
+ *
+ * @typedef {object} Blocker
+ * @property {string} kind
+ * @property {string} message
+ * @property {string} [mermaid]
+ *
+ * @typedef {object} ComputedPlan
+ * @property {string} change_request_id
+ * @property {string} change_request_summary
+ * @property {string} tier
+ * @property {PlanStep[]} steps
+ * @property {Blocker[]} blockers
+ * @property {string} computed_at
+ */
+
 const state = {
   screen: 'org',
-  data: { orgNodes: [], bylaws: [], changeRequests: [], plans: [], gantts: [] },
+  data: {
+    /** @type {OrgNode[]} */         orgNodes: [],
+    /** @type {Bylaw[]} */           bylaws: [],
+    /** @type {ChangeRequest[]} */   changeRequests: [],
+    /** @type {DeploymentPlan[]} */  plans: [],
+    /** @type {GanttOutput[]} */     gantts: [],
+  },
   // Cross-app config now lives inside manifold-ui (getManifoldConfig()).
   lookups: {      // cached id→name maps from sibling apps, via their /graph
     deployables: new Map(),
@@ -75,6 +159,7 @@ const state = {
 // Fetch the count of open advisories that Lobby has raised on a given
 // change_request (or any subject). Returns 0 on any failure — Lobby is a
 // soft dependency.
+/** @param {string} subjectId @returns {Promise<number>} */
 async function fetchLobbyAdvisoryCount(subjectId) {
   const lobby = getManifoldConfig()?.lobby_public_url;
   if (!lobby || !subjectId) return 0;
@@ -95,6 +180,7 @@ async function fetchLobbyAdvisoryCount(subjectId) {
   }
 }
 
+/** @param {string} subjectId @param {number} count @returns {HTMLElement} */
 function renderLobbyPill(subjectId, count) {
   const lobby = getManifoldConfig()?.lobby_public_url || '';
   const a = document.createElement('a');
@@ -109,6 +195,7 @@ function renderLobbyPill(subjectId, count) {
 
 // UUID-ish detector: cheap heuristic so requested_by stored as a free-text
 // email/handle doesn't get wrapped in a broken people-screen link.
+/** @param {*} s @returns {boolean} */
 function looksLikeId(s) {
   return typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 }
@@ -116,6 +203,7 @@ function looksLikeId(s) {
 // Fetch id→name maps from sibling apps' /graph endpoints (read-side of CQRS).
 // CORS is open on meshql-server, so cross-origin POST works. Failures are
 // non-fatal — render code falls back to formatId() when a name is missing.
+/** @returns {Promise<void>} */
 async function loadCrossAppLookups() {
   const cfg = getManifoldConfig();
   const gw = cfg?.groundwork_public_url;
@@ -157,18 +245,21 @@ async function loadCrossAppLookups() {
 }
 
 // Render a deployable id as its name (preferred) or a stable short form.
+/** @param {string} id @returns {string} */
 function deployableName(id) {
   if (!id) return '';
   return state.lookups.deployables.get(id) || formatId(id);
 }
 
 // Render a person id as their name (preferred) or a stable short form.
+/** @param {string} id @returns {string} */
 function personName(id) {
   if (!id) return '';
   return state.lookups.people.get(id) || formatId(id);
 }
 
 // Render a team id as its name (preferred) or a stable short form.
+/** @param {string} id @returns {string} */
 function teamName(id) {
   if (!id) return '';
   return state.lookups.teams.get(id) || formatId(id);
@@ -177,6 +268,7 @@ function teamName(id) {
 // When no name is available, fall back to an unambiguous-but-shorter form.
 // For UUIDs this strips them to the first segment; non-UUID strings pass
 // through (so emails/handles in requested_by stay readable).
+/** @param {*} s @returns {string} */
 function formatId(s) {
   if (typeof s !== 'string') return String(s);
   return looksLikeId(s) ? `${s.slice(0, 8)}…` : s;
@@ -184,6 +276,7 @@ function formatId(s) {
 
 // Format an ISO timestamp like "2026-04-29T00:00:00Z" as "2026-04-29 00:00 UTC".
 // Falls back to the raw string if it can't be parsed.
+/** @param {string | null | undefined} s @returns {string} */
 function formatTimestamp(s) {
   if (!s) return '';
   const d = new Date(s);
@@ -203,6 +296,7 @@ const apiComputePlan = (crId, tier) =>
 const apiRenderGantt = (planId) =>
   api(`/deployment_plan/${encodeURIComponent(planId)}/gantt`, { method: 'POST' });
 
+/** @returns {Promise<void>} */
 async function loadAll() {
   const [orgNodes, bylaws, changeRequests, plans, gantts] = await Promise.all([
     gqlQuery('/org_node/graph', '{ getAll { id name kind parent_id team_id } }')
@@ -234,6 +328,7 @@ async function loadAll() {
 // ── Status strip ──────────────────────────────────────────────────────────────
 
 let statusTimer = null;
+/** @param {string} message @param {'info' | 'error' | 'success'} [kind] @param {number} [persistMs] */
 function flash(message, kind = 'info', persistMs = 3000) {
   const strip = $('#status-strip');
   strip.className = '';
@@ -254,6 +349,7 @@ function clearFlash() {
 
 const SCREENS = ['org', 'changes', 'plans', 'bylaws'];
 
+/** @param {string} name */
 function setScreen(name) {
   state.screen = name;
   $$('.screen').forEach(s => s.classList.toggle('active', s.id === `screen-${name}`));
@@ -320,6 +416,10 @@ function updateFooterMeta() {
 
 // ── Editorial empty-state helper ──────────────────────────────────────────────
 
+/**
+ * @param {{title: string, lede: string, hint?: string}} spec
+ * @returns {HTMLElement}
+ */
 function emptyCard({ title, lede, hint }) {
   const card = el('div', { class: 'empty-card' });
   card.appendChild(el('span', { class: 'empty-mark' }, '§'));
@@ -334,11 +434,13 @@ function emptyCard({ title, lede, hint }) {
 
 // ── ORG screen ────────────────────────────────────────────────────────────────
 
+/** @param {string} id @returns {string} */
 function nodeName(id) {
   const n = state.data.orgNodes.find(n => n.id === id);
   return n?.name || id || '—';
 }
 
+/** @returns {Map<string | null, OrgNode[]>} children-by-parent index; roots live under key null. */
 function buildOrgIndex() {
   const byParent = new Map();
   byParent.set(null, []);
@@ -385,6 +487,12 @@ function renderOrgTree() {
   $('#org-count').textContent = `${state.data.orgNodes.length} nodes`;
 }
 
+/**
+ * @param {OrgNode} node
+ * @param {string} needle - lowercased search term
+ * @param {Map<string | null, OrgNode[]>} byParent
+ * @returns {boolean}
+ */
 function nodeMatches(node, needle, byParent) {
   if (!needle) return true;
   const name = (node.name || '').toLowerCase();
@@ -394,6 +502,12 @@ function nodeMatches(node, needle, byParent) {
   return kids.some(k => nodeMatches(k, needle, byParent));
 }
 
+/**
+ * @param {OrgNode} node
+ * @param {Map<string | null, OrgNode[]>} byParent
+ * @param {string} needle
+ * @returns {HTMLElement | DocumentFragment}
+ */
 function buildTreeNode(node, byParent, needle) {
   if (!nodeMatches(node, needle, byParent)) return document.createDocumentFragment();
   const id = node.id;
@@ -452,6 +566,7 @@ function buildTreeNode(node, byParent, needle) {
   return wrap;
 }
 
+/** @param {string} id */
 async function toggleNode(id) {
   if (state.org.expanded.has(id)) {
     state.org.expanded.delete(id);
@@ -470,6 +585,7 @@ async function toggleNode(id) {
   renderOrgTree();
 }
 
+/** @param {string} id */
 function renderEffective(id) {
   const list = state.org.effective.get(id);
   if (!list) return el('div', { class: 'effective-empty' }, 'Loading effective bylaws…');
@@ -605,6 +721,7 @@ function renderChangeRequests() {
   $('#cr-count').textContent = `${items.length} request${items.length === 1 ? '' : 's'}`;
 }
 
+/** @param {string | null | undefined} status @returns {HTMLElement} */
 function statusPill(status) {
   if (!status) return el('span', { class: 'muted' }, '—');
   const map = {
@@ -618,6 +735,7 @@ function statusPill(status) {
   return el('span', { class: map[status] || 'pill' }, status);
 }
 
+/** @param {string | string[]} s @returns {string[]} */
 function parseTargets(s) {
   if (!s) return [];
   if (Array.isArray(s)) return s;
@@ -628,6 +746,7 @@ function parseTargets(s) {
   return s.split(',').map(t => t.trim()).filter(Boolean);
 }
 
+/** @param {ChangeRequest} cr */
 function editChangeRequest(cr) {
   state.cr.open = true;
   state.cr.draftId = cr.id;
@@ -672,6 +791,7 @@ function hideWizard() {
   renderChangeRequests();
 }
 
+/** @param {number} n */
 function setWizardStep(n) {
   state.cr.step = n;
   $$('.step').forEach(stepEl => {
@@ -792,6 +912,10 @@ async function refreshPlanPane() {
   }
 }
 
+/**
+ * @param {DeploymentPlan & { steps?: string, blockers?: string }} envelope
+ *   - steps and blockers arrive as JSON-encoded strings; parsed here.
+ */
 function renderPlanDetail(envelope) {
   let steps = [];
   let blockers = [];
@@ -999,6 +1123,7 @@ function renderPlans() {
   for (const plan of filtered) host.appendChild(buildPlanCard(plan));
 }
 
+/** @param {DeploymentPlan} plan @returns {HTMLElement} */
 function buildPlanCard(plan) {
   const id = plan.id;
   const expanded = state.plans.expanded.has(id);
@@ -1030,6 +1155,7 @@ function buildPlanCard(plan) {
   return card;
 }
 
+/** @param {string} id */
 async function togglePlan(id) {
   if (state.plans.expanded.has(id)) {
     state.plans.expanded.delete(id);
@@ -1041,6 +1167,7 @@ async function togglePlan(id) {
   await renderGanttFor(id);
 }
 
+/** @param {string} id */
 async function renderGanttFor(id) {
   const host = document.querySelector(`[data-gantt-for="${CSS.escape(id)}"]`);
   if (!host) return;
@@ -1166,6 +1293,7 @@ function renderBylawsTable() {
   });
 }
 
+/** @param {string} id */
 async function deleteBylaw(id) {
   if (!confirm('Delete this bylaw?')) return;
   try {
