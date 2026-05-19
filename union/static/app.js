@@ -39,12 +39,58 @@ const SCREEN_TITLES = {
   work:     'Work',
 };
 
+// ── Domain types ──────────────────────────────────────────────────────────────
+
+/**
+ * @typedef {object} Person
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [contact]
+ * @property {string} [role]
+ *
+ * @typedef {object} Team
+ * @property {string} id
+ * @property {string} [name]
+ * @property {string} [kind]
+ * @property {string} [description]
+ *
+ * @typedef {object} TeamMember
+ * @property {string} id
+ * @property {string} person_id
+ * @property {string} team_id
+ * @property {string} [role]
+ *
+ * @typedef {object} DeployableRef
+ * @property {string} id
+ * @property {string} [name]
+ *
+ * @typedef {object} WorkOrder
+ * @property {string} id
+ * @property {string} team_id
+ * @property {string} [summary]
+ * @property {string} [deployable_id]
+ * @property {DeployableRef} [deployable]
+ * @property {string} [change_request_id]
+ * @property {object} [change_request]
+ *   - Federated read-side resolver shape (cityhall side); when present
+ *     it's deleted before write-back so we don't stomp the REST record.
+ * @property {string} [status]
+ * @property {string} [priority]
+ * @property {string | number} [story_points]
+ */
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const state = {
   screen: 'teams',
   filter: '',
-  data: { people: [], teams: [], members: [], workOrders: [] },
+  data: {
+    /** @type {Person[]} */     people: [],
+    /** @type {Team[]} */       teams: [],
+    /** @type {TeamMember[]} */ members: [],
+    /** @type {WorkOrder[]} */  workOrders: [],
+  },
+  /** @type {string | null} */
   expandedTeamId: null,
   // Modal is fully promise-driven via manifold-ui openModal() — no
   // open/close state to track here.
@@ -53,7 +99,13 @@ const state = {
 
 // ── Cross-app linking ────────────────────────────────────────────────────────
 
-// Build an intra-app anchor pointing at #<screen>[/<id>].
+/**
+ * Build an intra-app anchor pointing at #<screen>[/<id>].
+ * @param {string} screen
+ * @param {string | null | undefined} id
+ * @param {string} label
+ * @returns {string}
+ */
 function intraLink(screen, id, label) {
   const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
   return `<a href="${hash}">${esc(label)}</a>`;
@@ -68,6 +120,7 @@ const ENDPOINTS = {
   workOrders: '/work_order/api',
 };
 
+/** @returns {Promise<void>} */
 async function loadAll() {
   const [people, teams, members, workOrders] = await Promise.all([
     gqlQuery('/person/graph', '{ getAll { id name contact role } }').then(d => d.getAll),
@@ -84,6 +137,11 @@ async function loadAll() {
   state.data.workOrders = Array.isArray(workOrders) ? workOrders : [];
 }
 
+/**
+ * @param {string} endpoint
+ * @param {Record<string, any>} payload
+ * @returns {Promise<any>}
+ */
 async function createRecord(endpoint, payload) {
   return apiFetch(endpoint, {
     method: 'POST',
@@ -92,6 +150,12 @@ async function createRecord(endpoint, payload) {
   });
 }
 
+/**
+ * @param {string} endpoint
+ * @param {string} id
+ * @param {Record<string, any>} payload
+ * @returns {Promise<any>}
+ */
 async function updateRecord(endpoint, id, payload) {
   return apiFetch(`${endpoint}/${id}`, {
     method: 'PUT',
@@ -102,53 +166,70 @@ async function updateRecord(endpoint, id, payload) {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
+/** @param {string} id @returns {Team | undefined} */
 function teamById(id)   { return state.data.teams.find(t => t.id === id); }
+/** @param {string} id @returns {Person | undefined} */
 function personById(id) { return state.data.people.find(p => p.id === id); }
 
+/** @param {string} id @returns {string} */
 function teamName(id) {
   const t = teamById(id);
   return t?.name || id || '—';
 }
 
+/** @param {string} id @returns {string} */
 function personName(id) {
   const p = personById(id);
   return p?.name || id || '—';
 }
 
+/** @param {string} teamId @returns {TeamMember[]} */
 function membersForTeam(teamId) {
   return state.data.members.filter(m => m.team_id === teamId);
 }
 
+/** @param {string} personId @returns {Team[]} */
 function teamsForPerson(personId) {
   const teamIds = state.data.members
     .filter(m => m.person_id === personId)
     .map(m => m.team_id)
     .filter(Boolean);
-  return teamIds.map(id => teamById(id)).filter(Boolean);
+  return teamIds.map(id => teamById(id)).filter(/** @returns {t is Team} */ t => !!t);
 }
 
+/** @param {string} teamId @returns {WorkOrder[]} */
 function openWorkOrdersForTeam(teamId) {
   return state.data.workOrders.filter(wo =>
     wo.team_id === teamId &&
-    OPEN_STATUSES.has(wo.status)
+    OPEN_STATUSES.has(wo.status || '')
   );
 }
 
+/** @param {WorkOrder[]} workOrders @returns {number} */
 function sumStoryPoints(workOrders) {
-  return workOrders.reduce((s, wo) => s + (Number.isFinite(wo.story_points) ? wo.story_points : 0), 0);
+  return workOrders.reduce((s, wo) => {
+    const n = typeof wo.story_points === 'number'
+      ? wo.story_points
+      : parseInt(String(wo.story_points || ''), 10);
+    return s + (Number.isFinite(n) ? n : 0);
+  }, 0);
 }
 
 // ── Status strip ──────────────────────────────────────────────────────────────
 
+/** @param {string | null | undefined} msg */
 function setError(msg) {
   const el = document.getElementById('status-strip');
+  if (!el) return;
   if (!msg) { el.className = ''; el.textContent = ''; el.style.display = 'none'; return; }
   el.className = 'error';
   el.textContent = msg;
 }
 
+/** @param {string} msg @param {number} [ttl] */
 function setInfo(msg, ttl = 2000) {
   const el = document.getElementById('status-strip');
+  if (!el) return;
   el.className = 'info';
   el.textContent = msg;
   setTimeout(() => {
@@ -160,12 +241,19 @@ function setInfo(msg, ttl = 2000) {
 
 function updateFooterMeta() {
   const d = state.data;
-  document.getElementById('footer-meta').textContent =
-    `${d.teams.length} teams · ${d.people.length} people · ${d.workOrders.length} work orders`;
+  const el = document.getElementById('footer-meta');
+  if (el) {
+    el.textContent =
+      `${d.teams.length} teams · ${d.people.length} people · ${d.workOrders.length} work orders`;
+  }
 }
 
 // ── Rendering: Teams screen ───────────────────────────────────────────────────
 
+/**
+ * @typedef {{label: string, color: string, ratio: number, unstaffed: boolean}} CapacityState
+ * @param {number} memberCount @param {number} openCount @returns {CapacityState}
+ */
 function capacityState(memberCount, openCount) {
   if (memberCount === 0) return { label: 'unstaffed', color: '#6b7280', ratio: 0, unstaffed: true };
   const ratio = openCount / memberCount;
@@ -175,6 +263,7 @@ function capacityState(memberCount, openCount) {
   return { label: `${openCount}/${memberCount}`, color, ratio, unstaffed: false };
 }
 
+/** @param {CapacityState} state @returns {string} */
 function donutSvg(state) {
   // 56x56 donut. Stroke arc = ratio of capacity; max ratio capped at 5+ visually.
   const size = 56, r = 22, cx = 28, cy = 28;
@@ -239,6 +328,7 @@ function renderTeams() {
   });
 }
 
+/** @param {Team} t @returns {string} */
 function renderTeamCard(t) {
   const members = membersForTeam(t.id);
   const open = openWorkOrdersForTeam(t.id);
@@ -295,6 +385,7 @@ function renderTeamCard(t) {
 
 // ── Rendering: Staffing timeline ──────────────────────────────────────────────
 
+/** @returns {Array<{label: string, year: number, month: number, range: string}>} */
 function nextSixMonths() {
   const now = new Date();
   const months = [];
@@ -315,6 +406,7 @@ function nextSixMonths() {
 
 // We do not have due-date fields on WorkOrder, so we deterministically distribute
 // open work across the next 6 months by hashing the WO id. Stable across refreshes.
+/** @param {string} woId @returns {number} */
 function bucketForWorkOrder(woId) {
   let h = 0;
   for (let i = 0; i < woId.length; i++) {
@@ -465,10 +557,18 @@ function renderStaffing() {
 
 // Anchor the tooltip near the pointer (or, when invoked without a pointer
 // event — e.g. keyboard focus — near the element's bounding box).
+/**
+ * @param {HTMLElement} tt
+ * @param {Element} anchorEl
+ * @param {MouseEvent | Event} ev
+ *   - Caller may dispatch on focus (Event) or mouseenter (MouseEvent);
+ *     we read clientX/Y when available, falling back to bounding rect.
+ */
 function positionTip(tt, anchorEl, ev) {
-  if (ev && typeof ev.clientX === 'number') {
-    tt.style.left = (ev.clientX + 12) + 'px';
-    tt.style.top  = (ev.clientY + 12) + 'px';
+  const me = /** @type {MouseEvent} */ (ev);
+  if (me && typeof me.clientX === 'number') {
+    tt.style.left = (me.clientX + 12) + 'px';
+    tt.style.top  = (me.clientY + 12) + 'px';
     return;
   }
   const r = anchorEl.getBoundingClientRect();
@@ -478,6 +578,7 @@ function positionTip(tt, anchorEl, ev) {
 
 // ── Rendering: People ─────────────────────────────────────────────────────────
 
+/** @param {string} personId @returns {{ label: string, cls: string, count: number }} */
 function availabilityFor(personId) {
   const teamIds = new Set(
     state.data.members
@@ -596,6 +697,7 @@ function renderKanban() {
   wireKanbanDnd();
 }
 
+/** @param {WorkOrder} wo @returns {string} */
 function woCardHtml(wo) {
   const pr = wo.priority || '';
   const cls = pr === 'urgent' ? 'danger' : pr === 'high' ? 'warn' : pr === 'medium' ? 'primary' : '';
@@ -665,6 +767,7 @@ function wireKanbanDnd() {
   });
 }
 
+/** @param {string} id @param {string} newStatus */
 async function moveWorkOrder(id, newStatus) {
   const idx = state.data.workOrders.findIndex(w => w.id === id);
   if (idx === -1) return;
@@ -748,6 +851,7 @@ const MODAL_FORMS = {
 
 const INT_FIELDS = new Set(['story_points']);
 
+/** @returns {string} */
 function modalKindForCurrentScreen() {
   switch (state.screen) {
     case 'teams':    return 'team';
@@ -760,6 +864,7 @@ function modalKindForCurrentScreen() {
 
 const unionLookupRef = (refKey) => state.data[refKey] || [];
 
+/** @param {string} kind */
 async function createNew(kind) {
   const cfg = MODAL_FORMS[kind];
   if (!cfg) return;
@@ -797,6 +902,7 @@ async function createNew(kind) {
 
 // ── Screen switching ──────────────────────────────────────────────────────────
 
+/** @param {string} name */
 function setScreen(name) {
   if (!SCREENS.includes(name)) return;
   state.screen = name;
