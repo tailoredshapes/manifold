@@ -659,7 +659,8 @@ function buildEnvCard(item) {
   // Cross-app deeplink: associated deployable lives in Groundwork.
   if (item.deployable_id) {
     const depRow = el('div', { class: 'constraints' });
-    depRow.innerHTML = 'deployable: ' + crossLink('groundwork', 'deployables', item.deployable_id, item.deployable_id.slice(0, 8));
+    const depLabel = item.deployable?.name || item.deployable_id;
+    depRow.innerHTML = 'deployable: ' + crossLink('groundwork', 'deployables', item.deployable_id, depLabel);
     // Anchor inside card shouldn't trigger detail navigation.
     depRow.addEventListener('click', e => e.stopPropagation());
     card.appendChild(depRow);
@@ -719,18 +720,28 @@ function renderEnvDetail(root, envId) {
   // ── Header ──
   const av = state.availability.get(envId) || 'unknown';
   const header = el('div', { class: 'detail-header' });
+  const metaLine = el('div', { class: 'meta' },
+    el('span', { class: pillKindClass(item.kind) }, item.kind || 'unknown'),
+    el('span', { class: 'meta-sep', 'aria-hidden': 'true' }, '·'),
+    el('span', { class: 'status-label' },
+      el('span', { class: 'dot s-' + av }),
+      statusLabel(av),
+    ),
+    el('span', { class: 'meta-sep', 'aria-hidden': 'true' }, '·'),
+    el('span', { class: 'id' }, item.id.slice(0, 8)),
+  );
+  // Cross-app deeplink to the deployable (Groundwork). Prefer the federated
+  // name; fall back to the full id (no truncation — we want the name visible).
+  if (item.deployable_id) {
+    const depName = item.deployable?.name || item.deployable_id;
+    const depSpan = el('span', { class: 'deployable-link' });
+    depSpan.innerHTML = 'deployable: ' + crossLink('groundwork', 'deployables', item.deployable_id, depName);
+    metaLine.appendChild(el('span', { class: 'meta-sep', 'aria-hidden': 'true' }, '·'));
+    metaLine.appendChild(depSpan);
+  }
   const titleBlock = el('div', { class: 'title-block' },
     el('h1', {}, item.name || '(unnamed)'),
-    el('div', { class: 'meta' },
-      el('span', { class: pillKindClass(item.kind) }, item.kind || 'unknown'),
-      el('span', { class: 'meta-sep', 'aria-hidden': 'true' }, '·'),
-      el('span', { class: 'status-label' },
-        el('span', { class: 'dot s-' + av }),
-        statusLabel(av),
-      ),
-      el('span', { class: 'meta-sep', 'aria-hidden': 'true' }, '·'),
-      el('span', { class: 'id' }, item.id.slice(0, 8)),
-    ),
+    metaLine,
   );
   header.appendChild(titleBlock);
   root.appendChild(header);
@@ -2034,8 +2045,10 @@ function renderSettings(root, entityKey) {
         metaEl.innerHTML = html;
       } else if (entityKey === 'testEnvironments' && item.deployable_id) {
         // Same treatment for test environments: deployable lives in Groundwork.
+        // Federated deployable.name is on the test-environment row already.
         const sep = metaText ? ' · ' : '';
-        const html = `${esc(metaText)}${esc(sep)}deployable: ${crossLink('groundwork', 'deployables', item.deployable_id, item.deployable_id.slice(0, 8))}`;
+        const depLabel = /** @type {TestEnvironment} */ (item).deployable?.name || item.deployable_id;
+        const html = `${esc(metaText)}${esc(sep)}deployable: ${crossLink('groundwork', 'deployables', item.deployable_id, depLabel)}`;
         metaEl.innerHTML = html;
       }
       list.appendChild(el('div', {
