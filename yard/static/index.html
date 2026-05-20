@@ -556,6 +556,41 @@
       padding: 8px;
     }
     .chart-frame svg { display: block; width: 100%; height: auto; }
+
+    /* Fallback table shown in the chart slot when fewer than 2 runs exist
+       for the selected env — same relationship-list pattern as groundwork,
+       overridden to fit the 6-column layout (ts · kind · src · status · min · cost). */
+    .sync-fallback-head {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin: 4px 0 8px;
+    }
+    .sync-fallback-list .sync-fallback-row {
+      display: grid;
+      grid-template-columns: 1.2fr auto 1.4fr auto auto auto;
+      column-gap: 12px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .sync-fallback-list .sf-ts {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .sync-fallback-list .sf-src {
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sync-fallback-list .sf-num {
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      min-width: 48px;
+    }
     .chart-empty {
       padding: 24px;
       text-align: center;

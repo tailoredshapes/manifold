@@ -1505,8 +1505,10 @@ function renderSync(root) {
     .reduce((acc, s) => acc + (parseFloat(s.estimated_minutes) || 0), 0);
 
   if (!envId || runs.length < 2) {
-    leftCard.appendChild(el('div', { class: 'chart-empty' },
-      'Need at least 2 runs to chart this environment.'));
+    // Not enough run-duration data to chart a trend. Fall back to a raw
+    // table of sync records for this env — same information density, just
+    // tabular instead of a time-series.
+    leftCard.appendChild(buildSyncFallbackTable(envId));
   } else {
     leftCard.appendChild(el('div', { class: 'chart-frame' }, buildSvgChart(runs, estTotalForEnv)));
     leftCard.appendChild(el('div', { class: 'chart-legend' },
@@ -1581,6 +1583,70 @@ function renderSync(root) {
   grid.appendChild(leftCard);
   grid.appendChild(rightCard);
   root.appendChild(grid);
+}
+
+// Fallback for the chart panel when fewer than 2 runs exist for an env:
+// instead of a "not enough data" placeholder, render the raw SyncRun records
+// for the target so an operator still has something concrete to read.
+//
+// Columns: timestamp · sync · source label · status · minutes · cost.
+// SyncRun has no cost field of its own — we derive a best-effort cost from
+// the target env's cost_per_hour × duration when both are present, else "—".
+/** @param {string | null} envId @returns {HTMLElement} */
+function buildSyncFallbackTable(envId) {
+  const wrap = el('div', { class: 'sync-fallback' });
+  if (!envId) {
+    wrap.appendChild(el('div', { class: 'chart-empty' },
+      'Select an environment to see its sync history.'));
+    return wrap;
+  }
+  const env = state.data.testEnvironments.find(e => e.id === envId);
+  const envName = env?.name || envId.slice(0, 8);
+  const records = state.data.syncRuns
+    .filter(s => s.target_env_id === envId)
+    .slice()
+    .sort((a, b) => (b.finished_at || '').localeCompare(a.finished_at || ''));
+
+  wrap.appendChild(el('h3', { class: 'sync-fallback-head' }, envName));
+
+  if (records.length === 0) {
+    // Keep the original "not enough runs" message AND add the sync-side
+    // emptiness — two distinct empty conditions hide together here.
+    wrap.appendChild(el('div', { class: 'chart-empty' },
+      'Need at least 2 runs to chart this environment.'));
+    wrap.appendChild(el('div', { class: 'chart-empty', style: 'padding-top: 4px;' },
+      'No sync history recorded yet.'));
+    return wrap;
+  }
+
+  const targetCostPerHour = parseFloat(env?.cost_per_hour || '') || 0;
+  const syncIndex = new Map(state.data.dataSyncs.map(s => [s.id, s]));
+
+  const list = el('div', { class: 'relationship-list sync-fallback-list' });
+  for (const r of records) {
+    const sync = syncIndex.get(r.data_sync_id);
+    const kind = sync?.kind || '—';
+    const srcLabel = r.source_env_id
+      ? (state.data.testEnvironments.find(e => e.id === r.source_env_id)?.name || r.source_env_id.slice(0, 8))
+      : r.source_data_id
+        ? (state.data.dataSources.find(d => d.id === r.source_data_id)?.name || r.source_data_id.slice(0, 8))
+        : '—';
+    const status = r.status || 'pending';
+    const mins = parseFloat(r.duration_minutes || '') || 0;
+    const costStr = (targetCostPerHour > 0 && mins > 0)
+      ? `$${((targetCostPerHour / 60) * mins).toFixed(2)}`
+      : '—';
+    const row = el('div', { class: 'row sync-fallback-row' });
+    row.appendChild(el('span', { class: 'sf-ts' }, fmtTimestamp(r.finished_at || r.started_at)));
+    row.appendChild(el('span', { class: 'chip k-' + (sync?.kind || '') }, kind));
+    row.appendChild(el('span', { class: 'sf-src' }, srcLabel));
+    row.appendChild(el('span', { class: 'badge s-' + status }, status));
+    row.appendChild(el('span', { class: 'sf-num' }, mins > 0 ? `${mins.toFixed(0)}m` : '—'));
+    row.appendChild(el('span', { class: 'sf-num' }, costStr));
+    list.appendChild(row);
+  }
+  wrap.appendChild(list);
+  return wrap;
 }
 
 // ── SVG line chart (vanilla, no library) ─────────────────────────────────────
