@@ -1846,6 +1846,44 @@ function renderLifecycle(root) {
     syncsByTarget.get(s.target_env_id).push(s);
   }
 
+  const sorted = [...envs].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  // Compute freshness for every env up front so the callout above the
+  // table and the per-row chip below share the same evaluation pass.
+  const evaluated = sorted.map(env => {
+    const latest = latestSyncByEnv.get(env.id);
+    const feedingSyncs = syncsByTarget.get(env.id) || [];
+    return { env, latest, fr: computeFreshness(latest, feedingSyncs) };
+  });
+
+  // Callout: envs in 'never' or 'overdue' state are the operator's
+  // immediate work list. Render only when at least one qualifies.
+  const needAttn = evaluated.filter(e => e.fr.state === 'never' || e.fr.state === 'overdue');
+  if (needAttn.length > 0) {
+    const neverList = needAttn.filter(e => e.fr.state === 'never');
+    const overdueList = needAttn.filter(e => e.fr.state === 'overdue');
+    const callout = el('div', { class: 'lifecycle-callout', role: 'status' });
+    const headBits = [`${needAttn.length} environment${needAttn.length === 1 ? '' : 's'} need attention`];
+    const breakdown = [];
+    if (neverList.length > 0)   breakdown.push(`${neverList.length} never refreshed`);
+    if (overdueList.length > 0) breakdown.push(`${overdueList.length} overdue`);
+    callout.appendChild(el('div', { class: 'lifecycle-callout-head' },
+      el('strong', {}, headBits[0]),
+      breakdown.length
+        ? el('span', { class: 'lifecycle-callout-breakdown' }, ' · ' + breakdown.join(' · '))
+        : '',
+    ));
+    const linksRow = el('div', { class: 'lifecycle-callout-list' });
+    needAttn.forEach((e, i) => {
+      if (i > 0) linksRow.appendChild(el('span', { class: 'lifecycle-callout-sep', 'aria-hidden': 'true' }, ', '));
+      linksRow.appendChild(el('a', {
+        href: `#lifecycle/${e.env.id}`,
+        class: 'lifecycle-callout-link freshness ' + e.fr.state,
+      }, e.env.name || e.env.id.slice(0, 8)));
+    });
+    callout.appendChild(linksRow);
+    root.appendChild(callout);
+  }
+
   const table = el('table', { class: 'lifecycle-table' });
   const thead = el('thead', {},
     el('tr', {},
@@ -1859,11 +1897,7 @@ function renderLifecycle(root) {
   );
   table.appendChild(thead);
   const tbody = el('tbody', {});
-  const sorted = [...envs].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-  for (const env of sorted) {
-    const latest = latestSyncByEnv.get(env.id);
-    const feedingSyncs = syncsByTarget.get(env.id) || [];
-    const fr = computeFreshness(latest, feedingSyncs);
+  for (const { env, latest, fr } of evaluated) {
     tbody.appendChild(buildLifecycleRow(env, latest, fr));
     if (state.expandedPlanEnvId === env.id) {
       tbody.appendChild(buildPlanPanelRow(env));

@@ -374,6 +374,38 @@
     }
 
     /* ── Lifecycle (data governance) screen ───────────────────────────── */
+    /* Callout above the lifecycle table — surfaces envs that are 'never'
+       refreshed or 'overdue' so they aren't lost in a long table. */
+    .lifecycle-callout {
+      border-left: 4px solid var(--warn);
+      background: var(--warn-soft);
+      padding: 12px 16px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin-bottom: 18px;
+    }
+    .lifecycle-callout-head {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+    .lifecycle-callout-head strong { font-weight: 600; }
+    .lifecycle-callout-head .lifecycle-callout-breakdown {
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+    .lifecycle-callout-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 4px;
+      align-items: center;
+      font-size: 12px;
+    }
+    .lifecycle-callout-link {
+      text-decoration: none;
+    }
+    .lifecycle-callout-link:hover { filter: brightness(0.95); }
+    .lifecycle-callout-sep { color: var(--text-soft); }
+
     .lifecycle-table {
       width: 100%;
       border-collapse: separate;
