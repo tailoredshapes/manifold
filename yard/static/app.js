@@ -1249,9 +1249,28 @@ async function loadAvailabilityForVisible(envs) {
 
 // ── Screen: Runs ─────────────────────────────────────────────────────────────
 
+// A "zombie" run is one that's still marked `running` but whose started_at
+// is more than 24h in the past — almost certainly a crashed worker that
+// never wrote a terminal status, not an actual in-flight job. We surface
+// these aggressively because a stuck-running record holds environment
+// concurrency slots and skews dashboards.
+const ZOMBIE_AGE_HOURS = 24;
+
+/** @param {TestRun} r @returns {boolean} */
+function isZombieRun(r) {
+  if (r.status !== 'running') return false;
+  const age = ageHoursFromIso(r.started_at);
+  return age != null && age > ZOMBIE_AGE_HOURS;
+}
+
 /** @param {HTMLElement} root */
 function renderRuns(root) {
+  // Zombies first, then everyone else newest-started first. Within zombies
+  // we still sort by started_at desc so the most-recently-stuck rise to top.
   const runs = state.data.testRuns.slice().sort((a, b) => {
+    const za = isZombieRun(a) ? 1 : 0;
+    const zb = isZombieRun(b) ? 1 : 0;
+    if (za !== zb) return zb - za;
     const ax = a.started_at || '';
     const bx = b.started_at || '';
     return bx.localeCompare(ax);
@@ -1269,9 +1288,13 @@ function renderRuns(root) {
         || (r.id || '').toLowerCase().includes(needle);
   });
 
-  updateFooterMeta(
-    `${runs.length} ${runs.length === 1 ? 'run' : 'runs'} · ${state.data.testEnvironments.length} environments`
-  );
+  const zombieCount = runs.reduce((n, r) => n + (isZombieRun(r) ? 1 : 0), 0);
+  const footerBits = [
+    `${runs.length} ${runs.length === 1 ? 'run' : 'runs'}`,
+    `${state.data.testEnvironments.length} environments`,
+  ];
+  if (zombieCount > 0) footerBits.push(`${zombieCount} zombie`);
+  updateFooterMeta(footerBits.join(' · '));
 
   root.appendChild(el('div', { class: 'section-head' },
     el('div', {},
@@ -1338,6 +1361,16 @@ function renderRuns(root) {
       ? el('td', { class: 'muted mono', html: crossLink('union', 'teams', r.team_id, r.team_id.slice(0, 8)) })
       : el('td', { class: 'muted' }, '—');
 
+    const statusCell = el('td', {}, el('span', { class: 'badge s-' + status }, status));
+    if (isZombieRun(r)) {
+      // Additive — the s-running badge stays; this chip flags the row as
+      // a likely-stuck record alongside it.
+      statusCell.appendChild(document.createTextNode(' '));
+      statusCell.appendChild(el('span', {
+        class: 'badge s-zombie',
+        title: `Marked running but started_at > ${ZOMBIE_AGE_HOURS}h ago`,
+      }, 'zombie'));
+    }
     const row = el('tr', {
       class: expanded ? 'expanded' : '',
       onClick: (e) => {
@@ -1347,7 +1380,7 @@ function renderRuns(root) {
       },
     },
       el('td', {}, envName),
-      el('td', {}, el('span', { class: 'badge s-' + status }, status)),
+      statusCell,
       el('td', {}, r.started_at || '—'),
       el('td', {}, fmtMinutes(r.duration_minutes)),
       el('td', {}, fmtCost(r.cost_actual).replace('/h','')),

@@ -348,6 +348,19 @@
     .badge.s-running   { color: var(--text);    border-color: var(--ink);     background: var(--ink-soft); }
     .badge.s-cancelled { color: var(--text-muted); border-color: var(--border-strong); }
     .badge.s-pending   { color: var(--warn);    border-color: var(--warn);    background: var(--warn-soft); }
+    /* Zombie chip: shown next to s-running when a run has been "in flight"
+       longer than the zombie threshold. Slightly larger + heavier so it
+       reads as alarm next to its sibling status badge. */
+    .badge.s-zombie {
+      color: var(--danger);
+      border-color: var(--danger);
+      background: var(--danger-soft);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
 
     /* ── Chip modifiers: sync kinds ───────────────────────────────────── */
     .chip.k-push   { color: var(--text);    border-color: var(--ink); }
