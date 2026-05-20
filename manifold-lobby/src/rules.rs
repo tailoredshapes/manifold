@@ -86,9 +86,9 @@ pub fn blocked_upstream_v1(snap: &GraphSnapshot) -> Vec<DerivedAdvisory> {
             continue;
         };
         let summary = cr.summary.as_deref().unwrap_or(&cr.id);
-        for t in targets.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        for t in parse_target_deployables(targets) {
             blocker_by_dep
-                .entry(t.to_string())
+                .entry(t)
                 .or_insert_with(|| format!("blocked CR: {summary}"));
         }
     }
@@ -187,6 +187,28 @@ fn exposers_index(exposes: &[Exposes]) -> HashMap<&str, Vec<&str>> {
             .push(e.deployable_id.as_str());
     }
     out
+}
+
+/// Cityhall stores `target_deployables` as a JSON-encoded array of ids
+/// (`["a","b"]`) when authored via the CR planner, but humans editing
+/// fixtures or hand-written CRs use plain comma-separated ids (`"a,b"`).
+/// Accept both — fall back to the comma split if JSON parse fails. Mirrors
+/// `cityhall::main::parse_target_deployables`; without this the
+/// BlockedUpstream and MissingEnvironment rules silently produce zero
+/// advisories for every CR loaded via the Meridian fixture, since each
+/// "id" they extract is actually `["uuid` or `"uuid"]`.
+fn parse_target_deployables(s: &str) -> Vec<String> {
+    let s = s.trim();
+    if s.is_empty() {
+        return Vec::new();
+    }
+    if let Ok(v) = serde_json::from_str::<Vec<String>>(s) {
+        return v.into_iter().filter(|p| !p.is_empty()).collect();
+    }
+    s.split(',')
+        .map(|p| p.trim().to_string())
+        .filter(|p| !p.is_empty())
+        .collect()
 }
 
 // ─── CircularDependency@v1 ─────────────────────────────────────────────────
@@ -449,17 +471,13 @@ pub fn missing_environment_v1(snap: &GraphSnapshot) -> Vec<DerivedAdvisory> {
         let Some(targets) = cr.target_deployables.as_deref() else {
             continue;
         };
-        let targets: Vec<&str> = targets
-            .split(',')
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .collect();
-        if targets.is_empty() {
+        let target_ids = parse_target_deployables(targets);
+        if target_ids.is_empty() {
             continue;
         }
-        let missing: Vec<&str> = targets
+        let missing: Vec<&str> = target_ids
             .iter()
-            .copied()
+            .map(String::as_str)
             .filter(|d| !envs_for_dep.contains_key(*d))
             .collect();
         if missing.is_empty() {
@@ -802,5 +820,45 @@ mod tests {
         // Subject is the lexicographically smaller CR id.
         assert_eq!(advisories[0].subject_id, "cr1");
         assert!(advisories[0].caused_by.contains(&"cr2".to_string()));
+    }
+
+    #[test]
+    fn parse_target_deployables_accepts_json_and_comma_forms() {
+        // Both shapes must produce the same list — cityhall writes JSON,
+        // hand-written CRs use commas.
+        assert_eq!(
+            parse_target_deployables(r#"["auth","invoice"]"#),
+            vec!["auth".to_string(), "invoice".to_string()],
+        );
+        assert_eq!(
+            parse_target_deployables("auth, invoice"),
+            vec!["auth".to_string(), "invoice".to_string()],
+        );
+        assert!(parse_target_deployables("").is_empty());
+        assert!(parse_target_deployables("[]").is_empty());
+    }
+
+    #[test]
+    fn blocked_upstream_extracts_ids_from_json_encoded_targets() {
+        // Regression: the Meridian loader stores target_deployables as
+        // `json.dumps(list)`. The rule must still extract individual ids.
+        let mut snap = GraphSnapshot::default();
+        snap.deployables = vec![
+            dep("auth", "Auth", None),
+            dep("portal", "Portal", None),
+        ];
+        snap.exposes = vec![exposes("e1", "auth", "auth-svc")];
+        snap.dependencies = vec![edge("d1", "portal", "auth-svc", Some("high"))];
+        snap.change_requests = vec![ChangeRequest {
+            id: "cr1".into(),
+            summary: Some("Auth MFA rollout".into()),
+            status: Some("blocked".into()),
+            tier: None,
+            target_deployables: Some(r#"["auth"]"#.into()),
+        }];
+        let advisories = blocked_upstream_v1(&snap);
+        assert_eq!(advisories.len(), 1);
+        assert_eq!(advisories[0].subject_id, "portal");
+        assert_eq!(advisories[0].severity, Severity::Critical);
     }
 }
