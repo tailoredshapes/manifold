@@ -507,6 +507,55 @@ class Loader:
                 f"|{src_env_name or src_ds_name or ''}"
             )
             self.insert("yard", "data_sync", {"key": sync_key}, payload)
+            # Stash fixture data_sync_id → live data_sync_id for SyncRun lookups.
+            self._sync_lookup_by_fixture_id = getattr(
+                self, "_sync_lookup_by_fixture_id", {}
+            )
+            self._sync_lookup_by_fixture_id[dsy["id"]] = self.ids[
+                ("yard", "data_sync")
+            ][sync_key]
+            # Per-fixture-sync target/source for SyncRun resolution.
+            self._sync_refs_by_fixture_id = getattr(
+                self, "_sync_refs_by_fixture_id", {}
+            )
+            self._sync_refs_by_fixture_id[dsy["id"]] = {
+                "target_env_id": tgt_env_id,
+                "source_env_id": src_env_id,
+                "source_data_id": src_ds_id,
+            }
+
+        # Sync runs — natural key = (live_sync_id, started_at). Each run
+        # references its parent data_sync by fixture id; we resolve to the
+        # live sync id and also denormalise target/source ids onto the run
+        # for cheap UI queries (matches the schema, which permits both).
+        self.hydrate_sync_runs()
+        for run in fixture.get("sync_runs", []):
+            fixture_sync_id = run.get("data_sync_id")
+            sync_map = getattr(self, "_sync_lookup_by_fixture_id", {})
+            refs_map = getattr(self, "_sync_refs_by_fixture_id", {})
+            live_sync_id = sync_map.get(fixture_sync_id)
+            refs = refs_map.get(fixture_sync_id) or {}
+            target_env_id = refs.get("target_env_id")
+            if not (live_sync_id and target_env_id):
+                self.skipped["sync_runs"] = self.skipped.get("sync_runs", 0) + 1
+                continue
+            payload: dict = {
+                "data_sync_id": live_sync_id,
+                "target_env_id": target_env_id,
+            }
+            if refs.get("source_env_id"):
+                payload["source_env_id"] = refs["source_env_id"]
+            if refs.get("source_data_id"):
+                payload["source_data_id"] = refs["source_data_id"]
+            for k in (
+                "status", "started_at", "finished_at",
+                "duration_minutes", "triggered_by", "source_revision",
+                "masking_summary", "error_message",
+            ):
+                if run.get(k) is not None:
+                    payload[k] = run[k]
+            run_key = f"{live_sync_id}|{payload.get('started_at','')}"
+            self.insert("yard", "sync_run", {"key": run_key}, payload)
 
         # Test suites
         self.hydrate_existing("yard", "test_suite", key="name")
@@ -642,6 +691,15 @@ class Loader:
                 key = f"{e_name}|{p.get('started_at','')}"
                 index[key] = env["id"]
         self.ids[("yard", "test_run")] = index
+
+    def hydrate_sync_runs(self) -> None:
+        existing = get(self.url("yard", "sync_run")) or []
+        index: dict[str, str] = {}
+        for env in existing:
+            p = _payload(env)
+            key = f"{p.get('data_sync_id','')}|{p.get('started_at','')}"
+            index[key] = env["id"]
+        self.ids[("yard", "sync_run")] = index
 
     # Helper: look up a record's `name` (or other field) inside the fixture by id.
     @staticmethod

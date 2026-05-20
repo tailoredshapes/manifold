@@ -2615,6 +2615,110 @@
         "region": "dc-london"
       }
     ],
+    "sync_runs": [
+      {
+        "id": "43569f8a-31a4-5c9e-b55a-ed3b994c6071",
+        "data_sync_id": "05dceed8-6ad4-57bb-98de-98e44f51f92d",
+        "status": "succeeded",
+        "triggered_by": "scheduled@gha-pr-runner",
+        "source_revision": "synthetic-shipments@2026-05-06T07:14:02Z",
+        "masking_summary": "no PII — synthetic dataset",
+        "started_at": "2026-05-06T12:16:00Z",
+        "finished_at": "2026-05-06T12:25:00Z",
+        "duration_minutes": "9"
+      },
+      {
+        "id": "87bac75c-7b9f-5c42-9ab9-5390d94b110b",
+        "data_sync_id": "05dceed8-6ad4-57bb-98de-98e44f51f92d",
+        "status": "failed",
+        "triggered_by": "morgan.chen@meridian.dev",
+        "source_revision": "synthetic-shipments@2026-05-10T11:00:00Z",
+        "masking_summary": "no PII — synthetic dataset",
+        "started_at": "2026-05-10T08:46:00Z",
+        "finished_at": "2026-05-10T08:49:00Z",
+        "duration_minutes": "3",
+        "error_message": "synthetic-shipments generator exited with code 17: schema validation failed on shipment[412].zone"
+      },
+      {
+        "id": "639e4b6d-45ae-5af1-aed8-1d57fd087ec0",
+        "data_sync_id": "05dceed8-6ad4-57bb-98de-98e44f51f92d",
+        "status": "succeeded",
+        "triggered_by": "scheduled@gha-pr-runner",
+        "source_revision": "synthetic-shipments@2026-05-13T09:30:11Z",
+        "masking_summary": "no PII — synthetic dataset",
+        "started_at": "2026-05-13T06:00:00Z",
+        "finished_at": "2026-05-13T06:08:00Z",
+        "duration_minutes": "8"
+      },
+      {
+        "id": "4bd9ffa9-d7f5-5f02-92d1-32913d706e82",
+        "data_sync_id": "05dceed8-6ad4-57bb-98de-98e44f51f92d",
+        "status": "cancelled",
+        "triggered_by": "morgan.chen@meridian.dev",
+        "source_revision": "synthetic-shipments@2026-05-16T14:02:00Z",
+        "masking_summary": "no PII — synthetic dataset",
+        "started_at": "2026-05-16T03:20:00Z",
+        "finished_at": "2026-05-16T03:22:00Z",
+        "duration_minutes": "2",
+        "error_message": "Cancelled by operator: PR closed before run completed"
+      },
+      {
+        "id": "7837295d-c578-584f-a7f2-c540dc51b6a0",
+        "data_sync_id": "05dceed8-6ad4-57bb-98de-98e44f51f92d",
+        "status": "succeeded",
+        "triggered_by": "scheduled@gha-pr-runner",
+        "source_revision": "synthetic-shipments@2026-05-19T06:00:00Z",
+        "masking_summary": "no PII — synthetic dataset",
+        "started_at": "2026-05-19T06:19:00Z",
+        "finished_at": "2026-05-19T06:26:00Z",
+        "duration_minutes": "7"
+      },
+      {
+        "id": "785d1c22-f9e2-531a-871f-f826c91b6807",
+        "data_sync_id": "6915478b-9469-508c-8289-dd59816714b0",
+        "status": "succeeded",
+        "triggered_by": "alice.guzman@meridian.dev",
+        "source_revision": "oms-dev:event-bus-topic@offset-44182",
+        "masking_summary": "PII columns redacted via pii_mask_v3 (orders.customer_email, orders.billing_zip)",
+        "started_at": "2026-05-07T08:00:00Z",
+        "finished_at": "2026-05-07T08:05:00Z",
+        "duration_minutes": "5"
+      },
+      {
+        "id": "0a333f99-3e82-52cc-b3c7-0f153f852325",
+        "data_sync_id": "6915478b-9469-508c-8289-dd59816714b0",
+        "status": "succeeded",
+        "triggered_by": "alice.guzman@meridian.dev",
+        "source_revision": "oms-dev:event-bus-topic@offset-44913",
+        "masking_summary": "PII columns redacted via pii_mask_v3 (orders.customer_email, orders.billing_zip)",
+        "started_at": "2026-05-12T11:18:00Z",
+        "finished_at": "2026-05-12T11:24:00Z",
+        "duration_minutes": "6"
+      },
+      {
+        "id": "26793d50-d3cc-5e69-8d75-cc69b59423f5",
+        "data_sync_id": "6915478b-9469-508c-8289-dd59816714b0",
+        "status": "failed",
+        "triggered_by": "scheduled@release-train",
+        "source_revision": "oms-dev:event-bus-topic@offset-45221",
+        "masking_summary": "PII columns redacted via pii_mask_v3 (orders.customer_email, orders.billing_zip)",
+        "started_at": "2026-05-15T05:28:00Z",
+        "finished_at": "2026-05-15T05:30:00Z",
+        "duration_minutes": "2",
+        "error_message": "Kafka topic 'oms.orders.v1' lag > 30s during replay window; aborted to avoid corrupt offsets"
+      },
+      {
+        "id": "42a5f98c-a6ab-5643-af56-ae1d8b846474",
+        "data_sync_id": "6915478b-9469-508c-8289-dd59816714b0",
+        "status": "succeeded",
+        "triggered_by": "alice.guzman@meridian.dev",
+        "source_revision": "oms-dev:event-bus-topic@offset-46004",
+        "masking_summary": "PII columns redacted via pii_mask_v3 (orders.customer_email, orders.billing_zip)",
+        "started_at": "2026-05-18T10:18:00Z",
+        "finished_at": "2026-05-18T10:23:00Z",
+        "duration_minutes": "5"
+      }
+    ],
     "test_runs": [
       {
         "cost_actual": "0.0000",
