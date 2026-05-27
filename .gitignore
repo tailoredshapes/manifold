@@ -8,3 +8,6 @@
 groundwork/data/*.db
 union/data/*.db
 cityhall/data/*.db
+
+# Claude harness state (not part of the project)
+.claude/
