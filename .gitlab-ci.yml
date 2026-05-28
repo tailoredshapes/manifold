@@ -152,9 +152,12 @@ publish-images:
         rm -rf "$STAGE/$sib"
         git clone --depth 1 --quiet "http://oauth2:${LOCAL_GITLAB_TOKEN}@192.168.7.42:8929/tailoredshapes/${sib}.git" "$STAGE/$sib"
       done
-    # Tightened .dockerignore at the context root — the dev box's parent-dir
-    # .dockerignore is untracked and absent here, so write one explicitly to
-    # keep build-context transfer small (exclude examples, perf, target, .git).
+    # .dockerignore at the context root — the dev box's parent-dir
+    # .dockerignore is untracked and absent here, so write one explicitly.
+    # Excludes build artifacts only; meshql-rs/examples + meshql-rs/performance
+    # MUST stay in context — the Dockerfile copies their Cargo.toml files
+    # because meshql-rs's workspace manifest declares them as members and
+    # cargo validates member existence when resolving manifold's path deps.
     - |
       cat > "$STAGE/.dockerignore" <<'IGNORE'
       *
@@ -164,8 +167,6 @@ publish-images:
       **/target/
       **/.git/
       **/node_modules/
-      meshql-rs/examples/
-      meshql-rs/performance/
       IGNORE
     # --password-stdin so the token never lands in the process list / argv.
     - echo "$CI_JOB_TOKEN" | docker login --password-stdin -u gitlab-ci-token "$CI_REGISTRY"
