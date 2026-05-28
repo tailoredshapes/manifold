@@ -126,6 +126,12 @@ deploy:
 # On a version tag (vX.Y.Z), build each manifold app into a generic image and
 # push it to the GitLab Container Registry. Image is generic manifold — config
 # comes from env at deploy time. Clients pin a version and pull.
+#
+# Assumptions (tag-triggered pipelines don't run the branch build/test gate):
+#   - Tag only a commit that already passed the main pipeline (build/test/clippy).
+#   - A version is "publishable" only if ALL 6 matrix legs go green. If a leg
+#     fails, the registry holds a PARTIAL version (some apps at vX.Y.Z, others
+#     missing) — the shuttle/deploy side treats a missing tag as fatal.
 publish-images:
   stage: publish
   tags:
@@ -144,7 +150,7 @@ publish-images:
     - |
       for sib in meshql-rs merkql; do
         rm -rf "$STAGE/$sib"
-        git clone --quiet "http://oauth2:${LOCAL_GITLAB_TOKEN}@192.168.7.42:8929/tailoredshapes/${sib}.git" "$STAGE/$sib"
+        git clone --depth 1 --quiet "http://oauth2:${LOCAL_GITLAB_TOKEN}@192.168.7.42:8929/tailoredshapes/${sib}.git" "$STAGE/$sib"
       done
     # Tightened .dockerignore at the context root — the dev box's parent-dir
     # .dockerignore is untracked and absent here, so write one explicitly to
@@ -161,8 +167,14 @@ publish-images:
       meshql-rs/examples/
       meshql-rs/performance/
       IGNORE
-    - docker login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    # --password-stdin so the token never lands in the process list / argv.
+    - echo "$CI_JOB_TOKEN" | docker login --password-stdin -u gitlab-ci-token "$CI_REGISTRY"
     - docker build --build-arg APP="$APP" -t "$CI_REGISTRY_IMAGE/$APP:$CI_COMMIT_TAG" -f "$STAGE/manifold/Dockerfile" "$STAGE"
     - docker push "$CI_REGISTRY_IMAGE/$APP:$CI_COMMIT_TAG"
     - echo "Published $CI_REGISTRY_IMAGE/$APP:$CI_COMMIT_TAG"
+    # Intentional: surfaces the registry host in the job log so the operator
+    # running scripts/shuttle.sh (conduit) can copy the exact source ref.
     - echo "SRC_REGISTRY=$CI_REGISTRY"
+  after_script:
+    # Runs even if script: fails — don't leave the runner logged into the registry.
+    - docker logout "$CI_REGISTRY" || true
