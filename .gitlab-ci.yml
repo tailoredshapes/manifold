@@ -6,6 +6,7 @@ variables:
 stages:
   - build
   - deploy
+  - publish
 
 # ── Static JS type-check (JSDoc + tsc --checkJs) ──────────────────────────
 # Runs in parallel with the Rust build. Catches missing imports, wrong
@@ -120,3 +121,48 @@ deploy:
         curl -sf http://localhost:${port}/health | grep '"status":"ok"'
       done
     - echo "Deployed successfully"
+
+# ── Per-app image publish (tag-triggered) ──────────────────────────────────
+# On a version tag (vX.Y.Z), build each manifold app into a generic image and
+# push it to the GitLab Container Registry. Image is generic manifold — config
+# comes from env at deploy time. Clients pin a version and pull.
+publish-images:
+  stage: publish
+  tags:
+    - shell
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  parallel:
+    matrix:
+      - APP: [groundwork, union, cityhall, yard, manifold-ingest, manifold-lobby]
+  script:
+    # Per-APP staging dir so parallel matrix jobs on one shell runner don't
+    # clobber each other's build context.
+    - export STAGE="$HOME/manifold-publish-$APP"
+    - mkdir -p "$STAGE"
+    - rsync -a --delete --exclude target --exclude .git "$CI_PROJECT_DIR"/ "$STAGE/manifold/"
+    - |
+      for sib in meshql-rs merkql; do
+        rm -rf "$STAGE/$sib"
+        git clone --quiet "http://oauth2:${LOCAL_GITLAB_TOKEN}@192.168.7.42:8929/tailoredshapes/${sib}.git" "$STAGE/$sib"
+      done
+    # Tightened .dockerignore at the context root — the dev box's parent-dir
+    # .dockerignore is untracked and absent here, so write one explicitly to
+    # keep build-context transfer small (exclude examples, perf, target, .git).
+    - |
+      cat > "$STAGE/.dockerignore" <<'IGNORE'
+      *
+      !manifold/
+      !meshql-rs/
+      !merkql/
+      **/target/
+      **/.git/
+      **/node_modules/
+      meshql-rs/examples/
+      meshql-rs/performance/
+      IGNORE
+    - docker login -u gitlab-ci-token -p "$CI_JOB_TOKEN" "$CI_REGISTRY"
+    - docker build --build-arg APP="$APP" -t "$CI_REGISTRY_IMAGE/$APP:$CI_COMMIT_TAG" -f "$STAGE/manifold/Dockerfile" "$STAGE"
+    - docker push "$CI_REGISTRY_IMAGE/$APP:$CI_COMMIT_TAG"
+    - echo "Published $CI_REGISTRY_IMAGE/$APP:$CI_COMMIT_TAG"
+    - echo "SRC_REGISTRY=$CI_REGISTRY"
