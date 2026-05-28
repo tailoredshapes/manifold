@@ -201,8 +201,15 @@ RUN mkdir -p \
     done
 
 # ── Phase 1: Compile all dependencies (cached layer) ─────────────────────────
+# Best-effort: some workspace members may fail to compile against dummy stubs
+# (a lib.rs that imports symbols only the real source provides). We log full
+# output and accept a non-zero exit — whatever compiled gets cached; Phase 2
+# rebuilds anything missing from real sources. If Phase 1 returns non-zero,
+# the cargo output above shows what didn't cache (useful when the cache feels
+# broken — distinguishes "Phase 1 silently failed" from "real Phase 2 error").
 WORKDIR /build/manifold
-RUN cargo build --release --workspace 2>&1 | tail -5; true
+RUN cargo build --release --workspace \
+    || echo "[Phase 1 dep-cache] cargo exited non-zero (above) — partial cache only; Phase 2 will compile what's missing"
 
 # ── Phase 2: Copy real sources ────────────────────────────────────────────────
 # merkql real source
