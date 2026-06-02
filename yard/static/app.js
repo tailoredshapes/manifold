@@ -11,7 +11,7 @@ import {
   setStatus, setError, updateFooterMeta,
   emptyCard, fieldInput, readForm,
   openModal,
-} from '/static/manifold-ui.js';
+} from './manifold-ui.js';
 
 // ── Enum vocab ───────────────────────────────────────────────────────────────
 

@@ -11,9 +11,14 @@
     "skipLibCheck": true,
     "lib": ["esnext", "dom", "dom.iterable"],
     "baseUrl": ".",
-    "paths": {
-      "/static/manifold-ui.js": ["./manifold-ui/static/manifold-ui.js"]
-    },
+    "rootDirs": [
+      "manifold-ui/static",
+      "groundwork/static",
+      "union/static",
+      "cityhall/static",
+      "yard/static",
+      "manifold-lobby/static"
+    ],
     "types": []
   },
   "include": [

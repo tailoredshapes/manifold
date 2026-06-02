@@ -12,11 +12,31 @@
 #
 # Adapt this to your customer's edge auth. The Manifold services only care
 # that the canonical headers arrive.
-
+#
+# This is a *path-mode* (single-origin) deployment: every app is served under
+# `/<app>/` on one hostname. Set each app's `*_PUBLIC_URL` env var to the
+# path form (e.g. `GROUNDWORK_PUBLIC_URL=https://manifold.example.com/groundwork`)
+# so cross-app links resolve. The bare-prefix redirects below are required so
+# the apps' document-relative asset refs resolve to `/<app>/static/…`.
+# For an IdP-agnostic template see Caddyfile.single-origin.example.
 {
 	# Real TLS terminates at Azure Front Door / App Service Gateway; Caddy
 	# here listens on :80 inside the trust boundary.
 	auto_https off
+}
+
+# Pull Entra's claims into the canonical Manifold headers. `header_up` is only
+# valid inside reverse_proxy, so we share these via a snippet imported into
+# each upstream.
+#   X-MS-CLIENT-PRINCIPAL-NAME ≈ user.userPrincipalName.
+# Easy Auth doesn't forward group memberships directly — they live inside the
+# base64 JSON in X-MS-CLIENT-PRINCIPAL. Either add a Caddy plugin that decodes
+# that header, or add a custom claims-mapping rule in your Entra app
+# registration that surfaces a `roles` claim into a dedicated header
+# (recommended) — here X-Manifold-Roles.
+(entra_identity) {
+	header_up X-Manifold-User-Id {http.request.header.X-MS-CLIENT-PRINCIPAL-NAME}
+	header_up X-Manifold-User-Groups {http.request.header.X-Manifold-Roles}
 }
 
 :80 {
@@ -30,34 +50,44 @@
 		respond "unauthorized" 401
 	}
 
+	# Trailing-slash redirects so bare `/<app>` resolves to the served
+	# root `/<app>/` (the frontend derives its base from where it loaded).
+	redir /groundwork /groundwork/ 308
+	redir /union /union/ 308
+	redir /cityhall /cityhall/ 308
+	redir /yard /yard/ 308
+	redir /lobby /lobby/ 308
+
 	handle @authenticated {
-		# Pull Entra's claims into the canonical Manifold headers.
-		# X-MS-CLIENT-PRINCIPAL-NAME ≈ user.userPrincipalName.
-		header_up X-Manifold-User-Id {http.request.header.X-MS-CLIENT-PRINCIPAL-NAME}
-
-		# Easy Auth doesn't forward group memberships directly — they
-		# live inside the base64 JSON in X-MS-CLIENT-PRINCIPAL. Either
-		# add a Caddy plugin that decodes that header, or pre-populate
-		# this map via a custom claims-mapping rule in your Entra app
-		# registration that surfaces a `roles` claim into a dedicated
-		# header (recommended).
-		header_up X-Manifold-User-Groups {http.request.header.X-Manifold-Roles}
-
 		handle /groundwork/* {
 			uri strip_prefix /groundwork
-			reverse_proxy groundwork:3000
+			reverse_proxy groundwork:3000 {
+				import entra_identity
+			}
 		}
 		handle /union/* {
 			uri strip_prefix /union
-			reverse_proxy union:3000
+			reverse_proxy union:3000 {
+				import entra_identity
+			}
 		}
 		handle /cityhall/* {
 			uri strip_prefix /cityhall
-			reverse_proxy cityhall:3000
+			reverse_proxy cityhall:3000 {
+				import entra_identity
+			}
 		}
 		handle /yard/* {
 			uri strip_prefix /yard
-			reverse_proxy yard:3000
+			reverse_proxy yard:3000 {
+				import entra_identity
+			}
+		}
+		handle /lobby/* {
+			uri strip_prefix /lobby
+			reverse_proxy manifold-lobby:3000 {
+				import entra_identity
+			}
 		}
 	}
 }

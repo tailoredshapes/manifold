@@ -8,7 +8,7 @@ import {
   $, $$, el, esc,
   apiFetch as api, gqlQuery,
   loadManifoldConfig, getManifoldConfig, crossLink,
-} from '/static/manifold-ui.js';
+} from './manifold-ui.js';
 
 import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
 

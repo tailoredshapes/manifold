@@ -2,7 +2,7 @@
 //
 // openModal (canonical promise-based pattern) is shared via manifold-ui.
 
-import { openModal } from '/static/manifold-ui.js';
+import { openModal, loadManifoldConfig, crossLink } from './manifold-ui.js';
 
 /**
  * @typedef {object} Advisory
@@ -446,17 +446,19 @@ function renderDrawer(a) {
 
 /** @param {Advisory} a @returns {string} */
 function subjectSourceLink(a) {
-  // Deep-link to the owning app's hash-route. Tildarc domains in prod; in
-  // dev these are the docker-compose ports.
+  // Deep-link to the owning app's hash-route. crossLink resolves the target
+  // app's public URL from /config.json, so the same code works whether apps
+  // are deployed as subdomains or as path prefixes on one origin.
   const id = a.subject_id;
+  const label = `${a.subject_name} →`;
   switch (a.subject_type) {
-    case 'deployable':       return `<a href="https://groundwork.tildarc.com/#deployables/${id}">${a.subject_name} →</a>`;
-    case 'service':          return `<a href="https://groundwork.tildarc.com/#services/${id}">${a.subject_name} →</a>`;
-    case 'change_request':   return `<a href="https://cityhall.tildarc.com/#changes/${id}">${a.subject_name} →</a>`;
-    case 'deployment_plan':  return `<a href="https://cityhall.tildarc.com/#plans/${id}">${a.subject_name} →</a>`;
-    case 'test_environment': return `<a href="https://yard.tildarc.com/#environments/${id}">${a.subject_name} →</a>`;
-    case 'team':             return `<a href="https://union.tildarc.com/#teams/${id}">${a.subject_name} →</a>`;
-    case 'person':           return `<a href="https://union.tildarc.com/#people/${id}">${a.subject_name} →</a>`;
+    case 'deployable':       return crossLink('groundwork', 'deployables', id, label);
+    case 'service':          return crossLink('groundwork', 'services', id, label);
+    case 'change_request':   return crossLink('cityhall', 'changes', id, label);
+    case 'deployment_plan':  return crossLink('cityhall', 'plans', id, label);
+    case 'test_environment': return crossLink('yard', 'environments', id, label);
+    case 'team':             return crossLink('union', 'teams', id, label);
+    case 'person':           return crossLink('union', 'people', id, label);
     default: return a.subject_name || a.subject_id;
   }
 }
@@ -528,6 +530,9 @@ window.addEventListener('hashchange', () => { routeFromHash(); render(); });
 
 (async function init() {
   routeFromHash();
+  // Cross-app public URLs — needed before render so subjectSourceLink can
+  // resolve deep-links to the owning app.
+  await loadManifoldConfig();
   try {
     await loadAll();
   } catch (e) {

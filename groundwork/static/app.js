@@ -15,7 +15,7 @@ import {
   loadManifoldConfig, getManifoldConfig, crossLink,
   setStatus, setError, updateFooterMeta,
   openModal,
-} from '/static/manifold-ui.js';
+} from './manifold-ui.js';
 
 // ── Entity config ─────────────────────────────────────────────────────────────
 //

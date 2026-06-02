@@ -317,6 +317,29 @@ async fn main() -> anyhow::Result<()> {
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "./data".into());
     std::fs::create_dir_all(&data_dir)?;
 
+    // Cross-app public URLs — published via /config.json so the frontend can
+    // build deep-links to the owning app (crossLink). Subject deep-links need
+    // groundwork/union/cityhall/yard; manifold is the brand link.
+    let groundwork_public_url = std::env::var("GROUNDWORK_PUBLIC_URL")
+        .unwrap_or_else(|_| "https://groundwork.tildarc.com".into());
+    let union_public_url =
+        std::env::var("UNION_PUBLIC_URL").unwrap_or_else(|_| "https://union.tildarc.com".into());
+    let cityhall_public_url = std::env::var("CITYHALL_PUBLIC_URL")
+        .unwrap_or_else(|_| "https://cityhall.tildarc.com".into());
+    let yard_public_url =
+        std::env::var("YARD_PUBLIC_URL").unwrap_or_else(|_| "https://yard.tildarc.com".into());
+    let manifold_public_url = std::env::var("MANIFOLD_PUBLIC_URL")
+        .unwrap_or_else(|_| "https://manifold.tildarc.com".into());
+
+    let config_body = serde_json::json!({
+        "groundwork_public_url": groundwork_public_url,
+        "union_public_url":      union_public_url,
+        "cityhall_public_url":   cityhall_public_url,
+        "yard_public_url":       yard_public_url,
+        "manifold_public_url":   manifold_public_url,
+    })
+    .to_string();
+
     let advisory = make_entity(&data_dir, "advisory").await;
     let program = make_entity(&data_dir, "program").await;
     let program_membership = make_entity(&data_dir, "program_membership").await;
@@ -505,6 +528,14 @@ async fn main() -> anyhow::Result<()> {
         None,
     );
 
+    let config_route = Router::new().route(
+        "/config.json",
+        get(move || {
+            let body = config_body.clone();
+            async move { ([(header::CONTENT_TYPE, "application/json")], body).into_response() }
+        }),
+    );
+
     let custom = Router::new()
         .route("/health", get(health_check))
         .route("/", get(serve_index))
@@ -523,7 +554,8 @@ async fn main() -> anyhow::Result<()> {
         .merge(pm_restlette)
         .merge(le_restlette)
         .merge(sv_restlette)
-        .merge(comment_restlette);
+        .merge(comment_restlette)
+        .merge(config_route);
 
     let app = meshql_server::build_app_with_auth(config, auth, custom).await?;
     let app = with_header_identity(app, HeaderConfig::from_env());

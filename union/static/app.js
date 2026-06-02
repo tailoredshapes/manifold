@@ -13,7 +13,7 @@ import {
   apiFetch, gqlQuery,
   loadManifoldConfig, getManifoldConfig, crossLink,
   openModal,
-} from '/static/manifold-ui.js';
+} from './manifold-ui.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

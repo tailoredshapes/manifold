@@ -1,8 +1,9 @@
 # Dev Caddyfile for Manifold.
 #
-# Caddy listens on :8080 and reverse-proxies the four Manifold services. No
-# real IdP is wired in for dev — every request is decorated with a synthetic
-# identity matching the dev policy:
+# Caddy listens on :8080 and reverse-proxies the Manifold apps under path
+# prefixes on a single origin (path mode). No real IdP is wired in for dev —
+# every request is decorated with a synthetic identity matching the dev
+# policy:
 #
 #   X-Manifold-User-Id: alice@example.dev
 #   X-Manifold-User-Groups: admin
@@ -10,7 +11,13 @@
 # This is the same shape a production Caddyfile would inject after a real
 # authentication handshake. Header names match each service's default
 # manifold-edge `HeaderConfig`.
-
+#
+# Path mode contract: each app is served at `/<app>/` and the prefix is
+# stripped before it reaches the container, so the app sees root-relative
+# paths exactly as in domain mode. The frontend derives its base from
+# `import.meta.url` (see manifold-ui.js apiUrl), so a bare `/<app>` must
+# redirect to `/<app>/` for the document-relative asset refs to resolve —
+# hence the per-app trailing-slash redirects below.
 {
 	# disable the default auto-HTTPS for dev
 	auto_https off
@@ -24,13 +31,22 @@
 	# top-level versions fixed a long-standing parser error that kept
 	# manifold-edge in a crash-restart loop.)
 
-	# Manifold landing page (public — links to the four apps).
+	# Trailing-slash redirects. The inline path matcher matches the bare
+	# prefix exactly; `/<app>/…` falls through to the wildcard handles below.
+	redir /manifold /manifold/ 308
+	redir /groundwork /groundwork/ 308
+	redir /union /union/ 308
+	redir /cityhall /cityhall/ 308
+	redir /yard /yard/ 308
+	redir /lobby /lobby/ 308
+
+	# Manifold landing page (public — links to the apps).
 	handle /manifold/* {
 		uri strip_prefix /manifold
 		reverse_proxy host.docker.internal:3000
 	}
 
-	# Per-app proxies. Path-prefix-style so all four are reachable from
+	# Per-app proxies. Path-prefix-style so all apps are reachable from
 	# a single dev origin.
 	handle /groundwork/* {
 		uri strip_prefix /groundwork
@@ -56,6 +72,13 @@
 	handle /yard/* {
 		uri strip_prefix /yard
 		reverse_proxy yard:3000 {
+			header_up X-Manifold-User-Id "alice@example.dev"
+			header_up X-Manifold-User-Groups "admin"
+		}
+	}
+	handle /lobby/* {
+		uri strip_prefix /lobby
+		reverse_proxy manifold-lobby:3000 {
 			header_up X-Manifold-User-Id "alice@example.dev"
 			header_up X-Manifold-User-Groups "admin"
 		}

@@ -101,6 +101,37 @@ export function esc(s) {
     .replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ── Base path / URL building ─────────────────────────────────────────────
+//
+// Manifold runs in two deployment shapes (see
+// docs/superpowers/specs/2026-06-01-path-based-deployment-design.md):
+//
+//   - domain mode: each app owns an origin   (https://groundwork.example.com/…)
+//   - path mode:   all apps share one origin (https://example.com/groundwork/…)
+//
+// We never hardcode which. Instead the app derives its own base from where
+// THIS module was loaded — `import.meta.url` is the fully-resolved URL the
+// browser fetched manifold-ui.js from, so stripping the well-known
+// `/static/manifold-ui.js` suffix yields the app's served root in either
+// mode. apiUrl() then turns a root-relative app path into an absolute URL,
+// while leaving cross-app absolute URLs (from /config.json) untouched.
+
+const APP_BASE = import.meta.url.replace(/\/static\/manifold-ui\.js.*$/, '');
+
+/**
+ * Resolve an app-local path against the app's served base. Absolute URLs
+ * (cross-app links built from *_public_url) pass through unchanged; only
+ * root-relative paths ("/x/graph") get the base prefix. In domain mode
+ * APP_BASE is just the origin, so this is a no-op versus today's behaviour.
+ *
+ * @param {string} path
+ * @returns {string}
+ */
+export function apiUrl(path) {
+  if (/^https?:\/\//.test(path)) return path;
+  return path.startsWith('/') ? APP_BASE + path : path;
+}
+
 // ── HTTP / GraphQL ───────────────────────────────────────────────────────
 
 /**
@@ -113,7 +144,7 @@ export function esc(s) {
  * @returns {Promise<any>}
  */
 export async function apiFetch(url, opts) {
-  const res = await fetch(url, opts);
+  const res = await fetch(apiUrl(url), opts);
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     throw new Error(`${opts?.method || 'GET'} ${url} → ${res.status}${body ? ': ' + body : ''}`);
@@ -133,7 +164,7 @@ export async function apiFetch(url, opts) {
  * @returns {Promise<any>}
  */
 export async function gqlQuery(path, query, variables = {}) {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, variables }),
@@ -163,6 +194,7 @@ export async function gqlQuery(path, query, variables = {}) {
  * @property {string} [cityhall_public_url]
  * @property {string} [yard_public_url]
  * @property {string} [lobby_public_url]
+ * @property {string} [manifold_public_url]
  */
 
 /** @type {ManifoldConfig} */
@@ -180,11 +212,24 @@ export function getManifoldConfig() { return _config; }
  */
 export async function loadManifoldConfig(url = '/config.json') {
   try {
-    const res = await fetch(url);
+    const res = await fetch(apiUrl(url));
     if (res.ok) _config = await res.json();
   } catch {
     _config = {};
   }
+  applyHubLink();
+}
+
+/**
+ * Point every `a.hub-link` (the "Manifold" brand link back to the landing
+ * page) at the deployment's configured `manifold_public_url`. The static
+ * HTML carries a tildarc.com fallback for the no-config case; any real
+ * deployment — domain or path mode — supplies the right URL via config.
+ */
+export function applyHubLink() {
+  const href = _config.manifold_public_url;
+  if (!href) return;
+  for (const a of $$('a.hub-link')) a.setAttribute('href', href);
 }
 
 /**
@@ -202,7 +247,9 @@ export function crossLink(appKey, screen, id, label) {
   const base = _config[`${appKey}_public_url`];
   if (!base) return esc(label);
   const hash = id ? `#${screen}/${encodeURIComponent(id)}` : `#${screen}`;
-  return `<a href="${esc(base.replace(/\/$/, ''))}${hash}">${esc(label)}</a>`;
+  // Trailing slash before the hash so path-mode links land on the app's
+  // served root (`/groundwork/#…`) without an extra edge redirect hop.
+  return `<a href="${esc(base.replace(/\/$/, ''))}/${hash}">${esc(label)}</a>`;
 }
 
 // ── Status strip ─────────────────────────────────────────────────────────

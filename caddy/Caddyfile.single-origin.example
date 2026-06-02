@@ -1,0 +1,92 @@
+# Example production Caddyfile for PATH-MODE (single-origin) Manifold.
+#
+# All apps are served under path prefixes on ONE hostname:
+#
+#   https://manifold.example.com/groundwork/…
+#   https://manifold.example.com/union/…
+#   https://manifold.example.com/cityhall/…
+#   https://manifold.example.com/yard/…
+#   https://manifold.example.com/lobby/…
+#
+# Use this when the deployment can't (or won't) provision a subdomain per app
+# or a wildcard cert. The alternative — a domain per app — needs no edge path
+# routing at all (point each subdomain straight at its container).
+#
+# IdP-agnostic: this template assumes some upstream (an API gateway, an
+# oauth2-proxy sidecar, your IdP's "easy auth") has already authenticated the
+# request and forwarded identity headers. Map whatever your edge provides into
+# the canonical Manifold contract (`X-Manifold-User-Id` / `X-Manifold-User-Groups`).
+# For a concrete Azure Entra example see Caddyfile.azure-entra.example.
+#
+# Pair this with path-form public URLs on each app so cross-app links resolve:
+#
+#   GROUNDWORK_PUBLIC_URL=https://manifold.example.com/groundwork
+#   UNION_PUBLIC_URL=https://manifold.example.com/union
+#   CITYHALL_PUBLIC_URL=https://manifold.example.com/cityhall
+#   YARD_PUBLIC_URL=https://manifold.example.com/yard
+#   LOBBY_PUBLIC_URL=https://manifold.example.com/lobby
+#   MANIFOLD_PUBLIC_URL=https://manifold.example.com
+#
+# How path mode works end to end:
+#   - The edge strips `/<app>` before proxying, so each app sees root-relative
+#     paths exactly as in domain mode (no app code knows its prefix).
+#   - The frontend derives its base from where manifold-ui.js was loaded
+#     (import.meta.url), so its own fetches (/x/graph, /x/api, /config.json)
+#     are automatically prefixed.
+#   - Bare `/<app>` MUST redirect to `/<app>/` so the document-relative asset
+#     refs (`static/app.js`) resolve under the prefix — hence the redirects.
+
+# Map your edge's identity headers into the canonical Manifold contract.
+# `header_up` is only valid inside reverse_proxy, so we share it via a snippet
+# imported into each upstream. Replace the right-hand sources with whatever
+# your gateway forwards.
+(manifold_identity) {
+	header_up X-Manifold-User-Id {http.request.header.X-Forwarded-User}
+	header_up X-Manifold-User-Groups {http.request.header.X-Forwarded-Groups}
+}
+
+manifold.example.com {
+	# Trailing-slash redirects. The inline path matcher matches the bare
+	# prefix exactly; `/<app>/…` falls through to the wildcard handles below.
+	redir /groundwork /groundwork/ 308
+	redir /union /union/ 308
+	redir /cityhall /cityhall/ 308
+	redir /yard /yard/ 308
+	redir /lobby /lobby/ 308
+
+	handle /groundwork/* {
+		uri strip_prefix /groundwork
+		reverse_proxy groundwork:3000 {
+			import manifold_identity
+		}
+	}
+	handle /union/* {
+		uri strip_prefix /union
+		reverse_proxy union:3000 {
+			import manifold_identity
+		}
+	}
+	handle /cityhall/* {
+		uri strip_prefix /cityhall
+		reverse_proxy cityhall:3000 {
+			import manifold_identity
+		}
+	}
+	handle /yard/* {
+		uri strip_prefix /yard
+		reverse_proxy yard:3000 {
+			import manifold_identity
+		}
+	}
+	handle /lobby/* {
+		uri strip_prefix /lobby
+		reverse_proxy manifold-lobby:3000 {
+			import manifold_identity
+		}
+	}
+
+	# Optional: redirect the bare origin to a default app (or serve a landing).
+	handle / {
+		redir * /groundwork/ 302
+	}
+}
