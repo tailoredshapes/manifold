@@ -170,8 +170,7 @@ async fn main() -> anyhow::Result<()> {
         std::env::var("YARD_PUBLIC_URL").unwrap_or_else(|_| "https://yard.tildarc.com".into());
     let lobby_public_url =
         std::env::var("LOBBY_PUBLIC_URL").unwrap_or_else(|_| "https://lobby.tildarc.com".into());
-    let manifold_public_url = std::env::var("MANIFOLD_PUBLIC_URL")
-        .unwrap_or_else(|_| "https://manifold.tildarc.com".into());
+    let manifold_public_url = std::env::var("MANIFOLD_PUBLIC_URL").unwrap_or_else(|_| "/".into());
 
     let config_body = serde_json::json!({
         "union_public_url":     union_public_url,

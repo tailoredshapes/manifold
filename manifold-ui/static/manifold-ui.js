@@ -222,9 +222,10 @@ export async function loadManifoldConfig(url = '/config.json') {
 
 /**
  * Point every `a.hub-link` (the "Manifold" brand link back to the landing
- * page) at the deployment's configured `manifold_public_url`. The static
- * HTML carries a tildarc.com fallback for the no-config case; any real
- * deployment — domain or path mode — supplies the right URL via config.
+ * page) at the deployment's configured `manifold_public_url`. Both the env
+ * default and the static HTML fallback are the deployment-agnostic origin
+ * root (`/`); set MANIFOLD_PUBLIC_URL to point the brand link at a real
+ * landing page (domain or path mode).
  */
 export function applyHubLink() {
   const href = _config.manifold_public_url;

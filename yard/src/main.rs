@@ -17,9 +17,7 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
-use yard::{
-    cityhall_client, estimator, groundwork_client, history, reset_plan, sync, validators,
-};
+use yard::{cityhall_client, estimator, groundwork_client, history, reset_plan, sync, validators};
 
 const TEST_ENVIRONMENT_GRAPHQL: &str = include_str!("../config/graph/test_environment.graphql");
 const TEST_INFRASTRUCTURE_GRAPHQL: &str =
@@ -319,8 +317,7 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or_else(|_| "https://cityhall.tildarc.com".into());
     let lobby_public_url =
         std::env::var("LOBBY_PUBLIC_URL").unwrap_or_else(|_| "https://lobby.tildarc.com".into());
-    let manifold_public_url = std::env::var("MANIFOLD_PUBLIC_URL")
-        .unwrap_or_else(|_| "https://manifold.tildarc.com".into());
+    let manifold_public_url = std::env::var("MANIFOLD_PUBLIC_URL").unwrap_or_else(|_| "/".into());
 
     let config_body = serde_json::json!({
         "groundwork_public_url": groundwork_public_url,
