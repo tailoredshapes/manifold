@@ -1,0 +1,106 @@
+# Production Caddyfile for a Cloudflare Access deployment in PATH-MODE
+# (single-origin) Manifold.
+#
+# This is the Cloudflare Access variant of the path-mode templates (compare
+# Caddyfile.azure-entra.example and Caddyfile.single-origin.example). It is the
+# edge config used by the `conduit` k8s staging environment.
+#
+# Topology:
+#   Browser ──TLS──▶ Cloudflare ──Tunnel──▶ this Caddy (:8080) ──▶ app:3000
+#
+# Cloudflare terminates TLS at its edge and authenticates the user via
+# Cloudflare Access (the Access policy gates who reaches the tunnel). Once a
+# request clears Access, Cloudflare forwards the authenticated identity in the
+# `Cf-Access-Authenticated-User-Email` header. We translate that into the
+# canonical Manifold contract (`X-Manifold-User-Id` / `X-Manifold-User-Groups`)
+# so the services see a uniform identity regardless of the edge IdP.
+#
+# Path-mode contract: every app is served under `/<app>/` on one hostname
+# (https://conduit.poundit.co.uk). The edge strips `/<app>` before proxying so
+# each app sees root-relative paths exactly as in domain mode. Set each app's
+# `*_PUBLIC_URL` to the path form (e.g.
+# GROUNDWORK_PUBLIC_URL=https://conduit.poundit.co.uk/groundwork) so cross-app
+# links resolve, and keep the bare-prefix trailing-slash redirects below so the
+# apps' document-relative asset refs resolve under `/<app>/static/…`.
+#
+# Internal upstreams use Kubernetes in-cluster DNS for the `conduit` namespace:
+#   <service>.conduit.svc.cluster.local:3000
+{
+	# TLS terminates at Cloudflare; this Caddy listens plain inside the
+	# cluster (behind the tunnel), so disable Caddy's own auto-HTTPS.
+	auto_https off
+}
+
+# Pull Cloudflare Access's identity into the canonical Manifold headers.
+# `header_up` is only valid inside reverse_proxy, so we share these via a
+# snippet imported into each upstream.
+#
+#   Cf-Access-Authenticated-User-Email  →  X-Manifold-User-Id
+#
+# STAGING NOTE: Cloudflare Access does not forward group memberships in a
+# single header by default. For staging we hard-code every authenticated user
+# into the `admin` group. Refine this later — e.g. map an Access JWT claim or
+# a per-identity lookup into X-Manifold-User-Groups — when real group mapping
+# is wired up.
+(cloudflare_identity) {
+	header_up X-Manifold-User-Id {http.request.header.Cf-Access-Authenticated-User-Email}
+	header_up X-Manifold-User-Groups "admin"
+}
+
+:8080 {
+	@authenticated header Cf-Access-Authenticated-User-Email *
+
+	# Reject requests that arrive without a Cloudflare Access identity.
+	# Cloudflare Access normally guarantees this header upstream; this is
+	# belt-and-braces in case a request reaches Caddy bypassing Access.
+	@unauthenticated not header Cf-Access-Authenticated-User-Email *
+	handle @unauthenticated {
+		respond "unauthorized" 401
+	}
+
+	# Trailing-slash redirects so bare `/<app>` resolves to the served root
+	# `/<app>/` (the frontend derives its base from where it loaded).
+	redir /groundwork /groundwork/ 308
+	redir /union /union/ 308
+	redir /cityhall /cityhall/ 308
+	redir /yard /yard/ 308
+	redir /lobby /lobby/ 308
+
+	handle @authenticated {
+		handle /groundwork/* {
+			uri strip_prefix /groundwork
+			reverse_proxy groundwork.conduit.svc.cluster.local:3000 {
+				import cloudflare_identity
+			}
+		}
+		handle /union/* {
+			uri strip_prefix /union
+			reverse_proxy union.conduit.svc.cluster.local:3000 {
+				import cloudflare_identity
+			}
+		}
+		handle /cityhall/* {
+			uri strip_prefix /cityhall
+			reverse_proxy cityhall.conduit.svc.cluster.local:3000 {
+				import cloudflare_identity
+			}
+		}
+		handle /yard/* {
+			uri strip_prefix /yard
+			reverse_proxy yard.conduit.svc.cluster.local:3000 {
+				import cloudflare_identity
+			}
+		}
+		handle /lobby/* {
+			uri strip_prefix /lobby
+			reverse_proxy manifold-lobby.conduit.svc.cluster.local:3000 {
+				import cloudflare_identity
+			}
+		}
+
+		# Bare origin → default app.
+		handle / {
+			redir * /groundwork/ 302
+		}
+	}
+}
