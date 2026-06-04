@@ -26,6 +26,7 @@ meshql-casbin    = { path = "../../meshql-rs/meshql-casbin" }
 manifold-edge    = { path = "../manifold-edge" }
 manifold-ui      = { path = "../manifold-ui" }
 meshql-mongo     = { path = "../../meshql-rs/meshql-mongo", optional = true }
+lambda_http      = { version = "0.13", optional = true }
 meshql-merkql    = { path = "../../meshql-rs/meshql-merkql", optional = true }
 meshql-sqlite    = { path = "../../meshql-rs/meshql-sqlite", optional = true }
 sqlx             = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite"] }
@@ -59,5 +60,6 @@ harness = false
 [features]
 default  = ["sqlite"]
 mongo    = ["dep:meshql-mongo"]
+lambda  = ["dep:lambda_http"]
 merkql   = ["dep:meshql-merkql"]
 sqlite   = ["dep:meshql-sqlite"]

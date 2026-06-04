@@ -443,8 +443,18 @@ async fn main() -> anyhow::Result<()> {
     // graphlette + restlette routes alike.
     let app = with_header_identity(app, HeaderConfig::from_env());
 
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
-    println!("groundwork listening on port {port}");
-    axum::serve(listener, app).await?;
+    #[cfg(feature = "lambda")]
+    {
+        let _ = port;
+        lambda_http::run(app)
+            .await
+            .map_err(|e| anyhow::anyhow!("lambda runtime error: {e}"))?;
+    }
+    #[cfg(not(feature = "lambda"))]
+    {
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
+        println!("groundwork listening on port {port}");
+        axum::serve(listener, app).await?;
+    }
     Ok(())
 }

@@ -617,8 +617,18 @@ async fn main() -> anyhow::Result<()> {
     let engine = Engine::new(app_state, SourceClients::from_env());
     let _engine_handle = engine.spawn();
 
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
-    println!("manifold-lobby listening on port {port}");
-    axum::serve(listener, app).await?;
+    #[cfg(feature = "lambda")]
+    {
+        let _ = port;
+        lambda_http::run(app)
+            .await
+            .map_err(|e| anyhow::anyhow!("lambda runtime error: {e}"))?;
+    }
+    #[cfg(not(feature = "lambda"))]
+    {
+        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
+        println!("manifold-lobby listening on port {port}");
+        axum::serve(listener, app).await?;
+    }
     Ok(())
 }
