@@ -11,8 +11,13 @@ use cityhall::{bylaw, gantt, groundwork_client, plan};
 use manifold_edge::{with_header_identity, HeaderConfig};
 use meshql_casbin::CasbinAuth;
 use meshql_core::{Auth, GraphletteConfig, Repository, RootConfig, ServerConfig, StashKeyAuth};
+#[cfg(feature = "sqlite")]
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
+#[cfg(feature = "sqlite")]
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+#[cfg(feature = "mongo")]
+use meshql_mongo::{MongoRepository, MongoSearcher};
+#[cfg(feature = "sqlite")]
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -98,6 +103,8 @@ pub struct Entity {
     pub searcher: Arc<dyn meshql_core::Searcher>,
 }
 
+// SQLite backend (default; local / dev / single-box).
+#[cfg(feature = "sqlite")]
 async fn make_entity(dir: &str, name: &str) -> Entity {
     let db_path = format!("{dir}/{name}.db");
     let pool = SqlitePoolOptions::new()
@@ -112,6 +119,25 @@ async fn make_entity(dir: &str, name: &str) -> Entity {
     let repo = Arc::new(SqliteRepository::new_with_pool(pool.clone()).await.unwrap());
     let searcher: Arc<dyn meshql_core::Searcher> =
         Arc::new(SqliteSearcher::new_with_pool(pool).await.unwrap());
+    Entity { repo, searcher }
+}
+
+// MongoDB backend (Atlas; serverless / Lambda / multi-instance). One collection
+// per entity in the MONGO_DB database. The Mongo repo/searcher enforce auth at
+// the store, so we build the same CasbinAuth from the embedded policy here.
+#[cfg(feature = "mongo")]
+async fn make_entity(_dir: &str, name: &str) -> Entity {
+    let uri = std::env::var("MONGO_URL").expect("MONGO_URL is required for the mongo build");
+    let db = std::env::var("MONGO_DB").unwrap_or_else(|_| "manifold".into());
+    let auth: Arc<dyn Auth> = Arc::new(
+        CasbinAuth::from_strings(AUTH_MODEL, AUTH_POLICY, StashKeyAuth::new("user_id"))
+            .await
+            .expect("auth policy"),
+    );
+    let repo: Arc<dyn meshql_core::Repository> =
+        Arc::new(MongoRepository::new(&uri, &db, name, auth.clone()).await.unwrap());
+    let searcher: Arc<dyn meshql_core::Searcher> =
+        Arc::new(MongoSearcher::new(&uri, &db, name, auth).await.unwrap());
     Entity { repo, searcher }
 }
 
