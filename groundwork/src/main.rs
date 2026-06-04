@@ -10,8 +10,13 @@ use manifold_edge::{with_header_identity, HeaderConfig};
 use meshql_casbin::CasbinAuth;
 use meshql_core::{Auth, GraphletteConfig, RootConfig, ServerConfig, Stash, StashKeyAuth};
 use meshql_server::{ValidatorContext, ValidatorFn};
+#[cfg(feature = "sqlite")]
 use meshql_sqlite::{SqliteRepository, SqliteSearcher};
+#[cfg(feature = "sqlite")]
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+#[cfg(feature = "mongo")]
+use meshql_mongo::{MongoRepository, MongoSearcher};
+#[cfg(feature = "sqlite")]
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -142,7 +147,10 @@ struct Entity {
     searcher: Arc<dyn meshql_core::Searcher>,
 }
 
-async fn make_entity(dir: &str, name: &str) -> Entity {
+// SQLite backend (default; local/dev/single-box). Auth is applied at the
+// server layer, so the repo/searcher don't need it here.
+#[cfg(feature = "sqlite")]
+async fn make_entity(dir: &str, name: &str, _auth: Arc<dyn Auth>) -> Entity {
     let db_path = format!("{dir}/{name}.db");
     let pool = SqlitePoolOptions::new()
         .max_connections(4)
@@ -156,6 +164,25 @@ async fn make_entity(dir: &str, name: &str) -> Entity {
     let repo = Arc::new(SqliteRepository::new_with_pool(pool.clone()).await.unwrap());
     let searcher: Arc<dyn meshql_core::Searcher> =
         Arc::new(SqliteSearcher::new_with_pool(pool).await.unwrap());
+    Entity { repo, searcher }
+}
+
+// MongoDB backend (Atlas; serverless/Lambda/multi-instance). One collection per
+// entity in the `MONGO_DB` database. Mongo's repo/searcher take `auth` directly.
+#[cfg(feature = "mongo")]
+async fn make_entity(_dir: &str, name: &str, auth: Arc<dyn Auth>) -> Entity {
+    let uri = std::env::var("MONGO_URL").expect("MONGO_URL is required for the mongo build");
+    let db = std::env::var("MONGO_DB").unwrap_or_else(|_| "manifold".into());
+    let repo: Arc<dyn meshql_core::Repository> = Arc::new(
+        MongoRepository::new(&uri, &db, name, auth.clone())
+            .await
+            .unwrap(),
+    );
+    let searcher: Arc<dyn meshql_core::Searcher> = Arc::new(
+        MongoSearcher::new(&uri, &db, name, auth.clone())
+            .await
+            .unwrap(),
+    );
     Entity { repo, searcher }
 }
 
@@ -194,12 +221,19 @@ async fn main() -> anyhow::Result<()> {
 
     std::fs::create_dir_all(&data_dir)?;
 
-    let deployable = make_entity(&data_dir, "deployable").await;
-    let service = make_entity(&data_dir, "service").await;
-    let dependency = make_entity(&data_dir, "dependency").await;
-    let exposes = make_entity(&data_dir, "exposes").await;
-    let contract = make_entity(&data_dir, "contract").await;
-    let sla = make_entity(&data_dir, "sla").await;
+    // Built before storage: the Mongo backend takes `auth` at construction
+    // (the SQLite path ignores it). Edge-header auth via CasbinAuth — see
+    // specs/2026-05-12-trusted-header-auth-design.md.
+    let auth: Arc<dyn Auth> = Arc::new(
+        CasbinAuth::from_strings(AUTH_MODEL, AUTH_POLICY, StashKeyAuth::new("user_id")).await?,
+    );
+
+    let deployable = make_entity(&data_dir, "deployable", auth.clone()).await;
+    let service = make_entity(&data_dir, "service", auth.clone()).await;
+    let dependency = make_entity(&data_dir, "dependency", auth.clone()).await;
+    let exposes = make_entity(&data_dir, "exposes", auth.clone()).await;
+    let contract = make_entity(&data_dir, "contract", auth.clone()).await;
+    let sla = make_entity(&data_dir, "sla", auth.clone()).await;
 
     let deployable_schema_json: serde_json::Value =
         serde_json::from_str(include_str!("../config/json/deployable.schema.json"))
@@ -324,13 +358,6 @@ async fn main() -> anyhow::Result<()> {
         ],
         restlettes: vec![],
     };
-
-    // Edge-header auth: Caddy injects trusted identity headers, manifold-edge
-    // middleware lifts them into the request Stash, and CasbinAuth resolves
-    // roles via the embedded policy. See specs/2026-05-12-trusted-header-auth-design.md.
-    let auth: Arc<dyn Auth> = Arc::new(
-        CasbinAuth::from_strings(AUTH_MODEL, AUTH_POLICY, StashKeyAuth::new("user_id")).await?,
-    );
 
     let deployable_restlette = meshql_server::build_restlette_router_ext(
         "/deployable/api",
