@@ -88,4 +88,4 @@ Repeated exceptions for the same situation indicate the policy needs revision, n
 
 ## Governance
 
-Policy owned by the Director, Environment & Release Management. Reviewed annually or on material change to capex agreements, regulatory framework, or organizational structure. Advisory data and scheduling records from Conduit inform each review.
+Policy owned by the Director, Environment & Release Management. Reviewed annually or on material change to capex agreements, regulatory framework, or organizational structure. Advisory data and scheduling records from Manifold inform each review.

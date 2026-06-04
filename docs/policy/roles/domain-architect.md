@@ -1,4 +1,4 @@
-# Conduit — Domain Architect Guide
+# Manifold — Domain Architect Guide
 
 **Role:** Domain Architect (DA)
 **Policy reference:** [Environments & Release Management Policy](../environments-policy.md)
@@ -8,9 +8,9 @@
 
 You are accountable for the environment strategy and dependency correctness within your domain. You are the final decision-maker on system, environment, and dependency declarations for systems in your domain, and you own the resolution of advisories that affect those systems.
 
-## What you do in Conduit
+## What you do in Manifold
 
-| Activity (RACI) | Where in Conduit | How |
+| Activity (RACI) | Where in Manifold | How |
 |---|---|---|
 | Declare system / environment / dependency (A) | `#/systems`, `#/system/{id}` | Review and approve what SAs register; ensure domain naming, tier, and watershed choices are correct |
 | Configure environment economics (C) | `#/system/{id}` | Review cost, refresh cadence, and lead time settings that TLs/SAs set; flag discrepancies |

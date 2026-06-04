@@ -1,4 +1,4 @@
-# Conduit — Director, Environment & Release Management Guide
+# Manifold — Director, Environment & Release Management Guide
 
 **Role:** Director, Environment & Release Management (DIR)
 **Policy reference:** [Environments & Release Management Policy](../environments-policy.md)
@@ -6,11 +6,11 @@
 
 ## Your accountability in E&RM
 
-You own this policy. You are the final decision-maker on clearing releases, resolving cross-program scheduling conflicts, and decommissioning unallocated environments. You are accountable for all advisory dispositions and responsible for approving cross-utility shared environments in coordination with the EA. Conduit is your primary operational tool — every surface is relevant to your role.
+You own this policy. You are the final decision-maker on clearing releases, resolving cross-program scheduling conflicts, and decommissioning unallocated environments. You are accountable for all advisory dispositions and responsible for approving cross-utility shared environments in coordination with the EA. Manifold is your primary operational tool — every surface is relevant to your role.
 
-## What you do in Conduit
+## What you do in Manifold
 
-| Activity (RACI) | Where in Conduit | How |
+| Activity (RACI) | Where in Manifold | How |
 |---|---|---|
 | Clear release for deployment (A/R) | `#/release/{id}` | Review readiness record, resolve outstanding concerns, click Clear |
 | Mark release complete (I) | `#/releases` | Informed once PO marks complete |
@@ -58,7 +58,7 @@ Scenario: routine check of the advisory queue to ensure nothing is going stale o
 
 ### Quarterly policy review using advisory data
 
-Scenario: annual or material-change review of the E&RM policy, using Conduit data to surface patterns.
+Scenario: annual or material-change review of the E&RM policy, using Manifold data to surface patterns.
 
 1. Navigate to `#/advisories` — filter by the past quarter. Review which advisory types are most frequent.
 2. High frequency of `WatershedMismatch` → domain architects may need clearer topology guidance.

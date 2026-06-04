@@ -1,4 +1,4 @@
-# Conduit — Enterprise Architect Guide
+# Manifold — Enterprise Architect Guide
 
 **Role:** Enterprise Architect (EA)
 **Policy reference:** [Environments & Release Management Policy](../environments-policy.md)
@@ -8,9 +8,9 @@
 
 You own enterprise environment strategy and reference topology. The RACI assigns you as the single accountable voice on cross-utility shared environment approvals, and you are consulted on cross-program scheduling exceptions.
 
-## What you do in Conduit
+## What you do in Manifold
 
-| Activity (RACI) | Where in Conduit | How |
+| Activity (RACI) | Where in Manifold | How |
 |---|---|---|
 | Approve cross-utility shared environment (A) | `#/graph` and `#/system/{id}` | Review dependency topology and environment allocation; confirm the cost-allocation basis is documented before approval |
 | Authorize scheduling exception — cross-program (C) | `#/schedule` and `#/advisories` | Review the Schedule Contention advisory and Gantt context; provide written input to DIR |

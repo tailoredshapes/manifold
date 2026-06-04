@@ -1,4 +1,4 @@
-# Conduit — Tech Lead Guide
+# Manifold — Tech Lead Guide
 
 **Role:** Tech Lead (TL)
 **Policy reference:** [Environments & Release Management Policy](../environments-policy.md)
@@ -8,9 +8,9 @@
 
 You do the operational work that keeps system records accurate and releases moving: you update environment economics, declare maintenance windows, confirm your system's readiness for releases, and raise advisories when you see technical blockers. The PO is accountable for release decisions; you are accountable for the technical facts that inform those decisions.
 
-## What you do in Conduit
+## What you do in Manifold
 
-| Activity (RACI) | Where in Conduit | How |
+| Activity (RACI) | Where in Manifold | How |
 |---|---|---|
 | Configure environment economics (R) | `#/system/{id}` | Set and update cost per hour/day, refresh schedule, data config, scale notes |
 | Request environment refresh — out-of-cycle (R) | `#/system/{id}` | Record the refresh request; PO is accountable for business justification |

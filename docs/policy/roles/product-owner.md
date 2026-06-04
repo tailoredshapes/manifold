@@ -1,4 +1,4 @@
-# Conduit — Product Owner Guide
+# Manifold — Product Owner Guide
 
 **Role:** Product Owner (PO)
 **Policy reference:** [Environments & Release Management Policy](../environments-policy.md)
@@ -6,11 +6,11 @@
 
 ## Your accountability in E&RM
 
-You own the release lifecycle for your program: scheduling it, confirming business readiness, resolving objections, and marking it complete. You are also accountable for within-program scheduling exceptions and out-of-cycle refresh requests. Conduit is where you create and drive releases from start to finish.
+You own the release lifecycle for your program: scheduling it, confirming business readiness, resolving objections, and marking it complete. You are also accountable for within-program scheduling exceptions and out-of-cycle refresh requests. Manifold is where you create and drive releases from start to finish.
 
-## What you do in Conduit
+## What you do in Manifold
 
-| Activity (RACI) | Where in Conduit | How |
+| Activity (RACI) | Where in Manifold | How |
 |---|---|---|
 | Propose release (A/R) | `#/releases` | Schedule a new release, set type, window, and description |
 | Request environment refresh — out-of-cycle (A) | `#/system/{id}` | Accountable for the business case; TL performs the request |
@@ -25,7 +25,7 @@ You own the release lifecycle for your program: scheduling it, confirming busine
 
 ### Schedule a new release
 
-Scenario: you have a feature set ready for release and need to register it in Conduit to begin coordination.
+Scenario: you have a feature set ready for release and need to register it in Manifold to begin coordination.
 
 1. Navigate to `#/releases`, click **Schedule Release**.
 2. Fill in: release name, type (routine_maintenance/program_release/infrastructure_change/emergency_fix/vendor_driven), description, target window start, and target window end.
@@ -55,7 +55,7 @@ Scenario: one or more systems have objected to readiness. You need to work throu
 
 ### Mark release complete
 
-Scenario: deployment has completed and the release needs to be closed in Conduit.
+Scenario: deployment has completed and the release needs to be closed in Manifold.
 
 1. Navigate to `#/release/{id}` — confirm status is `cleared`.
 2. Verify that deployment is done and the "used and useful" determination can be made (relevant to capex milestone releases).

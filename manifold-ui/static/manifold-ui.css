@@ -25,6 +25,14 @@
   --ink-soft:   #f3f4f6;
   --ink-faint:  #e5e7eb;
 
+  /* Brand accent — borrowed from the Manifold logo (teal → cyan gradient).
+     Used sparingly: links, focus rings, active nav, selection. The ink
+     palette above stays the primary/structural colour (paperlike restraint). */
+  --accent:        #00708f;
+  --accent-strong: #015268;
+  --accent-bright: #00a0b0;
+  --accent-soft:   #d8eef4;
+
   --success:       #16a34a;
   --success-soft:  #dcfce7;
   --warn:          #f59e0b;
@@ -66,11 +74,13 @@ body {
 }
 
 a {
-  color: var(--text);
+  color: var(--accent);
   text-decoration: underline;
-  text-decoration-color: var(--text-muted);
+  text-decoration-color: var(--accent-soft);
 }
-a:hover { text-decoration-color: var(--text); }
+a:hover { color: var(--accent-strong); text-decoration-color: var(--accent); }
+
+::selection { background: var(--accent-soft); }
 
 h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
 h2 { font-size: 18px; font-weight: 600; }
@@ -163,7 +173,7 @@ nav.tabs .tab:last-child { margin-right: 0; }
 nav.tabs .tab:hover { color: var(--text); background: transparent; }
 nav.tabs .tab.active {
   color: var(--text);
-  border-bottom-color: var(--ink);
+  border-bottom-color: var(--accent);
   background: transparent;
 }
 
@@ -187,12 +197,12 @@ input[type="text"], input[type="search"], select, textarea {
   transition: border-color var(--transition), box-shadow var(--transition);
 }
 input[type="text"]:focus, input[type="search"]:focus, select:focus, textarea:focus {
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(17,24,39,0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,112,143,0.18);
 }
 button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(17,24,39,0.15);
+  box-shadow: 0 0 0 3px rgba(0,112,143,0.18);
 }
 
 button {

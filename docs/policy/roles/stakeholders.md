@@ -1,4 +1,4 @@
-# Conduit — Stakeholders Guide
+# Manifold — Stakeholders Guide
 
 **Role:** Stakeholders (SH) — Business unit leads, CIDOs, compliance, enterprise users
 **Policy reference:** [Environments & Release Management Policy](../environments-policy.md)
@@ -6,11 +6,11 @@
 
 ## Your accountability in E&RM
 
-You are primarily informed of changes that affect your programs or business units. You are occasionally consulted when a proposed change has material impact on your area. Conduit gives you a read-only view of environment health, release schedules, and active risks — without requiring you to understand the underlying event model.
+You are primarily informed of changes that affect your programs or business units. You are occasionally consulted when a proposed change has material impact on your area. Manifold gives you a read-only view of environment health, release schedules, and active risks — without requiring you to understand the underlying event model.
 
-## What you do in Conduit
+## What you do in Manifold
 
-| Activity (RACI) | Where in Conduit | How |
+| Activity (RACI) | Where in Manifold | How |
 |---|---|---|
 | Declare system / environment / dependency (I) | `#/` (Dashboard) | Informed via dashboard counts; no action required |
 | Propose release (I) | `#/releases`, `#/schedule` | View proposed and scheduled releases for your programs |

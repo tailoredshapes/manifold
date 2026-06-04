@@ -1,4 +1,4 @@
-# Conduit — Solution Architect Guide
+# Manifold — Solution Architect Guide
 
 **Role:** Solution Architect (SA)
 **Policy reference:** [Environments & Release Management Policy](../environments-policy.md)
@@ -6,11 +6,11 @@
 
 ## Your accountability in E&RM
 
-You own the accuracy of system metadata: what environments exist, what they depend on, what the system provides, and how those environments are costed and refreshed. You are the primary data entry role in Conduit for system and environment records, and you are responsible for raising advisories when you see risks the reactive system won't catch.
+You own the accuracy of system metadata: what environments exist, what they depend on, what the system provides, and how those environments are costed and refreshed. You are the primary data entry role in Manifold for system and environment records, and you are responsible for raising advisories when you see risks the reactive system won't catch.
 
-## What you do in Conduit
+## What you do in Manifold
 
-| Activity (RACI) | Where in Conduit | How |
+| Activity (RACI) | Where in Manifold | How |
 |---|---|---|
 | Declare system / environment / dependency (R) | `#/systems`, `#/system/{id}` | Register systems, add environments, declare dependency links |
 | Configure environment economics (A) | `#/system/{id}` | Set cost per hour/day, refresh schedule, lead times; accountable for this data being correct |
@@ -24,7 +24,7 @@ You own the accuracy of system metadata: what environments exist, what they depe
 
 ### Register a new system
 
-Scenario: a new system is being introduced to the program landscape and needs to be in Conduit.
+Scenario: a new system is being introduced to the program landscape and needs to be in Manifold.
 
 1. Navigate to `#/systems`, click **Create System** (or use `#/upload` to extract details from a CSA/LSA document).
 2. Fill in: name, program, domain, team, and criticality. Submit.
