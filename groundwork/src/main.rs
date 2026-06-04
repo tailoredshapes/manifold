@@ -63,6 +63,17 @@ async fn serve_cytoscape_js() -> Response {
         .into_response()
 }
 
+async fn serve_favicon() -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "image/png"),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        manifold_ui::FAVICON,
+    )
+        .into_response()
+}
+
 async fn serve_manifold_ui_css() -> Response {
     (
         [
@@ -389,6 +400,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/static/app.js", get(serve_app_js))
         .route("/static/vendor/cytoscape.min.js", get(serve_cytoscape_js))
         .route("/static/manifold-ui.css", get(serve_manifold_ui_css))
+        .route("/static/favicon.png", get(serve_favicon))
+        .route("/favicon.ico", get(serve_favicon))
         .route("/static/manifold-ui.js", get(serve_manifold_ui_js))
         .route("/health", get(health_check))
         .merge(config_route)

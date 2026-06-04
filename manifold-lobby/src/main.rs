@@ -53,6 +53,17 @@ async fn serve_app_js() -> Response {
         .into_response()
 }
 
+async fn serve_favicon() -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "image/png"),
+            (header::CACHE_CONTROL, "public, max-age=31536000, immutable"),
+        ],
+        manifold_ui::FAVICON,
+    )
+        .into_response()
+}
+
 async fn serve_manifold_ui_css() -> Response {
     (
         [
@@ -540,6 +551,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(serve_index))
         .route("/static/app.js", get(serve_app_js))
         .route("/static/manifold-ui.css", get(serve_manifold_ui_css))
+        .route("/static/favicon.png", get(serve_favicon))
+        .route("/favicon.ico", get(serve_favicon))
         .route("/static/manifold-ui.js", get(serve_manifold_ui_js))
         .route("/advisory/{id}/acknowledge", post(ack_advisory))
         .route("/advisory/{id}/dismiss", post(dismiss_advisory))

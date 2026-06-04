@@ -33,3 +33,7 @@ pub const CSS: &str = include_str!("../static/manifold-ui.css");
 /// status helpers, `crossLink`. Serve as `application/javascript` at
 /// `/static/manifold-ui.js`.
 pub const JS: &str = include_str!("../static/manifold-ui.js");
+
+/// Shared favicon (the Manifold mark, 512×512 PNG). Each app serves it at
+/// `/static/favicon.png` and `/favicon.ico` so the whole suite shares one icon.
+pub const FAVICON: &[u8] = include_bytes!("../static/favicon.png");
