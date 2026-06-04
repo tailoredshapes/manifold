@@ -13,10 +13,27 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Callable
 from urllib import request, error
+
+
+# Trusted-header identity for auth'd stacks (e.g. the public showcase, where
+# the apps require X-Manifold-User-* and the loader must write as an admin).
+# Unset (dev / no-auth) => no headers, preserving the original behaviour.
+def _auth_headers() -> dict[str, str]:
+    uid = os.environ.get("MANIFOLD_USER_ID")
+    if not uid:
+        return {}
+    return {
+        "X-Manifold-User-Id": uid,
+        "X-Manifold-User-Groups": os.environ.get("MANIFOLD_USER_GROUPS", "admin"),
+    }
+
+
+_AUTH = _auth_headers()
 
 
 # ── Envelope helper ─────────────────────────────────────────────────────────
@@ -35,7 +52,7 @@ def _payload(env: dict) -> dict:
 
 def http_json(method: str, url: str, body: dict | None = None) -> tuple[int, Any]:
     data = None
-    headers = {"Accept": "application/json"}
+    headers = {"Accept": "application/json", **_AUTH}
     if body is not None:
         data = json.dumps(body).encode()
         headers["Content-Type"] = "application/json"

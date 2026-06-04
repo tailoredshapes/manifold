@@ -1,0 +1,76 @@
+# Example edge for a PUBLIC, READ-ONLY Manifold showcase
+# (e.g. https://manifold.tailoredshapes.com, behind Cloudflare).
+#
+# Path-mode single origin: every app under /<app>/. No SSO — the site is
+# public. Instead of authenticating a real user, the edge stamps a FIXED
+# read-only demo identity onto every request:
+#
+#   X-Manifold-User-Id:     demo@manifold.tailoredshapes.com
+#   X-Manifold-User-Groups: viewer
+#
+# `viewer` maps to read-only in each app's Casbin policy (`p, viewer, /*, read`),
+# so visitors can browse the whole graph but cannot create/edit/delete. No
+# policy or image change is needed — the role already ships.
+#
+# TLS terminates at Cloudflare; Caddy listens plain behind the CF tunnel/proxy.
+# Seed the demo data first with an admin identity (see the runbook):
+#   docs note: caddy/SHOWCASE.md
+#
+# Pair with path-form public URLs on each app:
+#   GROUNDWORK_PUBLIC_URL=https://manifold.tailoredshapes.com/groundwork   (etc.)
+#   MANIFOLD_PUBLIC_URL=https://manifold.tailoredshapes.com
+{
+	auto_https off
+}
+
+# Fixed read-only demo identity, shared into every upstream (header_up is only
+# valid inside reverse_proxy).
+(demo_identity) {
+	header_up X-Manifold-User-Id "demo@manifold.tailoredshapes.com"
+	header_up X-Manifold-User-Groups "viewer"
+}
+
+:8080 {
+	# Trailing-slash redirects so bare /<app> resolves to /<app>/.
+	redir /groundwork /groundwork/ 308
+	redir /union /union/ 308
+	redir /cityhall /cityhall/ 308
+	redir /yard /yard/ 308
+	redir /lobby /lobby/ 308
+
+	handle /groundwork/* {
+		uri strip_prefix /groundwork
+		reverse_proxy groundwork:3000 {
+			import demo_identity
+		}
+	}
+	handle /union/* {
+		uri strip_prefix /union
+		reverse_proxy union:3000 {
+			import demo_identity
+		}
+	}
+	handle /cityhall/* {
+		uri strip_prefix /cityhall
+		reverse_proxy cityhall:3000 {
+			import demo_identity
+		}
+	}
+	handle /yard/* {
+		uri strip_prefix /yard
+		reverse_proxy yard:3000 {
+			import demo_identity
+		}
+	}
+	handle /lobby/* {
+		uri strip_prefix /lobby
+		reverse_proxy manifold-lobby:3000 {
+			import demo_identity
+		}
+	}
+
+	# Bare origin -> default app (swap for a landing page when one exists).
+	handle / {
+		redir * /groundwork/ 302
+	}
+}
