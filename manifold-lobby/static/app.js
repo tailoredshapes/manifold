@@ -2,7 +2,7 @@
 //
 // openModal (canonical promise-based pattern) is shared via manifold-ui.
 
-import { openModal, loadManifoldConfig, crossLink } from './manifold-ui.js';
+import { openModal, loadManifoldConfig, crossLink, apiUrl } from './manifold-ui.js';
 
 /**
  * @typedef {object} Advisory
@@ -95,7 +95,7 @@ const SAVED_VIEWS = [
  * @returns {Promise<any>}
  */
 async function gql(path, query) {
-  const r = await fetch(path, {
+  const r = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query }),
@@ -134,7 +134,7 @@ async function loadComments(advisoryId) {
  * @returns {Promise<Response>}
  */
 async function post(path, body) {
-  const r = await fetch(path, {
+  const r = await fetch(apiUrl(path), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body || {}),
