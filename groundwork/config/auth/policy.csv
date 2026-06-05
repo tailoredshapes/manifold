@@ -14,3 +14,4 @@ p, viewer, /*, read
 # Group bindings (g): user -> role
 # Dev synthetic identity; production customers populate via their Caddyfile.
 g, alice@example.dev, admin
+g, demo@manifold.tailoredshapes.com, viewer

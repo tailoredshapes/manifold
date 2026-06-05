@@ -11,4 +11,5 @@ p, automation:lobby-derive,    /*, *
 
 # Dev synthetic identity — production overrides via Caddyfile / Easy Auth.
 g, alice@example.dev, admin
+g, demo@manifold.tailoredshapes.com, viewer
 g, lobby-system,      automation:lobby-derive
