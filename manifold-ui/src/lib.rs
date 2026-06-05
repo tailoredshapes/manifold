@@ -37,3 +37,26 @@ pub const JS: &str = include_str!("../static/manifold-ui.js");
 /// Shared favicon (the Manifold mark, 512×512 PNG). Each app serves it at
 /// `/static/favicon.png` and `/favicon.ico` so the whole suite shares one icon.
 pub const FAVICON: &[u8] = include_bytes!("../static/favicon.png");
+
+/// Inject a `<base href="<prefix>/">` into an app's index HTML so the relative
+/// asset references (`static/app.js`, …) resolve under the app's path prefix
+/// even when the page is loaded WITHOUT a trailing slash — e.g. a link to
+/// `/groundwork` (not `/groundwork/`), where relative paths would otherwise
+/// resolve against the origin root and 404.
+///
+/// The prefix comes from `MANIFOLD_BASE_PATH` (e.g. `/groundwork`). In domain
+/// mode it's unset/empty and the HTML is returned unchanged.
+pub fn index_html(raw: &str) -> String {
+    let base = std::env::var("MANIFOLD_BASE_PATH").unwrap_or_default();
+    let base = base.trim().trim_end_matches('/');
+    if base.is_empty() {
+        return raw.to_string();
+    }
+    match raw.find("<head>") {
+        Some(idx) => {
+            let at = idx + "<head>".len();
+            format!("{}\n  <base href=\"{base}/\">{}", &raw[..at], &raw[at..])
+        }
+        None => raw.to_string(),
+    }
+}

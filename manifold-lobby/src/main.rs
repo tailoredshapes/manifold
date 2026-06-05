@@ -40,8 +40,8 @@ const AUTH_POLICY: &str = include_str!("../config/auth/policy.csv");
 const INDEX_HTML: &str = include_str!("../static/index.html");
 const APP_JS: &str = include_str!("../static/app.js");
 
-async fn serve_index() -> Html<&'static str> {
-    Html(INDEX_HTML)
+async fn serve_index() -> Html<String> {
+    Html(manifold_ui::index_html(INDEX_HTML))
 }
 
 async fn serve_app_js() -> Response {
