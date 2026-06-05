@@ -218,6 +218,9 @@ async fn main() -> anyhow::Result<()> {
     })
     .to_string();
 
+    // SQLite-only: the mongo build talks to Atlas and must not write to the
+    // (read-only, on Lambda) filesystem.
+    #[cfg(feature = "sqlite")]
     std::fs::create_dir_all(&data_dir)?;
 
     let deployable = make_entity(&data_dir, "deployable").await;

@@ -352,6 +352,9 @@ async fn main() -> anyhow::Result<()> {
         .parse()
         .expect("PORT must be a valid u16");
     let data_dir = std::env::var("DATA_DIR").unwrap_or_else(|_| "./data".into());
+    // SQLite-only: the mongo build talks to Atlas and must not write to the
+    // (read-only, on Lambda) filesystem.
+    #[cfg(feature = "sqlite")]
     std::fs::create_dir_all(&data_dir)?;
 
     // Cross-app public URLs — published via /config.json so the frontend can
