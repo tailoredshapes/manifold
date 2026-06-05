@@ -10,6 +10,8 @@ axum             = "0.7"
 tower            = "0.5"
 http             = "1"
 serde_json       = { workspace = true }
+moka             = { version = "0.12", features = ["future"] }
+bytes            = "1"
 
 [dev-dependencies]
 tokio          = { workspace = true }

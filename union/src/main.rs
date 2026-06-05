@@ -6,7 +6,7 @@ use axum::{
     routing::get,
     Router,
 };
-use manifold_edge::{with_header_identity, HeaderConfig};
+use manifold_edge::{with_header_identity, with_response_cache, HeaderConfig};
 use meshql_casbin::CasbinAuth;
 use meshql_core::{Auth, GraphletteConfig, RootConfig, ServerConfig, Stash, StashKeyAuth};
 use meshql_server::{ValidatorContext, ValidatorFn};
@@ -398,6 +398,9 @@ async fn main() -> anyhow::Result<()> {
 
     let app = meshql_server::build_app_with_auth(config, auth, extra).await?;
     let app = with_header_identity(app, HeaderConfig::from_env());
+
+    // Read-through response cache (outermost; no-op unless CACHE_TTL_SECS set).
+    let app = with_response_cache(app);
     #[cfg(feature = "lambda")]
     {
         let _ = port;

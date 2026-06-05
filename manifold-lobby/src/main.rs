@@ -9,7 +9,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use manifold_edge::{with_header_identity, HeaderConfig};
+use manifold_edge::{with_header_identity, with_response_cache, HeaderConfig};
 use manifold_lobby::engine::{Engine, UserAction};
 use manifold_lobby::sources::SourceClients;
 use manifold_lobby::state::{AppState, Entity};
@@ -600,6 +600,9 @@ async fn main() -> anyhow::Result<()> {
 
     let app = meshql_server::build_app_with_auth(config, auth, custom).await?;
     let app = with_header_identity(app, HeaderConfig::from_env());
+
+    // Read-through response cache (outermost; no-op unless CACHE_TTL_SECS set).
+    let app = with_response_cache(app);
 
     // One-shot Meridian programs seed (idempotent — no-op if any program
     // already exists). Best-effort; failure is logged and doesn't block the

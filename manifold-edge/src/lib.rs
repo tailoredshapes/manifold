@@ -169,6 +169,133 @@ pub fn build_stash(headers: &HeaderMap, cfg: &HeaderConfig) -> Stash {
     stash
 }
 
+// ── Read-through response cache ─────────────────────────────────────────────
+//
+// A per-instance, TTL'd in-memory cache for READ responses. For a read-only
+// deployment (writes blocked at the edge) this takes the database out of the
+// hot path: each warm instance hits the store at most once per distinct read
+// per TTL window. Enabled only when `CACHE_TTL_SECS` is set (> 0); unset = a
+// transparent pass-through, so normal deployments are unaffected.
+//
+// Cacheable = `GET`, or `POST` to a `/graph` path (GraphQL queries). Restlette
+// writes (`POST/PUT/PATCH/DELETE` on `/api`) pass straight through. The key
+// includes the raw identity headers so callers with different roles never share
+// an entry, and (for POST) the request body so different queries don't collide.
+// Error responses are never cached — including GraphQL 200s whose body carries
+// an `errors` array — so a transient overload can't get pinned for the TTL.
+
+use axum::body::{to_bytes, Body};
+use axum::http::{header::CONTENT_TYPE, HeaderValue, Method, StatusCode};
+use axum::middleware::from_fn;
+use bytes::Bytes;
+use std::sync::{Arc, LazyLock};
+use std::time::Duration;
+
+struct CachedResponse {
+    status: StatusCode,
+    content_type: Option<HeaderValue>,
+    body: Bytes,
+}
+
+static RESPONSE_CACHE: LazyLock<Option<moka::future::Cache<String, Arc<CachedResponse>>>> =
+    LazyLock::new(|| {
+        let ttl = std::env::var("CACHE_TTL_SECS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .unwrap_or(0);
+        if ttl == 0 {
+            return None;
+        }
+        Some(
+            moka::future::Cache::builder()
+                .time_to_live(Duration::from_secs(ttl))
+                .max_capacity(10_000)
+                .build(),
+        )
+    });
+
+/// Wrap `router` with the read-through response cache. No-op unless
+/// `CACHE_TTL_SECS` is set.
+pub fn with_response_cache<S>(router: Router<S>) -> Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    router.layer(from_fn(cache_middleware))
+}
+
+async fn cache_middleware(req: Request, next: Next) -> Response {
+    let Some(cache) = RESPONSE_CACHE.as_ref() else {
+        return next.run(req).await;
+    };
+
+    let method = req.method().clone();
+    let path = req.uri().path().to_string();
+    let is_graph = path.contains("/graph");
+    let cacheable = method == Method::GET || (method == Method::POST && is_graph);
+    if !cacheable {
+        return next.run(req).await;
+    }
+
+    let query = req.uri().query().unwrap_or("").to_string();
+    let hdr = |h: &HeaderMap, n: &str| {
+        h.get(n)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string()
+    };
+    let uid = hdr(req.headers(), "x-manifold-user-id");
+    let grp = hdr(req.headers(), "x-manifold-user-groups");
+
+    // Buffer the request body (needed in the key for POST graph queries).
+    let (parts, body) = req.into_parts();
+    let body_bytes = if method == Method::POST {
+        to_bytes(body, 1 << 20).await.unwrap_or_default()
+    } else {
+        Bytes::new()
+    };
+    let key = format!(
+        "{method}|{path}?{query}|{uid}|{grp}|{}",
+        String::from_utf8_lossy(&body_bytes)
+    );
+
+    if let Some(hit) = cache.get(&key).await {
+        let mut b = Response::builder()
+            .status(hit.status)
+            .header("x-manifold-cache", "hit");
+        if let Some(ct) = &hit.content_type {
+            b = b.header(CONTENT_TYPE, ct);
+        }
+        return b.body(Body::from(hit.body.clone())).unwrap();
+    }
+
+    let req = Request::from_parts(parts, Body::from(body_bytes));
+    let resp = next.run(req).await;
+    let (rparts, rbody) = resp.into_parts();
+    let rbytes = to_bytes(rbody, 8 << 20).await.unwrap_or_default();
+
+    // Never cache errors: non-2xx, or a GraphQL 200 carrying an `errors` array.
+    let graph_error = is_graph
+        && rbytes.windows(9).any(|w| w == b"\"errors\":")
+        && !rbytes.windows(13).any(|w| w == b"\"errors\":null");
+    if rparts.status.is_success() && !graph_error {
+        cache
+            .insert(
+                key,
+                Arc::new(CachedResponse {
+                    status: rparts.status,
+                    content_type: rparts.headers.get(CONTENT_TYPE).cloned(),
+                    body: rbytes.clone(),
+                }),
+            )
+            .await;
+    }
+
+    let mut out = Response::from_parts(rparts, Body::from(rbytes));
+    out.headers_mut()
+        .insert("x-manifold-cache", HeaderValue::from_static("miss"));
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
