@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manifold — fleet status</title>
+  <meta name="description" content="Executive overview of the Manifold reference platform — service catalog, team staffing, deployment governance, and test coordination, federated over one graph.">
+  <style>
+    /* Design tokens — copied from manifold-ui so the landing page matches
+       the suite's editorial-paper aesthetic. The landing dir is its own
+       origin (Caddy serves the static files directly), so we can't import
+       /static/manifold-ui.css; the relevant tokens are inlined here. */
+    :root {
+      --bg:          #f9fafb;
+      --surface:     #ffffff;
+      --surface-alt: #f3f4f6;
+      --text:        #111827;
+      --text-muted:  #6b7280;
+      --text-soft:   #9ca3af;
+      --border:      #e5e7eb;
+      --border-strong: #d1d5db;
+      --ink:         #111827;
+      --success:     #16a34a;
+      --success-soft:#dcfce7;
+      --warn:        #f59e0b;
+      --warn-soft:   #fef3c7;
+      --danger:      #dc2626;
+      --danger-soft: #fee2e2;
+
+      --radius:      8px;
+      --radius-sm:   6px;
+      --gutter:      24px;
+      --shadow-sm:   0 1px 2px rgba(17,24,39,0.04);
+      --shadow-md:   0 4px 12px rgba(17,24,39,0.06);
+      --transition:  120ms ease;
+
+      --font-sans:  ui-sans-serif, system-ui, -apple-system, "SF Pro Text", "Inter", sans-serif;
+      --font-mono:  ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+      --font-serif: "Iowan Old Style", "Palatino", Georgia, serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 3rem 1.5rem 4rem;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .page {
+      max-width: 1080px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1.5rem;
+      margin-bottom: 2.5rem;
+      flex-wrap: wrap;
+    }
+    .wordmark {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .tagline {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      margin-top: 0.375rem;
+    }
+    .ts-meta {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── KPI tiles ────────────────────────────────────────────────────── */
+    .section-label {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 0.875rem;
+    }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    .kpi {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 1rem 1.125rem 1.125rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      text-decoration: none;
+      color: inherit;
+      transition: box-shadow var(--transition), border-color var(--transition);
+    }
+    .kpi[href]:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--border-strong);
+    }
+    .kpi-label {
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+    .kpi-figure {
+      font-family: var(--font-serif);
+      font-size: 1.875rem;
+      line-height: 1.1;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi-figure .denom {
+      color: var(--text-soft);
+      font-size: 1.125rem;
+      margin-left: 2px;
+    }
+    .kpi-figure .currency {
+      color: var(--text-soft);
+      font-size: 1rem;
+      margin-right: 1px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+    }
+    .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .kpi.gap  .kpi-figure { color: var(--danger); }
+    .kpi.gap  .kpi-sub    { color: var(--danger); }
+    .kpi.warn .kpi-figure { color: var(--warn); }
+    .kpi.warn .kpi-sub    { color: var(--warn); }
+
+    .kpi-skeleton {
+      display: inline-block;
+      width: 3rem;
+      height: 1.125rem;
+      background: var(--surface-alt);
+      border-radius: 3px;
+    }
+
+    /* ── Watch-list grid (top failure-prone envs, slow syncs, etc.) ──── */
+    .watchlists {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-bottom: 3rem;
+    }
+    .watchlist {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-sm);
+      padding: 1rem 1.125rem 1.125rem;
+    }
+    .watchlist .wl-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+    .watchlist h3 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+    .watchlist .wl-link {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+      text-decoration: none;
+    }
+    .watchlist .wl-link:hover { color: var(--text); }
+    .watchlist ol {
+      list-style: none;
+      counter-reset: wl;
+    }
+    .watchlist li {
+      counter-increment: wl;
+      display: grid;
+      grid-template-columns: 1.25rem 1fr auto;
+      gap: 0.5rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--surface-alt);
+      font-size: 0.8125rem;
+      align-items: baseline;
+    }
+    .watchlist li:last-child { border-bottom: none; }
+    .watchlist li::before {
+      content: counter(wl);
+      color: var(--text-soft);
+      font-variant-numeric: tabular-nums;
+      font-size: 0.75rem;
+    }
+    .watchlist li .target {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--text);
+    }
+    .watchlist li .target a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    .watchlist li .target a:hover { text-decoration: underline; }
+    .watchlist li .meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .watchlist .wl-empty {
+      padding: 0.875rem 0;
+      font-size: 0.8125rem;
+      color: var(--text-soft);
+      font-style: italic;
+    }
+    .watchlist .wl-error {
+      padding: 0.875rem 0;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    /* ── Status banner (cross-origin warning if fetches fail) ──────────── */
+    .banner {
+      padding: 0.75rem 1rem;
+      border-left: 3px solid var(--warn);
+      background: var(--warn-soft);
+      color: #78350f;
+      font-size: 0.8125rem;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+    .banner.show { display: block; }
+
+    /* ── Secondary section: tour + apps (preserved orientation surface) ── */
+    .section-heading {
+      font-size: 0.6875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      font-weight: 600;
+      margin-bottom: 1rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border);
+    }
+    .intro {
+      font-size: 0.9375rem;
+      line-height: 1.65;
+      color: #374151;
+      margin-bottom: 0.75rem;
+      max-width: 56rem;
+    }
+    .intro + .intro { margin-bottom: 1.5rem; }
+    .intro code {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      background: var(--surface-alt);
+      padding: 0.0625rem 0.3125rem;
+      border-radius: 3px;
+    }
+    .demo-note {
+      font-size: 0.8125rem;
+      line-height: 1.55;
+      color: var(--text-muted);
+      border-left: 3px solid var(--border-strong);
+      padding: 0.5rem 0 0.5rem 1rem;
+      margin-bottom: 2rem;
+      max-width: 56rem;
+    }
+    .tour {
+      counter-reset: tour;
+      list-style: none;
+      margin-bottom: 2rem;
+      max-width: 56rem;
+    }
+    .tour li {
+      counter-increment: tour;
+      position: relative;
+      padding-left: 2.25rem;
+      padding-bottom: 1rem;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+      color: #374151;
+    }
+    .tour li::before {
+      content: counter(tour);
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 1px solid var(--border-strong);
+      border-radius: 50%;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+    .tour code {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      background: var(--surface-alt);
+      padding: 0.0625rem 0.3125rem;
+      border-radius: 3px;
+    }
+    .apps {
+      display: grid;
+      gap: 0;
+      margin-bottom: 1.5rem;
+    }
+    .app {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      padding: 1rem 0;
+      border-bottom: 1px solid var(--surface-alt);
+      text-decoration: none;
+      color: inherit;
+      transition: opacity 120ms;
+    }
+    .app:hover { opacity: 0.7; }
+    .app:last-child { border-bottom: none; }
+    .app-name {
+      font-size: 1.0625rem;
+      font-weight: 600;
+      min-width: 7rem;
+      color: var(--text);
+    }
+    .app-desc {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .footer {
+      margin-top: 2.5rem;
+      font-size: 0.8125rem;
+      color: var(--text-soft);
+      border-top: 1px solid var(--border);
+      padding-top: 1.5rem;
+      line-height: 1.55;
+    }
+    .footer a {
+      color: inherit;
+      text-decoration: underline;
+      text-decoration-color: var(--border-strong);
+      text-underline-offset: 2px;
+    }
+
+    @media (max-width: 560px) {
+      .kpis { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <header>
+      <div>
+        <div class="wordmark">Manifold</div>
+        <div class="tagline">Reference IDP — Meridian Freight Solutions demo</div>
+      </div>
+      <div class="ts-meta">
+        Refreshed <span id="refreshed-at">just now</span>
+      </div>
+    </header>
+
+    <div id="cors-banner" class="banner" role="status" aria-live="polite">
+      Some sub-app graphs didn't respond — KPIs may be partial. Check that
+      <code>groundwork / union / cityhall / yard / lobby</code> are reachable.
+    </div>
+
+    <div class="section-label">Fleet status</div>
+    <div class="kpis" id="kpis">
+      <!-- KPI tiles render here on load -->
+    </div>
+
+    <div class="section-label">Watch list</div>
+    <div class="watchlists" id="watchlists">
+      <!-- Watch-list cards render here on load -->
+    </div>
+
+    <div class="section-heading">First time here? Suggested tour</div>
+    <p class="intro">
+      Four federated tools for managing the full lifecycle of software deployments at a mid-size engineering organization:
+      a service catalog with a dependency graph (<strong>Groundwork</strong>),
+      a team-staffing dashboard (<strong>Union</strong>),
+      a deployment-planner with governance bylaws (<strong>Cityhall</strong>),
+      and a test-environment coordinator (<strong>Yard</strong>),
+      plus an advisory tier surfacing cross-federation concerns (<strong>Lobby</strong>).
+      Each app reads from one federated graph; cross-app links and shared IDs work everywhere.
+    </p>
+
+    <div class="demo-note">
+      Demo data against a fictional logistics company, <strong>Meridian Freight Solutions</strong> — 30 microservices,
+      17 people across 5 teams, 100+ test runs, with the dependency cycles, deployment freezes, and stretched teams
+      you'd expect to see in real production data. No authentication, no persistence guarantees; everything
+      resets when the seed runs.
+    </div>
+
+    <ol class="tour">
+      <li>
+        Start in <strong>Groundwork</strong>. Browse the deployable catalog; the <em>Graph</em> tab gives you the
+        dependency network. Nodes coloured by deployment status, edges by criticality. Click a deployable to see
+        its services, dependents, test environments, and a focused subgraph of its neighbourhood.
+      </li>
+      <li>
+        Follow a deployable's team badge to <strong>Union</strong>. From the Work board, click a card's
+        <code>cr:</code> link to follow the work order into <strong>Cityhall</strong> as a change request.
+      </li>
+      <li>
+        In <strong>Cityhall</strong>, the <em>Org</em> tab shows the bylaw cascade through the Meridian hierarchy.
+        The <em>Plans</em> tab renders a deployment Gantt for each change request — including, where applicable,
+        a highlighted graph of any dependency cycle the planner found.
+      </li>
+      <li>
+        In <strong>Yard</strong>, browse test environments by cost and spinup time, follow a recent test run back to
+        the change request that triggered it, or open <em>Lifecycle</em> for data freshness and the reset planner.
+      </li>
+      <li>
+        <strong>Lobby</strong> aggregates concerns derived from the federation — blocked upstreams, dependency
+        cycles, undocumented interfaces, missing environments — with an append-only lifecycle and saved views.
+      </li>
+    </ol>
+
+    <div class="section-heading">Apps</div>
+    <div class="apps">
+      <a href="https://groundwork.tildarc.com" class="app">
+        <span class="app-name">Groundwork</span>
+        <span class="app-desc">Service catalog &mdash; deployables, services, dependencies, contracts, and SLAs, with an interactive dependency graph.</span>
+      </a>
+      <a href="https://union.tildarc.com" class="app">
+        <span class="app-name">Union</span>
+        <span class="app-desc">Team staffing &mdash; people, capacity in story points, and a kanban work board linking to deployables and change requests.</span>
+      </a>
+      <a href="https://cityhall.tildarc.com" class="app">
+        <span class="app-name">Cityhall</span>
+        <span class="app-desc">Deployment planning &mdash; org hierarchy, cascading bylaws (Approval / Window / Quiesce / Freeze gates), Mermaid Gantt output.</span>
+      </a>
+      <a href="https://yard.tildarc.com" class="app">
+        <span class="app-name">Yard</span>
+        <span class="app-desc">Test coordination &mdash; environments, infrastructure cost, mock and data sources, data syncs, lifecycle / reset planner, and run history.</span>
+      </a>
+      <a href="https://lobby.tildarc.com" class="app">
+        <span class="app-name">Lobby</span>
+        <span class="app-desc">Advisory tier &mdash; derived concerns across the federation (blocked upstreams, dependency cycles, undocumented interfaces, schedule contention) with append-only lifecycle.</span>
+      </a>
+    </div>
+
+    <div class="footer">
+      Built by <a href="https://tildarc.com">Tailored Shapes</a>. Source on <a href="https://github.com/tsmarsh/manifold">GitHub</a>.
+      Each app runs <code>/</code> to focus search and <code>n</code> to create a new record &mdash; the same keyboard grammar across the suite.
+    </div>
+  </div>
+
+  <script type="module">
+    // Manifold landing — live executive dashboard.
+    //
+    // Fetches read-only data from all five apps' /graph endpoints in parallel
+    // and renders KPI tiles + watch-lists. Cross-origin: each subdomain has
+    // CORS open on meshql-server and the system Caddy injects the synthetic
+    // X-Manifold-User-Id header upstream, so the browser doesn't need to send
+    // auth identity itself.
+    //
+    // Per-app failures are tolerated: each fetch .catch()es and the tiles
+    // dependent on that data render with a "—" or empty list. A top-of-page
+    // banner appears if ANY fetch failed.
+
+    const APPS = {
+      groundwork: 'https://groundwork.tildarc.com',
+      union:      'https://union.tildarc.com',
+      cityhall:   'https://cityhall.tildarc.com',
+      yard:       'https://yard.tildarc.com',
+      lobby:      'https://lobby.tildarc.com',
+    };
+
+    let anyFailure = false;
+
+    /**
+     * @param {string} base
+     * @param {string} entity   - e.g. "deployable"
+     * @param {string} query    - inside the outer braces, e.g. "{ getAll { id name } }"
+     * @returns {Promise<any>}
+     */
+    async function gql(base, entity, query) {
+      try {
+        const r = await fetch(`${base}/${entity}/graph`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
+        });
+        if (!r.ok) throw new Error(`${r.status}`);
+        const j = await r.json();
+        if (j.errors && j.errors.length) throw new Error(j.errors[0].message || 'graph error');
+        return j.data;
+      } catch (e) {
+        anyFailure = true;
+        return null;
+      }
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    /**
+     * Render a KPI tile.
+     * @param {object} spec
+     * @param {string} spec.label
+     * @param {string} spec.figureHtml  - already-escaped/marked-up figure
+     * @param {string} [spec.sub]       - small annotation under the figure
+     * @param {string} [spec.href]      - if present, tile is a link
+     * @param {'gap' | 'warn' | ''} [spec.tone]
+     * @returns {string} HTML
+     */
+    function kpiHtml({ label, figureHtml, sub = '', href = '', tone = '' }) {
+      const tag = href ? 'a' : 'div';
+      const attrs = href ? ` href="${esc(href)}"` : '';
+      const cls = `kpi${tone ? ' ' + tone : ''}`;
+      return `<${tag} class="${cls}"${attrs}>
+        <span class="kpi-label">${esc(label)}</span>
+        <span class="kpi-figure">${figureHtml}</span>
+        ${sub ? `<span class="kpi-sub">${esc(sub)}</span>` : ''}
+      </${tag}>`;
+    }
+
+    /**
+     * @param {object} spec
+     * @param {string} spec.label
+     * @param {string} spec.linkHref
+     * @param {string} spec.linkText
+     * @param {Array<{label: string, href?: string, meta?: string}>} spec.items
+     * @param {string} [spec.emptyText]
+     * @param {boolean} [spec.errored]
+     */
+    function watchlistHtml({ label, linkHref, linkText, items, emptyText = 'Nothing flagged.', errored = false }) {
+      const body = errored
+        ? `<div class="wl-error">Could not load.</div>`
+        : items.length === 0
+          ? `<div class="wl-empty">${esc(emptyText)}</div>`
+          : `<ol>${items.map(i => `
+              <li>
+                <span class="target">${i.href ? `<a href="${esc(i.href)}">${esc(i.label)}</a>` : esc(i.label)}</span>
+                ${i.meta ? `<span class="meta">${esc(i.meta)}</span>` : '<span></span>'}
+              </li>`).join('')}</ol>`;
+      return `<div class="watchlist">
+        <div class="wl-head">
+          <h3>${esc(label)}</h3>
+          <a class="wl-link" href="${esc(linkHref)}">${esc(linkText)} →</a>
+        </div>
+        ${body}
+      </div>`;
+    }
+
+    function setKpis(html) {
+      document.getElementById('kpis').innerHTML = html;
+    }
+    function setWatchlists(html) {
+      document.getElementById('watchlists').innerHTML = html;
+    }
+    function showBannerIfNeeded() {
+      const b = document.getElementById('cors-banner');
+      if (anyFailure) b.classList.add('show');
+    }
+    function setRefreshedAt() {
+      document.getElementById('refreshed-at').textContent =
+        new Date().toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Naive monthly-cost estimate: sum(cost_per_hour × 730) across envs.
+    // 730 ≈ hours/month if always-on. This is an UPPER bound — sandboxes
+    // that spin up on demand cost less in practice — but for an executive
+    // tile "max if always-on" is the safer number to surface.
+    function monthlyCostUpperBound(envs) {
+      let total = 0;
+      for (const e of envs) {
+        const n = parseFloat(e.cost_per_hour);
+        if (Number.isFinite(n)) total += n * 730;
+      }
+      return total;
+    }
+
+    function fmtMoney(n) {
+      if (n < 1000) return `${n.toFixed(0)}`;
+      if (n < 1_000_000) return `${(n / 1000).toFixed(1)}k`;
+      return `${(n / 1_000_000).toFixed(2)}M`;
+    }
+
+    // Top-N envs by failed-run count. Reads testRuns where status==='failed'
+    // and groups by test_environment_id. Returns [{envId, envName, failedCount}].
+    function failureProneEnvs(runs, envs, n = 5) {
+      const counts = new Map();
+      for (const r of runs) {
+        if (r.status !== 'failed' && r.status !== 'errored') continue;
+        const id = r.test_environment_id;
+        if (!id) continue;
+        counts.set(id, (counts.get(id) || 0) + 1);
+      }
+      const envById = new Map(envs.map(e => [e.id, e]));
+      return [...counts.entries()]
+        .map(([id, count]) => ({ id, count, name: envById.get(id)?.name || id.slice(0, 8) }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, n);
+    }
+
+    // Top-N slowest data syncs by estimated_minutes (descending).
+    function slowestSyncs(syncs, envs, n = 5) {
+      const envById = new Map(envs.map(e => [e.id, e]));
+      return syncs
+        .map(s => ({
+          id: s.id,
+          minutes: parseFloat(s.estimated_minutes),
+          target: envById.get(s.target_env_id)?.name || s.target_env_id,
+          source: s.source_env_id
+            ? `env ${envById.get(s.source_env_id)?.name || s.source_env_id.slice(0, 8)}`
+            : (s.source_data_id ? 'data source' : '—'),
+        }))
+        .filter(s => Number.isFinite(s.minutes) && s.minutes > 0)
+        .sort((a, b) => b.minutes - a.minutes)
+        .slice(0, n);
+    }
+
+    // Uncontracted services in use: services that have ≥1 dependency on them
+    // but no contract registered. Sorted by dependent count desc.
+    function uncontractedInUse(services, dependencies, contracts, exposes, deployables, n = 5) {
+      const usedIds = new Set(dependencies.map(d => d.service_id));
+      const contractedIds = new Set(contracts.map(c => c.service_id));
+      const usedNoContract = services.filter(s => usedIds.has(s.id) && !contractedIds.has(s.id));
+      const depCount = new Map();
+      for (const d of dependencies) {
+        depCount.set(d.service_id, (depCount.get(d.service_id) || 0) + 1);
+      }
+      return usedNoContract
+        .map(s => ({ id: s.id, name: s.name || s.id.slice(0, 8), count: depCount.get(s.id) || 0 }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, n);
+    }
+
+    // Count envs whose freshness state is 'never' or 'overdue' — same logic
+    // yard's Lifecycle screen uses. A sync is overdue when its target env's
+    // most recent succeeded SyncRun is older than the refresh_policy interval
+    // (only the `periodic` policy maps to a 24h window; others are "on demand").
+    function envsNeedingRefresh(envs, dataSyncs, syncRuns) {
+      const latestByEnv = new Map();
+      for (const r of syncRuns) {
+        if (r.status !== 'succeeded' || !r.finished_at) continue;
+        const prev = latestByEnv.get(r.target_env_id);
+        if (!prev || r.finished_at > prev.finished_at) latestByEnv.set(r.target_env_id, r);
+      }
+      const syncsByTarget = new Map();
+      for (const s of dataSyncs) {
+        if (!syncsByTarget.has(s.target_env_id)) syncsByTarget.set(s.target_env_id, []);
+        syncsByTarget.get(s.target_env_id).push(s);
+      }
+      let never = 0;
+      let overdue = 0;
+      for (const env of envs) {
+        const feeders = syncsByTarget.get(env.id) || [];
+        if (feeders.length === 0) continue; // 'unconfigured' — not the same as 'never'
+        const latest = latestByEnv.get(env.id);
+        if (!latest) { never++; continue; }
+        const hasPeriodic = feeders.some(s => s.refresh_policy === 'periodic');
+        if (!hasPeriodic) continue; // on-demand — never overdue
+        const ageHours = (Date.now() - new Date(latest.finished_at).getTime()) / 3.6e6;
+        if (ageHours > 24) overdue++;
+      }
+      return { never, overdue };
+    }
+
+    /**
+     * Run thunks with bounded concurrency, preserving result order. Keeps the
+     * landing from firing a dozen graph queries at once — gentle on a shared
+     * (free-tier) cluster that returns SystemOverloadedError under a burst.
+     * @param {Array<() => Promise<any>>} tasks
+     * @param {number} limit
+     * @returns {Promise<any[]>}
+     */
+    async function mapLimit(tasks, limit) {
+      const results = new Array(tasks.length);
+      let next = 0;
+      async function worker() {
+        while (next < tasks.length) {
+          const i = next++;
+          results[i] = await tasks[i]();
+        }
+      }
+      await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+      return results;
+    }
+
+    async function loadAndRender() {
+      // Skeletons up front so the page doesn't flash a blank pane.
+      const skel = `<span class="kpi-skeleton"></span>`;
+      const skeletonTiles = [
+        'Environments', 'Estimated monthly cost', 'Fleet pass rate',
+        'Envs needing refresh', 'CRs blocked on missing env', 'Open advisories',
+      ].map(label => kpiHtml({ label, figureHtml: skel })).join('');
+      setKpis(skeletonTiles);
+
+      // Fire every query in parallel. Per-app failures are tolerated; the
+      // gql() wrapper sets anyFailure and returns null for the tile/list to
+      // gracefully degrade.
+      const [
+        gwDeployables, gwServices, gwDependencies, gwExposes, gwContracts,
+        unTeams,
+        chChangeRequests,
+        ydEnvs, ydRuns, ydSyncs, ydSyncRuns,
+        lbAdvisories,
+      ] = await mapLimit([
+        () => gql(APPS.groundwork, 'deployable',  '{ getAll { id name } }'),
+        () => gql(APPS.groundwork, 'service',     '{ getAll { id name } }'),
+        () => gql(APPS.groundwork, 'dependency',  '{ getAll { id service_id } }'),
+        () => gql(APPS.groundwork, 'exposes',     '{ getAll { id service_id deployable_id } }'),
+        () => gql(APPS.groundwork, 'contract',    '{ getAll { id service_id } }'),
+        () => gql(APPS.union,      'team',        '{ getAll { id name } }'),
+        () => gql(APPS.cityhall,   'change_request', '{ getAll { id summary status target_deployables } }'),
+        () => gql(APPS.yard,       'test_environment', '{ getAll { id name kind cost_per_hour } }'),
+        () => gql(APPS.yard,       'test_run',         '{ getAll { id test_environment_id status started_at } }'),
+        () => gql(APPS.yard,       'data_sync',        '{ getAll { id target_env_id source_env_id source_data_id estimated_minutes refresh_policy } }'),
+        () => gql(APPS.yard,       'sync_run',         '{ getAll { id target_env_id status finished_at } }'),
+        () => gql(APPS.lobby,      'advisory',         '{ getAll { id kind severity state } }'),
+      ], 3);
+
+      // Normalize — every fetch can return null (CORS / auth / down).
+      const deployables  = gwDeployables?.getAll  || [];
+      const services     = gwServices?.getAll     || [];
+      const dependencies = gwDependencies?.getAll || [];
+      const exposes      = gwExposes?.getAll      || [];
+      const contracts    = gwContracts?.getAll    || [];
+      const envs         = ydEnvs?.getAll         || [];
+      const runs         = ydRuns?.getAll         || [];
+      const dataSyncs    = ydSyncs?.getAll        || [];
+      const syncRuns     = ydSyncRuns?.getAll     || [];
+      const advisories   = lbAdvisories?.getAll   || [];
+      const crs          = chChangeRequests?.getAll || [];
+
+      // ── KPI: fleet pass rate (last 30d) ────────────────────────────────
+      const cutoff = Date.now() - 30 * 86400_000;
+      const recentRuns = runs.filter(r => {
+        const t = Date.parse(r.started_at || '');
+        return Number.isFinite(t) && t >= cutoff && (r.status === 'passed' || r.status === 'failed' || r.status === 'errored');
+      });
+      const passed = recentRuns.filter(r => r.status === 'passed').length;
+      const passRate = recentRuns.length > 0 ? Math.round((passed / recentRuns.length) * 100) : null;
+      const passToneIsGap = passRate != null && passRate < 80;
+
+      // ── KPI: envs needing refresh ──────────────────────────────────────
+      const refresh = envsNeedingRefresh(envs, dataSyncs, syncRuns);
+      const refreshTotal = refresh.never + refresh.overdue;
+
+      // ── KPI: CRs blocked on missing env ────────────────────────────────
+      // MissingEnvironment advisories are the canonical signal per the
+      // reviewer; cross-reference is unique by subject_id but we just count
+      // open ones.
+      const missingEnvAdv = advisories.filter(a =>
+        a.kind === 'MissingEnvironment' && a.state !== 'resolved' && a.state !== 'dismissed'
+      ).length;
+
+      // ── KPI: open advisories by severity ───────────────────────────────
+      const openAdv = advisories.filter(a => a.state !== 'resolved' && a.state !== 'dismissed');
+      const criticalAdv = openAdv.filter(a => a.severity === 'critical').length;
+      const warnAdv = openAdv.filter(a => a.severity === 'warn').length;
+      const advSubParts = [];
+      if (criticalAdv) advSubParts.push(`${criticalAdv} critical`);
+      if (warnAdv)     advSubParts.push(`${warnAdv} warn`);
+
+      const tiles = [
+        kpiHtml({
+          label: 'Environments',
+          figureHtml: envs.length === 0 ? '—' : esc(String(envs.length)),
+          sub: `${dataSyncs.length} syncs · ${syncRuns.length} runs`,
+          href: 'https://yard.tildarc.com',
+        }),
+        kpiHtml({
+          label: 'Est. monthly cost',
+          figureHtml: envs.length === 0
+            ? '—'
+            : `<span class="currency">$</span>${esc(fmtMoney(monthlyCostUpperBound(envs)))}`,
+          sub: 'upper bound, always-on',
+          href: 'https://yard.tildarc.com',
+        }),
+        kpiHtml({
+          label: 'Fleet pass rate · 30d',
+          figureHtml: passRate == null
+            ? '—'
+            : `${esc(String(passRate))}<span class="denom">%</span>`,
+          sub: passRate == null ? 'no completed runs in window' : `${recentRuns.length} runs`,
+          href: 'https://yard.tildarc.com#runs',
+          tone: passToneIsGap ? 'warn' : '',
+        }),
+        kpiHtml({
+          label: 'Envs needing refresh',
+          figureHtml: envs.length === 0 ? '—' : esc(String(refreshTotal)),
+          sub: refreshTotal === 0
+            ? 'fleet fresh'
+            : `${refresh.never} never · ${refresh.overdue} overdue`,
+          href: 'https://yard.tildarc.com#lifecycle',
+          tone: refreshTotal > 0 ? 'gap' : '',
+        }),
+        kpiHtml({
+          label: 'CRs blocked: missing env',
+          figureHtml: advisories.length === 0 ? '—' : esc(String(missingEnvAdv)),
+          sub: missingEnvAdv === 0 ? 'fully covered' : 'open advisories',
+          href: 'https://lobby.tildarc.com',
+          tone: missingEnvAdv > 0 ? 'gap' : '',
+        }),
+        kpiHtml({
+          label: 'Open advisories',
+          figureHtml: advisories.length === 0 ? '—' : esc(String(openAdv.length)),
+          sub: advSubParts.join(' · ') || (openAdv.length === 0 ? 'nothing open' : ''),
+          href: 'https://lobby.tildarc.com',
+          tone: criticalAdv > 0 ? 'gap' : (openAdv.length > 0 ? 'warn' : ''),
+        }),
+      ].join('');
+      setKpis(tiles);
+
+      // ── Watch-list: top failure-prone envs ─────────────────────────────
+      const failingEnvs = failureProneEnvs(runs, envs, 5);
+      const failingHtml = watchlistHtml({
+        label: 'Most failure-prone envs',
+        linkHref: 'https://yard.tildarc.com#runs',
+        linkText: 'open Runs',
+        errored: ydRuns === null || ydEnvs === null,
+        items: failingEnvs.map(f => ({
+          label: f.name,
+          href: `https://yard.tildarc.com#environments/${f.id}`,
+          meta: `${f.count} failed`,
+        })),
+        emptyText: 'No failures recorded.',
+      });
+
+      // ── Watch-list: slowest syncs ──────────────────────────────────────
+      const slow = slowestSyncs(dataSyncs, envs, 5);
+      const slowHtml = watchlistHtml({
+        label: 'Slowest data syncs',
+        linkHref: 'https://yard.tildarc.com#sync',
+        linkText: 'open Sync',
+        errored: ydSyncs === null || ydEnvs === null,
+        items: slow.map(s => ({
+          label: `${s.source} → ${s.target}`,
+          meta: `${Math.round(s.minutes)}m`,
+        })),
+        emptyText: 'No estimates registered.',
+      });
+
+      // ── Watch-list: uncontracted services in use ───────────────────────
+      const uncov = uncontractedInUse(services, dependencies, contracts, exposes, deployables, 5);
+      const uncovHtml = watchlistHtml({
+        label: 'Uncontracted services in use',
+        linkHref: 'https://groundwork.tildarc.com#governance',
+        linkText: 'open Governance',
+        errored: gwServices === null || gwDependencies === null || gwContracts === null,
+        items: uncov.map(u => ({
+          label: u.name,
+          meta: `${u.count} dep${u.count === 1 ? '' : 's'}`,
+        })),
+        emptyText: 'Every used service has a contract.',
+      });
+
+      setWatchlists(failingHtml + slowHtml + uncovHtml);
+      setRefreshedAt();
+      showBannerIfNeeded();
+    }
+
+    loadAndRender();
+  </script>
+</body>
+</html>
