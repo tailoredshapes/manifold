@@ -217,6 +217,17 @@ export async function loadManifoldConfig(url = '/config.json') {
   } catch {
     _config = {};
   }
+  // Peer URLs in path mode are root-relative ("/yard"). Make them absolute so a
+  // cross-app call like gqlQuery(`${yard_public_url}/test_environment/graph`)
+  // isn't re-prefixed with THIS app's base by apiUrl() (which would yield
+  // /groundwork/yard/...). Domain-mode values are already absolute and pass
+  // through unchanged.
+  for (const k of Object.keys(_config)) {
+    const v = _config[k];
+    if (typeof v === 'string' && v.startsWith('/')) {
+      _config[k] = new URL(v, location.origin).href;
+    }
+  }
   applyHubLink();
 }
 
