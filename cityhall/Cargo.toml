@@ -36,12 +36,12 @@ serde            = { workspace = true }
 anyhow           = { workspace = true }
 axum             = "0.7"
 chrono           = { version = "0.4", features = ["serde"] }
-reqwest          = { version = "0.12", features = ["json"] }
+reqwest          = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 async-trait      = "0.1"
 
 [dev-dependencies]
 cucumber     = "0.21"
-reqwest      = { version = "0.12", features = ["json"] }
+reqwest      = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tokio        = { workspace = true }
 chrono       = { version = "0.4", features = ["serde"] }
 meshql-sqlite = { path = "../../meshql-rs/meshql-sqlite" }
