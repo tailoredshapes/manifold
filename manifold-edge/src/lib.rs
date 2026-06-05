@@ -45,6 +45,11 @@ pub const STASH_KEY_GROUPS: &str = "groups";
 pub struct HeaderConfig {
     pub user_id_header: HeaderName,
     pub groups_header: HeaderName,
+    /// Fallback identity applied when no user-id header is present — e.g. a
+    /// public, read-only demo with no edge auth in front. Off (None) unless
+    /// `DEMO_USER_ID` is set, so normal edge-authed deploys are unaffected.
+    pub default_user_id: Option<String>,
+    pub default_groups: Option<String>,
 }
 
 impl HeaderConfig {
@@ -56,6 +61,8 @@ impl HeaderConfig {
         Ok(Self {
             user_id_header: HeaderName::from_str(user_id_header.as_ref())?,
             groups_header: HeaderName::from_str(groups_header.as_ref())?,
+            default_user_id: None,
+            default_groups: None,
         })
     }
 
@@ -67,7 +74,13 @@ impl HeaderConfig {
             .unwrap_or_else(|_| "X-Manifold-User-Id".to_string());
         let groups = std::env::var("MANIFOLD_GROUPS_HEADER")
             .unwrap_or_else(|_| "X-Manifold-User-Groups".to_string());
-        Self::new(user, groups).expect("valid header names in env vars")
+        let mut cfg = Self::new(user, groups).expect("valid header names in env vars");
+        // Public-demo fallback: when a request carries no identity header, act
+        // as this user (e.g. a read-only `viewer`). Both unset in normal,
+        // edge-authed deploys, so behaviour there is unchanged.
+        cfg.default_user_id = std::env::var("DEMO_USER_ID").ok().filter(|s| !s.is_empty());
+        cfg.default_groups = std::env::var("DEMO_USER_GROUPS").ok().filter(|s| !s.is_empty());
+        cfg
     }
 }
 
@@ -107,12 +120,14 @@ async fn identity_middleware(
 /// outside of the axum middleware pipeline.
 pub fn build_stash(headers: &HeaderMap, cfg: &HeaderConfig) -> Stash {
     let mut stash = Stash::new();
+    let mut have_id = false;
     if let Some(id) = headers
         .get(&cfg.user_id_header)
         .and_then(|v| v.to_str().ok())
     {
         if !id.is_empty() {
             stash.insert(STASH_KEY_USER_ID.to_string(), Value::String(id.to_string()));
+            have_id = true;
         }
     }
     if let Some(groups) = headers
@@ -127,6 +142,28 @@ pub fn build_stash(headers: &HeaderMap, cfg: &HeaderConfig) -> Stash {
             .collect();
         if !parsed.is_empty() {
             stash.insert(STASH_KEY_GROUPS.to_string(), json!(parsed));
+        }
+    }
+    // No identity header (e.g. a public demo with no edge auth in front): fall
+    // back to the configured demo identity, if any. The default groups replace
+    // anything parsed above so the fallback identity is internally consistent.
+    if !have_id {
+        if let Some(def_id) = cfg.default_user_id.as_deref().filter(|s| !s.is_empty()) {
+            stash.insert(
+                STASH_KEY_USER_ID.to_string(),
+                Value::String(def_id.to_string()),
+            );
+            if let Some(def_groups) = cfg.default_groups.as_deref() {
+                let parsed: Vec<Value> = def_groups
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(|s| Value::String(s.to_string()))
+                    .collect();
+                if !parsed.is_empty() {
+                    stash.insert(STASH_KEY_GROUPS.to_string(), json!(parsed));
+                }
+            }
         }
     }
     stash
@@ -191,5 +228,39 @@ mod tests {
         h.insert("x-manifold-user-id", HeaderValue::from_static(""));
         let s = build_stash(&h, &cfg());
         assert!(s.is_empty());
+    }
+
+    #[test]
+    fn build_stash_applies_demo_default_when_no_header() {
+        let mut c = HeaderConfig::default();
+        c.default_user_id = Some("demo@manifold.tailoredshapes.com".to_string());
+        c.default_groups = Some("viewer".to_string());
+        let s = build_stash(&HeaderMap::new(), &c);
+        assert_eq!(
+            s.get(STASH_KEY_USER_ID),
+            Some(&Value::String("demo@manifold.tailoredshapes.com".to_string()))
+        );
+        let groups = s.get(STASH_KEY_GROUPS).unwrap().as_array().unwrap();
+        assert_eq!(groups, &[Value::String("viewer".to_string())]);
+    }
+
+    #[test]
+    fn build_stash_header_identity_wins_over_demo_default() {
+        let mut c = HeaderConfig::default();
+        c.default_user_id = Some("demo@manifold.tailoredshapes.com".to_string());
+        c.default_groups = Some("viewer".to_string());
+        let mut h = HeaderMap::new();
+        h.insert(
+            "x-manifold-user-id",
+            HeaderValue::from_static("alice@example.dev"),
+        );
+        h.insert("x-manifold-user-groups", HeaderValue::from_static("admin"));
+        let s = build_stash(&h, &c);
+        assert_eq!(
+            s.get(STASH_KEY_USER_ID),
+            Some(&Value::String("alice@example.dev".to_string()))
+        );
+        let groups = s.get(STASH_KEY_GROUPS).unwrap().as_array().unwrap();
+        assert_eq!(groups, &[Value::String("admin".to_string())]);
     }
 }
