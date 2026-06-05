@@ -29,6 +29,8 @@ use axum::{
 };
 use meshql_core::{AuthContext, Stash};
 use serde_json::{json, Value};
+
+mod access;
 use std::str::FromStr;
 
 /// Canonical Stash keys that downstream Auth implementations read.
@@ -50,6 +52,12 @@ pub struct HeaderConfig {
     /// `DEMO_USER_ID` is set, so normal edge-authed deploys are unaffected.
     pub default_user_id: Option<String>,
     pub default_groups: Option<String>,
+    /// Whether to trust the inbound identity headers. True for deployments
+    /// where a trusted edge (e.g. Caddy) injects them and the service isn't
+    /// directly reachable. Set false when the origin IS reachable (e.g. behind
+    /// a CDN that can be bypassed): then identity comes only from a verified
+    /// Access JWT or the demo fallback, never from forgeable headers.
+    pub trust_headers: bool,
 }
 
 impl HeaderConfig {
@@ -63,6 +71,7 @@ impl HeaderConfig {
             groups_header: HeaderName::from_str(groups_header.as_ref())?,
             default_user_id: None,
             default_groups: None,
+            trust_headers: true,
         })
     }
 
@@ -80,6 +89,12 @@ impl HeaderConfig {
         // edge-authed deploys, so behaviour there is unchanged.
         cfg.default_user_id = std::env::var("DEMO_USER_ID").ok().filter(|s| !s.is_empty());
         cfg.default_groups = std::env::var("DEMO_USER_GROUPS").ok().filter(|s| !s.is_empty());
+        // Trust inbound identity headers unless explicitly disabled. Set
+        // MANIFOLD_TRUST_HEADERS=false where the origin is directly reachable so
+        // forged X-Manifold-* headers are ignored (identity = JWT or demo only).
+        cfg.trust_headers = std::env::var("MANIFOLD_TRUST_HEADERS")
+            .map(|v| v != "false")
+            .unwrap_or(true);
         cfg
     }
 }
@@ -108,11 +123,26 @@ async fn identity_middleware(
     mut req: Request,
     next: Next,
 ) -> Response {
-    let stash = build_stash(req.headers(), &cfg);
+    // A verified Cloudflare Access JWT wins (it can't be forged); otherwise fall
+    // back to the trusted-header / demo identity.
+    let stash = match access::verify(req.headers()).await {
+        Some((email, roles)) => identity_stash(email, roles),
+        None => build_stash(req.headers(), &cfg),
+    };
     // axum's Extension<T> extractor reads `T` directly out of request
     // extensions; insert the bare value, not the wrapping Extension.
     req.extensions_mut().insert(AuthContext(stash));
     next.run(req).await
+}
+
+/// Build a Stash directly from an already-verified identity (the Access path).
+fn identity_stash(user_id: String, groups: Vec<String>) -> Stash {
+    let mut stash = Stash::new();
+    stash.insert(STASH_KEY_USER_ID.to_string(), Value::String(user_id));
+    if !groups.is_empty() {
+        stash.insert(STASH_KEY_GROUPS.to_string(), json!(groups));
+    }
+    stash
 }
 
 /// Pure function: read identity headers and produce a Stash with canonical keys.
@@ -121,27 +151,32 @@ async fn identity_middleware(
 pub fn build_stash(headers: &HeaderMap, cfg: &HeaderConfig) -> Stash {
     let mut stash = Stash::new();
     let mut have_id = false;
-    if let Some(id) = headers
-        .get(&cfg.user_id_header)
-        .and_then(|v| v.to_str().ok())
-    {
-        if !id.is_empty() {
-            stash.insert(STASH_KEY_USER_ID.to_string(), Value::String(id.to_string()));
-            have_id = true;
+    // Only read the identity headers when we trust them. When we don't (the
+    // origin is directly reachable), forged X-Manifold-* must not grant a role —
+    // identity then comes solely from a verified JWT or the demo fallback.
+    if cfg.trust_headers {
+        if let Some(id) = headers
+            .get(&cfg.user_id_header)
+            .and_then(|v| v.to_str().ok())
+        {
+            if !id.is_empty() {
+                stash.insert(STASH_KEY_USER_ID.to_string(), Value::String(id.to_string()));
+                have_id = true;
+            }
         }
-    }
-    if let Some(groups) = headers
-        .get(&cfg.groups_header)
-        .and_then(|v| v.to_str().ok())
-    {
-        let parsed: Vec<Value> = groups
-            .split(',')
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .map(|s| Value::String(s.to_string()))
-            .collect();
-        if !parsed.is_empty() {
-            stash.insert(STASH_KEY_GROUPS.to_string(), json!(parsed));
+        if let Some(groups) = headers
+            .get(&cfg.groups_header)
+            .and_then(|v| v.to_str().ok())
+        {
+            let parsed: Vec<Value> = groups
+                .split(',')
+                .map(str::trim)
+                .filter(|s| !s.is_empty())
+                .map(|s| Value::String(s.to_string()))
+                .collect();
+            if !parsed.is_empty() {
+                stash.insert(STASH_KEY_GROUPS.to_string(), json!(parsed));
+            }
         }
     }
     // No identity header (e.g. a public demo with no edge auth in front): fall
